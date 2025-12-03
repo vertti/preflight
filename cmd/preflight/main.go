@@ -63,6 +63,7 @@ var (
 	envRequired  bool
 	envMatch     string
 	envExact     string
+	envOneOf     []string
 	envHideValue bool
 	envMaskValue bool
 
@@ -93,6 +94,7 @@ func init() {
 	envCmd.Flags().BoolVar(&envRequired, "required", false, "fail if not set (allows empty)")
 	envCmd.Flags().StringVar(&envMatch, "match", "", "regex pattern to match value")
 	envCmd.Flags().StringVar(&envExact, "exact", "", "exact value required")
+	envCmd.Flags().StringSliceVar(&envOneOf, "one-of", nil, "value must be one of these (comma-separated)")
 	envCmd.Flags().BoolVar(&envHideValue, "hide-value", false, "don't show value in output")
 	envCmd.Flags().BoolVar(&envMaskValue, "mask-value", false, "show masked value (first/last 3 chars)")
 	rootCmd.AddCommand(envCmd)
@@ -167,6 +169,7 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 		Required:  envRequired,
 		Match:     envMatch,
 		Exact:     envExact,
+		OneOf:     envOneOf,
 		HideValue: envHideValue,
 		MaskValue: envMaskValue,
 		Getter:    &envcheck.RealEnvGetter{},

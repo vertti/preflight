@@ -13,6 +13,7 @@ type Check struct {
 	Required  bool      // --required: fail if undefined (allows empty)
 	Match     string    // --match: regex pattern
 	Exact     string    // --exact: exact value
+	OneOf     []string  // --one-of: value must be one of these
 	HideValue bool      // --hide-value: don't show value in output
 	MaskValue bool      // --mask-value: show first/last 3 chars
 	Getter    EnvGetter // injected for testing
@@ -65,6 +66,23 @@ func (c *Check) Run() check.Result {
 		result.Details = append(result.Details, fmt.Sprintf("value does not equal %q", c.Exact))
 		result.Err = fmt.Errorf("value does not equal %q", c.Exact)
 		return result
+	}
+
+	// --one-of: value must be one of the allowed values
+	if len(c.OneOf) > 0 {
+		found := false
+		for _, allowed := range c.OneOf {
+			if value == allowed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.Status = check.StatusFail
+			result.Details = append(result.Details, fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf))
+			result.Err = fmt.Errorf("value not in allowed list %v", c.OneOf)
+			return result
+		}
 	}
 
 	result.Status = check.StatusOK
