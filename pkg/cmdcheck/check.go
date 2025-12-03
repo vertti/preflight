@@ -22,7 +22,6 @@ func (c *Check) Run() check.Result {
 		Name: fmt.Sprintf("cmd:%s", c.Name),
 	}
 
-	// Look up the command in PATH
 	path, err := c.Runner.LookPath(c.Name)
 	if err != nil {
 		result.Status = check.StatusFail
@@ -33,7 +32,6 @@ func (c *Check) Run() check.Result {
 
 	result.Details = append(result.Details, fmt.Sprintf("path: %s", path))
 
-	// Run version command
 	args := c.VersionArgs
 	if len(args) == 0 {
 		args = []string{"--version"}
@@ -50,7 +48,6 @@ func (c *Check) Run() check.Result {
 		return result
 	}
 
-	// Parse and check version constraints
 	if c.MinVersion != nil || c.MaxVersion != nil {
 		// Combine stdout and stderr for version extraction
 		versionOutput := stdout
@@ -87,7 +84,6 @@ func (c *Check) Run() check.Result {
 		result.Details = append(result.Details, fmt.Sprintf("version: %s", stdout))
 	}
 
-	// Success
 	result.Status = check.StatusOK
 	return result
 }

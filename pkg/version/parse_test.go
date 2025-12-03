@@ -35,24 +35,27 @@ func TestParse(t *testing.T) {
 
 func TestExtract(t *testing.T) {
 	tests := []struct {
-		input string
-		want  Version
+		input   string
+		want    Version
+		wantErr bool
 	}{
-		{"v18.17.0", Version{18, 17, 0}},
-		{"node v18.17.0", Version{18, 17, 0}},
-		{"Go version 1.21.0 linux/amd64", Version{1, 21, 0}},
-		{"ffmpeg version 6.0-static", Version{6, 0, 0}},
-		{"Python 3.11.4", Version{3, 11, 4}},
+		{"v18.17.0", Version{18, 17, 0}, false},
+		{"node v18.17.0", Version{18, 17, 0}, false},
+		{"Go version 1.21.0 linux/amd64", Version{1, 21, 0}, false},
+		{"ffmpeg version 6.0-static", Version{6, 0, 0}, false},
+		{"Python 3.11.4", Version{3, 11, 4}, false},
+		{"no version here", Version{}, true},
+		{"", Version{}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := Extract(tt.input)
-			if err != nil {
-				t.Errorf("Extract(%q) error = %v", tt.input, err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Extract(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !tt.wantErr && got != tt.want {
 				t.Errorf("Extract(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
