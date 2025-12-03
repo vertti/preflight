@@ -45,9 +45,9 @@ jobs:
             done
           done
 
-      - name: Compress Linux and Windows binaries with UPX
+      - name: Compress binaries with UPX
         run: |
-          upx --best dist/preflight-linux-* dist/preflight-windows-*
+          upx --best dist/preflight-*
           ls -lh dist/
 
       - name: Create Release
