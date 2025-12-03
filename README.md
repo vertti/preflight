@@ -40,9 +40,8 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 ### In Dockerfiles
 
 ```dockerfile
-# Add preflight to your container
-RUN curl -fsSL https://github.com/vertti/preflight/releases/latest/download/preflight-linux-amd64 \
-    -o /usr/local/bin/preflight && chmod +x /usr/local/bin/preflight
+# Copy preflight from the official image (recommended)
+COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
 # Use it to verify your environment
 RUN preflight cmd node --min 18
