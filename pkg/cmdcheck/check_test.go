@@ -29,6 +29,31 @@ func TestCommandCheck_NotFound(t *testing.T) {
 	}
 }
 
+func TestCommandCheck_VersionFails(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/broken", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "", "error loading shared library", errors.New("exit 1")
+		},
+	}
+
+	c := &Check{
+		Name:   "broken",
+		Runner: runner,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+	if result.Err == nil {
+		t.Error("Err = nil, want error")
+	}
+}
+
 func TestCommandCheck_Found(t *testing.T) {
 	runner := &MockRunner{
 		LookPathFunc: func(file string) (string, error) {
