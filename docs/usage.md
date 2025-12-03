@@ -136,6 +136,70 @@ preflight file /var/log/app.log --max-size 10485760  # 10MB
 
 ---
 
+## `preflight tcp`
+
+Checks TCP connectivity to a host:port. Useful for verifying that a database, cache, or other service is reachable before starting your application.
+
+```sh
+preflight tcp <host:port> [flags]
+```
+
+### Flags
+
+| Flag              | Description                     |
+| ----------------- | ------------------------------- |
+| `--timeout <dur>` | Connection timeout (default 5s) |
+
+### Examples
+
+```sh
+# Check database is reachable
+preflight tcp localhost:5432
+
+# Check Redis with custom timeout
+preflight tcp redis:6379 --timeout 10s
+
+# Check multiple services in container startup
+preflight tcp postgres:5432 && preflight tcp redis:6379
+```
+
+### Runtime Use Cases
+
+TCP checks are most useful for **runtime validation** - ensuring services are reachable before your application starts.
+
+**Container startup scripts:**
+
+```dockerfile
+CMD ["sh", "-c", "preflight tcp postgres:5432 && ./myapp"]
+```
+
+**Kubernetes readiness probes:**
+
+```yaml
+readinessProbe:
+  exec:
+    command: ["preflight", "tcp", "redis:6379"]
+```
+
+**CI with service containers (GitHub Actions):**
+
+```yaml
+services:
+  postgres:
+    image: postgres:15
+steps:
+  - run: preflight tcp localhost:5432 --timeout 30s
+```
+
+**Docker Compose health checks:**
+
+```yaml
+healthcheck:
+  test: ["CMD", "preflight", "tcp", "db:5432"]
+```
+
+---
+
 ## CI & Container Verification
 
 Preflight can verify container images in CI pipelines, replacing ad-hoc shell scripts. These examples assume preflight is installed in the container image.
@@ -201,6 +265,12 @@ docker run myapp:latest sh -c '
 
 [FAIL] file:/missing/path
       not found
+
+[OK] tcp:localhost:5432
+      connected to localhost:5432
+
+[FAIL] tcp:localhost:9999
+      connection failed: dial tcp [::1]:9999: connect: connection refused
 ```
 
 ---
