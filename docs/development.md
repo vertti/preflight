@@ -30,6 +30,7 @@ preflight/
     check/           # Core types (Result, Status)
     cmdcheck/        # Command/binary checks
     envcheck/        # Environment variable checks
+    filecheck/       # File and directory checks
     version/         # Version parsing and comparison
 ```
 

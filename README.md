@@ -20,6 +20,7 @@ COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
 RUN preflight cmd node --min 18
 RUN preflight env DATABASE_URL --match '^postgres://'
+RUN preflight file /etc/nginx/nginx.conf --contains "worker_processes"
 ```
 
 ## Install
@@ -57,6 +58,15 @@ preflight env DATABASE_URL                       # exists and non-empty
 preflight env DATABASE_URL --match '^postgres://' # matches pattern
 preflight env NODE_ENV --exact production        # exact value
 preflight env API_KEY --mask-value               # hide in output
+```
+
+### Check files and directories
+
+```sh
+preflight file /etc/nginx/nginx.conf             # exists and readable
+preflight file /var/log/app --dir --writable     # directory is writable
+preflight file /app/config.json --not-empty      # file has content
+preflight file /etc/hosts --contains "localhost" # content check
 ```
 
 ### Output

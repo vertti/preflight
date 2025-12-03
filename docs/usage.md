@@ -79,6 +79,59 @@ preflight env API_KEY --mask-value   # shows: sk-•••xyz
 
 ---
 
+## `preflight file`
+
+Checks that a file or directory exists and meets requirements. By default, the path must exist and be readable.
+
+```sh
+preflight file <path> [flags]
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--dir` | Expect a directory (fail if it's a file) |
+| `--writable` | Check write permission |
+| `--executable` | Check execute permission |
+| `--not-empty` | File must have size > 0 |
+| `--min-size <bytes>` | Minimum file size |
+| `--max-size <bytes>` | Maximum file size |
+| `--match <pattern>` | Regex pattern to match against content |
+| `--contains <string>` | Literal string to search in content |
+| `--head <bytes>` | Limit content read to first N bytes |
+| `--mode <perms>` | Minimum permissions (e.g., `0644` passes for `0666`) |
+| `--mode-exact <perms>` | Exact permissions required |
+
+### Examples
+
+```sh
+# Basic check - exists and readable
+preflight file /etc/nginx/nginx.conf
+
+# Directory checks
+preflight file /var/log/app --dir --writable
+
+# Permission checks (minimum - file has at least these perms)
+preflight file /etc/ssl/private/key.pem --mode 0600
+
+# Permission checks (exact)
+preflight file /etc/ssl/private/key.pem --mode-exact 0600
+
+# Content checks (reads full file)
+preflight file /etc/nginx/nginx.conf --contains "worker_processes"
+preflight file /etc/hosts --match "127\.0\.0\.1"
+
+# Content checks (limited to first 1KB)
+preflight file /var/log/huge.log --contains "ERROR" --head 1024
+
+# Size constraints
+preflight file /app/data.json --not-empty
+preflight file /var/log/app.log --max-size 10485760  # 10MB
+```
+
+---
+
 ## Output Format
 
 ### Success
@@ -103,6 +156,12 @@ preflight env API_KEY --mask-value   # shows: sk-•••xyz
 
 [FAIL] env:DATABASE_URL
       value does not match pattern "^postgres://"
+
+[FAIL] file:/var/log/app
+      not writable
+
+[FAIL] file:/missing/path
+      not found
 ```
 
 ---
