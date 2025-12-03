@@ -69,12 +69,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image:
-          - alpine:3.21
-          - debian:bookworm-slim
-          - ubuntu:24.04
-          - node:22-alpine
-          - python:3.13-slim
+        include:
+          - image: alpine:3.21
+            cmd: busybox
+          - image: debian:bookworm-slim
+            cmd: dpkg
+          - image: ubuntu:24.04
+            cmd: bash
+          - image: node:22-alpine
+            cmd: node
+          - image: python:3.13-slim
+            cmd: python
     steps:
       - uses: actions/checkout@v5
 
@@ -89,6 +94,6 @@ jobs:
       - name: Test in ${{ matrix.image }}
         run: |
           docker run --rm -v $PWD/preflight:/usr/local/bin/preflight ${{ matrix.image }} sh -c '
-            preflight cmd sh &&
+            preflight cmd ${{ matrix.cmd }} &&
             echo "Container test passed: ${{ matrix.image }}"
           '
