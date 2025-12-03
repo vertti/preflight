@@ -40,6 +40,8 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 
 ### Check commands
 
+Like `which`, but verifies the binary actually runs.
+
 ```sh
 preflight cmd node                    # exists and runs
 preflight cmd node --min 18           # minimum version
