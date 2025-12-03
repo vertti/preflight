@@ -29,7 +29,8 @@ jobs:
                 output="${output}.exe"
               fi
               echo "Building ${output}..."
-              GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "dist/${output}" ./cmd/preflight
+              # CGO_ENABLED=0 produces fully static binaries (works on Alpine/musl)
+              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "dist/${output}" ./cmd/preflight
             done
           done
 
