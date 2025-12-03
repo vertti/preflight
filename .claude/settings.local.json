@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mise exec:*)",
+      "Bash(git -C /Users/vertti/dev/preflight add pkg/version/compare.go pkg/version/compare_test.go)",
+      "Bash(git -C /Users/vertti/dev/preflight commit -m \"Add version comparison\")",
+      "Bash(git -C /Users/vertti/dev/preflight add pkg/cmdcheck/)",
+      "Bash(git -C /Users/vertti/dev/preflight commit -m \"Implement version constraints\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
