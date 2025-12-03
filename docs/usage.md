@@ -10,13 +10,13 @@ preflight cmd <command> [flags]
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--min <version>` | Minimum version required (inclusive) |
-| `--max <version>` | Maximum version allowed (exclusive) |
-| `--exact <version>` | Exact version required |
-| `--match <pattern>` | Regex pattern to match against version output |
-| `--version-cmd <arg>` | Override the default `--version` argument |
+| Flag                  | Description                                   |
+| --------------------- | --------------------------------------------- |
+| `--min <version>`     | Minimum version required (inclusive)          |
+| `--max <version>`     | Maximum version allowed (exclusive)           |
+| `--exact <version>`   | Exact version required                        |
+| `--match <pattern>`   | Regex pattern to match against version output |
+| `--version-cmd <arg>` | Override the default `--version` argument     |
 
 ### Examples
 
@@ -49,14 +49,14 @@ preflight env <variable> [flags]
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--required` | Fail if not set (allows empty values) |
-| `--match <pattern>` | Regex pattern to match against value |
-| `--exact <value>` | Exact value required |
-| `--one-of <values>` | Value must be one of these (comma-separated) |
-| `--hide-value` | Don't show value in output |
-| `--mask-value` | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
+| Flag                | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `--required`        | Fail if not set (allows empty values)            |
+| `--match <pattern>` | Regex pattern to match against value             |
+| `--exact <value>`   | Exact value required                             |
+| `--one-of <values>` | Value must be one of these (comma-separated)     |
+| `--hide-value`      | Don't show value in output                       |
+| `--mask-value`      | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
 
 ### Examples
 
@@ -93,19 +93,19 @@ preflight file <path> [flags]
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--dir` | Expect a directory (fail if it's a file) |
-| `--writable` | Check write permission |
-| `--executable` | Check execute permission |
-| `--not-empty` | File must have size > 0 |
-| `--min-size <bytes>` | Minimum file size |
-| `--max-size <bytes>` | Maximum file size |
-| `--match <pattern>` | Regex pattern to match against content |
-| `--contains <string>` | Literal string to search in content |
-| `--head <bytes>` | Limit content read to first N bytes |
-| `--mode <perms>` | Minimum permissions (e.g., `0644` passes for `0666`) |
-| `--mode-exact <perms>` | Exact permissions required |
+| Flag                   | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `--dir`                | Expect a directory (fail if it's a file)             |
+| `--writable`           | Check write permission                               |
+| `--executable`         | Check execute permission                             |
+| `--not-empty`          | File must have size > 0                              |
+| `--min-size <bytes>`   | Minimum file size                                    |
+| `--max-size <bytes>`   | Maximum file size                                    |
+| `--match <pattern>`    | Regex pattern to match against content               |
+| `--contains <string>`  | Literal string to search in content                  |
+| `--head <bytes>`       | Limit content read to first N bytes                  |
+| `--mode <perms>`       | Minimum permissions (e.g., `0644` passes for `0666`) |
+| `--mode-exact <perms>` | Exact permissions required                           |
 
 ### Examples
 
@@ -207,7 +207,7 @@ docker run myapp:latest sh -c '
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | All checks passed |
-| `1` | One or more checks failed |
+| Code | Meaning                   |
+| ---- | ------------------------- |
+| `0`  | All checks passed         |
+| `1`  | One or more checks failed |

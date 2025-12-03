@@ -27,11 +27,13 @@ RUN preflight file /etc/nginx/nginx.conf --contains "worker_processes"
 ## Install
 
 **Dockerfiles** (recommended):
+
 ```dockerfile
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 ```
 
 **Shell**:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | sh
 ```

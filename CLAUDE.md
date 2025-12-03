@@ -16,6 +16,7 @@ make fmt && make lint && make test
 ## Commit Message Style
 
 Use conventional style:
+
 - `Add X` - new feature or file
 - `Fix X` - bug fix
 - `Update X` - enhancement to existing feature
