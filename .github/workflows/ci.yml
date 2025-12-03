@@ -71,7 +71,7 @@ jobs:
       matrix:
         include:
           - image: alpine:3.21
-            cmd: busybox
+            cmd: apk
           - image: debian:bookworm-slim
             cmd: dpkg
           - image: ubuntu:24.04
