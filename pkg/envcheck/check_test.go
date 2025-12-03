@@ -202,3 +202,70 @@ func TestEnvCheck_MaskValue_Short(t *testing.T) {
 		t.Errorf("Expected fully masked short value, got: %v", result.Details)
 	}
 }
+
+func TestEnvCheck_OneOf_Pass(t *testing.T) {
+	c := &Check{
+		Name:   "NODE_ENV",
+		OneOf:  []string{"dev", "staging", "production"},
+		Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "production"}},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusOK)
+	}
+}
+
+func TestEnvCheck_OneOf_Fail(t *testing.T) {
+	c := &Check{
+		Name:   "NODE_ENV",
+		OneOf:  []string{"dev", "staging", "production"},
+		Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "test"}},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+
+	// Check error message mentions allowed values
+	found := false
+	for _, d := range result.Details {
+		if d == `value "test" not in allowed list [dev staging production]` {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected error mentioning allowed list, got: %v", result.Details)
+	}
+}
+
+func TestEnvCheck_OneOf_WithHideValue(t *testing.T) {
+	c := &Check{
+		Name:      "SECRET_ENV",
+		OneOf:     []string{"a", "b", "c"},
+		HideValue: true,
+		Getter:    &MockEnvGetter{Vars: map[string]string{"SECRET_ENV": "x"}},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+
+	// Value should be hidden in error message
+	found := false
+	for _, d := range result.Details {
+		if d == `value "[hidden]" not in allowed list [a b c]` {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected hidden value in error, got: %v", result.Details)
+	}
+}

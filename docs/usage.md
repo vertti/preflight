@@ -54,6 +54,7 @@ preflight env <variable> [flags]
 | `--required` | Fail if not set (allows empty values) |
 | `--match <pattern>` | Regex pattern to match against value |
 | `--exact <value>` | Exact value required |
+| `--one-of <values>` | Value must be one of these (comma-separated) |
 | `--hide-value` | Don't show value in output |
 | `--mask-value` | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
 
@@ -71,6 +72,9 @@ preflight env DATABASE_URL --match '^postgres://'
 
 # Exact value
 preflight env NODE_ENV --exact production
+
+# Value from allowed list
+preflight env NODE_ENV --one-of dev,staging,production
 
 # Hide sensitive values in logs
 preflight env API_KEY --hide-value   # shows: [hidden]
