@@ -26,7 +26,7 @@ Use a single, consistent tool:
 
 ```sh
 RUN preflight cmd node --min "18"
-RUN preflight env DATABASE_URL --required --regex '^postgres://'
+RUN preflight env DATABASE_URL --match '^postgres://'
 ```
 
 ## Installation
