@@ -70,16 +70,26 @@ go install github.com/vertti/preflight/cmd/preflight@latest
 
 ## Usage
 
+### `preflight cmd`
+
+Verifies a command exists on PATH and can execute. By default, runs `<command> --version` to ensure the binary actually works (catches missing shared libraries, corrupt binaries, etc.).
+
 ```sh
-# Check if a command exists and can run
+# Check if node exists and runs (executes: node --version)
 preflight cmd node
 
-# Check with version constraints
+# Check with version constraints (inclusive min, exclusive max)
 preflight cmd node --min 18 --max 22
 
-# Use custom version command (for tools that don't use --version)
-preflight cmd go --version-cmd "version"
+# Custom version command for tools that don't use --version
+preflight cmd go --version-cmd "version"        # runs: go version
+preflight cmd java --version-cmd "-version"     # runs: java -version
 ```
+
+**Flags:**
+- `--min` - Minimum version required (inclusive)
+- `--max` - Maximum version allowed (exclusive)
+- `--version-cmd` - Override the default `--version` argument
 
 ### Coming Soon
 
