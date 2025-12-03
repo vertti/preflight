@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/vertti/preflight/pkg/cmdcheck"
 	"github.com/vertti/preflight/pkg/envcheck"
 	"github.com/vertti/preflight/pkg/filecheck"
+	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/version"
 )
 
@@ -51,6 +53,13 @@ var fileCmd = &cobra.Command{
 	RunE:  runFileCheck,
 }
 
+var tcpCmd = &cobra.Command{
+	Use:   "tcp <host:port>",
+	Short: "Check TCP connectivity to a host:port",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runTCPCheck,
+}
+
 var (
 	// cmd flags
 	minVersion   string
@@ -79,6 +88,9 @@ var (
 	fileHead       int64
 	fileMode       string
 	fileModeExact  string
+
+	// tcp flags
+	tcpTimeout time.Duration
 )
 
 func init() {
@@ -112,6 +124,10 @@ func init() {
 	fileCmd.Flags().StringVar(&fileMode, "mode", "", "minimum permissions (e.g., 0644)")
 	fileCmd.Flags().StringVar(&fileModeExact, "mode-exact", "", "exact permissions required")
 	rootCmd.AddCommand(fileCmd)
+
+	// tcp subcommand
+	tcpCmd.Flags().DurationVar(&tcpTimeout, "timeout", 5*time.Second, "connection timeout")
+	rootCmd.AddCommand(tcpCmd)
 }
 
 func runCmdCheck(cmd *cobra.Command, args []string) error {
@@ -201,6 +217,24 @@ func runFileCheck(cmd *cobra.Command, args []string) error {
 		Mode:       fileMode,
 		ModeExact:  fileModeExact,
 		FS:         &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+	printResult(result)
+
+	if !result.OK() {
+		os.Exit(1)
+	}
+	return nil
+}
+
+func runTCPCheck(cmd *cobra.Command, args []string) error {
+	address := args[0]
+
+	c := &tcpcheck.Check{
+		Address: address,
+		Timeout: tcpTimeout,
+		Dialer:  &tcpcheck.RealDialer{},
 	}
 
 	result := c.Run()
