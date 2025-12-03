@@ -175,3 +175,97 @@ func TestCommandCheck_MaxVersion_Fail(t *testing.T) {
 		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
 	}
 }
+
+func TestCommandCheck_ExactVersion_Pass(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v18.17.0", "", nil
+		},
+	}
+
+	exactVer := version.Version{Major: 18, Minor: 17, Patch: 0}
+	c := &Check{
+		Name:         "node",
+		Runner:       runner,
+		ExactVersion: &exactVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusOK)
+	}
+}
+
+func TestCommandCheck_ExactVersion_Fail(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v18.17.1", "", nil
+		},
+	}
+
+	exactVer := version.Version{Major: 18, Minor: 17, Patch: 0}
+	c := &Check{
+		Name:         "node",
+		Runner:       runner,
+		ExactVersion: &exactVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+}
+
+func TestCommandCheck_MatchPattern_Pass(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v18.17.0", "", nil
+		},
+	}
+
+	c := &Check{
+		Name:         "node",
+		Runner:       runner,
+		MatchPattern: `^v18\.`,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusOK)
+	}
+}
+
+func TestCommandCheck_MatchPattern_Fail(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v16.0.0", "", nil
+		},
+	}
+
+	c := &Check{
+		Name:         "node",
+		Runner:       runner,
+		MatchPattern: `^v18\.`,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+}

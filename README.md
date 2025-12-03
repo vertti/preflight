@@ -81,6 +81,12 @@ preflight cmd node
 # Check with version constraints (inclusive min, exclusive max)
 preflight cmd node --min 18 --max 22
 
+# Require exact version
+preflight cmd node --exact 18.17.0
+
+# Match version output against regex pattern
+preflight cmd node --match "^v18\."
+
 # Custom version command for tools that don't use --version
 preflight cmd go --version-cmd "version"        # runs: go version
 preflight cmd java --version-cmd "-version"     # runs: java -version
@@ -89,6 +95,8 @@ preflight cmd java --version-cmd "-version"     # runs: java -version
 **Flags:**
 - `--min` - Minimum version required (inclusive)
 - `--max` - Maximum version allowed (exclusive)
+- `--exact` - Exact version required
+- `--match` - Regex pattern to match against version output
 - `--version-cmd` - Override the default `--version` argument
 
 ### Coming Soon

@@ -32,14 +32,18 @@ var cmdCmd = &cobra.Command{
 }
 
 var (
-	minVersion string
-	maxVersion string
-	versionCmd string
+	minVersion   string
+	maxVersion   string
+	exactVersion string
+	matchPattern string
+	versionCmd   string
 )
 
 func init() {
 	cmdCmd.Flags().StringVar(&minVersion, "min", "", "minimum version required (inclusive)")
 	cmdCmd.Flags().StringVar(&maxVersion, "max", "", "maximum version allowed (exclusive)")
+	cmdCmd.Flags().StringVar(&exactVersion, "exact", "", "exact version required")
+	cmdCmd.Flags().StringVar(&matchPattern, "match", "", "regex pattern to match against version output")
 	cmdCmd.Flags().StringVar(&versionCmd, "version-cmd", "--version", "command to get version")
 	rootCmd.AddCommand(cmdCmd)
 }
@@ -48,12 +52,12 @@ func runCmdCheck(cmd *cobra.Command, args []string) error {
 	commandName := args[0]
 
 	c := &cmdcheck.Check{
-		Name:        commandName,
-		VersionArgs: parseVersionArgs(versionCmd),
-		Runner:      &cmdcheck.RealRunner{},
+		Name:         commandName,
+		VersionArgs:  parseVersionArgs(versionCmd),
+		MatchPattern: matchPattern,
+		Runner:       &cmdcheck.RealRunner{},
 	}
 
-	// Parse min version
 	if minVersion != "" {
 		v, err := version.Parse(minVersion)
 		if err != nil {
@@ -62,13 +66,20 @@ func runCmdCheck(cmd *cobra.Command, args []string) error {
 		c.MinVersion = &v
 	}
 
-	// Parse max version
 	if maxVersion != "" {
 		v, err := version.Parse(maxVersion)
 		if err != nil {
 			return fmt.Errorf("invalid --max version: %w", err)
 		}
 		c.MaxVersion = &v
+	}
+
+	if exactVersion != "" {
+		v, err := version.Parse(exactVersion)
+		if err != nil {
+			return fmt.Errorf("invalid --exact version: %w", err)
+		}
+		c.ExactVersion = &v
 	}
 
 	result := c.Run()
