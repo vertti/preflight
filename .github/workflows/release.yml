@@ -24,9 +24,14 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y upx
 
+      - name: Extract version tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
       - name: Build binaries
         run: |
           mkdir -p dist
+          VERSION="${{ steps.version.outputs.tag }}"
           for GOOS in linux darwin windows; do
             for GOARCH in amd64 arm64; do
               output="preflight-${GOOS}-${GOARCH}"
@@ -34,9 +39,9 @@ jobs:
                 output="${output}.exe"
               fi
               echo "Building ${output}..."
-              # CGO_ENABLED=0 produces fully static binaries (works on Alpine/musl)
-              # -trimpath removes file paths from binary
-              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -trimpath -o "dist/${output}" ./cmd/preflight
+              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
+                -ldflags="-s -w -X main.Version=${VERSION}" \
+                -trimpath -o "dist/${output}" ./cmd/preflight
             done
           done
 
@@ -60,10 +65,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version tag
-        id: version
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
