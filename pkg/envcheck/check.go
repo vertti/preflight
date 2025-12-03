@@ -1,0 +1,90 @@
+package envcheck
+
+import (
+	"fmt"
+	"regexp"
+
+	"github.com/vertti/preflight/pkg/check"
+)
+
+// Check verifies that an environment variable meets requirements.
+type Check struct {
+	Name      string    // env var name
+	Required  bool      // --required: fail if undefined (allows empty)
+	Match     string    // --match: regex pattern
+	Exact     string    // --exact: exact value
+	HideValue bool      // --hide-value: don't show value in output
+	MaskValue bool      // --mask-value: show first/last 3 chars
+	Getter    EnvGetter // injected for testing
+}
+
+// Run executes the environment variable check.
+func (c *Check) Run() check.Result {
+	result := check.Result{
+		Name: fmt.Sprintf("env:%s", c.Name),
+	}
+
+	value, exists := c.Getter.LookupEnv(c.Name)
+
+	if !exists {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, "not set")
+		result.Err = fmt.Errorf("environment variable %s is not set", c.Name)
+		return result
+	}
+
+	// --required flag: allow empty values
+	// Default: require non-empty
+	if !c.Required && value == "" {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, "empty value")
+		result.Err = fmt.Errorf("environment variable %s is empty", c.Name)
+		return result
+	}
+
+	// --match: regex pattern
+	if c.Match != "" {
+		re, err := regexp.Compile(c.Match)
+		if err != nil {
+			result.Status = check.StatusFail
+			result.Details = append(result.Details, fmt.Sprintf("invalid regex pattern: %v", err))
+			result.Err = err
+			return result
+		}
+		if !re.MatchString(value) {
+			result.Status = check.StatusFail
+			result.Details = append(result.Details, fmt.Sprintf("value does not match pattern %q", c.Match))
+			result.Err = fmt.Errorf("value does not match pattern %q", c.Match)
+			return result
+		}
+	}
+
+	// --exact: exact value match
+	if c.Exact != "" && value != c.Exact {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value does not equal %q", c.Exact))
+		result.Err = fmt.Errorf("value does not equal %q", c.Exact)
+		return result
+	}
+
+	result.Status = check.StatusOK
+	result.Details = append(result.Details, fmt.Sprintf("value: %s", c.formatValue(value)))
+	return result
+}
+
+func (c *Check) formatValue(value string) string {
+	if c.HideValue {
+		return "[hidden]"
+	}
+	if c.MaskValue {
+		return maskValue(value)
+	}
+	return value
+}
+
+func maskValue(value string) string {
+	if len(value) <= 6 {
+		return "•••"
+	}
+	return value[:3] + "•••" + value[len(value)-3:]
+}
