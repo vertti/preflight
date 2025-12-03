@@ -63,3 +63,32 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: go build -o bin/preflight-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/preflight || echo "Build skipped for ${{ matrix.goos }}/${{ matrix.goarch }}"
+
+  container-test:
+    name: Container Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - alpine:3.21
+          - debian:bookworm-slim
+          - ubuntu:24.04
+          - node:22-alpine
+          - python:3.13-slim
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: Build static binary
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o preflight ./cmd/preflight
+
+      - name: Test in ${{ matrix.image }}
+        run: |
+          docker run --rm -v $PWD/preflight:/usr/local/bin/preflight ${{ matrix.image }} sh -c '
+            preflight cmd sh &&
+            echo "Container test passed: ${{ matrix.image }}"
+          '
