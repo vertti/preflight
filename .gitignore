@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Planning docs
+PLAN_PREFLIGHT.md
+
+# Build output
+bin/
