@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/version"
 )
 
 func TestCommandCheck_NotFound(t *testing.T) {
@@ -76,5 +77,101 @@ func TestCommandCheck_Found(t *testing.T) {
 	}
 	if result.Name != "cmd:node" {
 		t.Errorf("Name = %q, want %q", result.Name, "cmd:node")
+	}
+}
+
+func TestCommandCheck_MinVersion_Pass(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v18.17.0", "", nil
+		},
+	}
+
+	minVer := version.Version{Major: 18, Minor: 0, Patch: 0}
+	c := &Check{
+		Name:       "node",
+		Runner:     runner,
+		MinVersion: &minVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusOK)
+	}
+}
+
+func TestCommandCheck_MinVersion_Fail(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v16.0.0", "", nil
+		},
+	}
+
+	minVer := version.Version{Major: 18, Minor: 0, Patch: 0}
+	c := &Check{
+		Name:       "node",
+		Runner:     runner,
+		MinVersion: &minVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
+	}
+}
+
+func TestCommandCheck_MaxVersion_Pass(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v18.17.0", "", nil
+		},
+	}
+
+	maxVer := version.Version{Major: 22, Minor: 0, Patch: 0}
+	c := &Check{
+		Name:       "node",
+		Runner:     runner,
+		MaxVersion: &maxVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusOK)
+	}
+}
+
+func TestCommandCheck_MaxVersion_Fail(t *testing.T) {
+	runner := &MockRunner{
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/node", nil
+		},
+		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+			return "v22.0.0", "", nil
+		},
+	}
+
+	maxVer := version.Version{Major: 22, Minor: 0, Patch: 0}
+	c := &Check{
+		Name:       "node",
+		Runner:     runner,
+		MaxVersion: &maxVer,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want %v", result.Status, check.StatusFail)
 	}
 }
