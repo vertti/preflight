@@ -52,7 +52,7 @@ preflight file /usr/local/bin/my-tool --must-exist --executable
 
 ### Prerequisites
 
-- Go 1.24+ (use [mise](https://mise.jdx.dev/) for version management)
+- Go 1.25+ (use [mise](https://mise.jdx.dev/) for version management)
 - golangci-lint
 
 ### Setup
