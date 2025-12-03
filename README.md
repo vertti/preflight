@@ -59,6 +59,21 @@ preflight env NODE_ENV --exact production        # exact value
 preflight env API_KEY --mask-value               # hide in output
 ```
 
+### Output
+
+```
+[OK] cmd:node
+      path: /usr/bin/node
+      version: 18.17.0
+
+[FAIL] env:DATABASE_URL
+      not set
+```
+
+Exit code `0` on success, `1` on failure.
+
+[Full usage guide](docs/usage.md)
+
 ## License
 
 Apache 2.0
