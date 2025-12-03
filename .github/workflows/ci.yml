@@ -76,7 +76,8 @@ jobs:
           go-version: "1.25"
 
       - name: Install UPX
-        run: sudo apt-get update && sudo apt-get install -y upx
+        run: |
+          curl -sL https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz | tar -xJ --strip-components=1 -C /usr/local/bin upx-4.2.4-amd64_linux/upx
 
       - name: Build and compress binaries
         run: |

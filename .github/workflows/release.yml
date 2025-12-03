@@ -22,7 +22,7 @@ jobs:
 
       - name: Install UPX
         run: |
-          sudo apt-get update && sudo apt-get install -y upx
+          curl -sL https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz | tar -xJ --strip-components=1 -C /usr/local/bin upx-4.2.4-amd64_linux/upx
 
       - name: Extract version tag
         id: version
