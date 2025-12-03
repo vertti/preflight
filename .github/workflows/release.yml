@@ -19,6 +19,10 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install UPX
+        run: |
+          sudo apt-get update && sudo apt-get install -y upx
+
       - name: Build binaries
         run: |
           mkdir -p dist
@@ -30,9 +34,15 @@ jobs:
               fi
               echo "Building ${output}..."
               # CGO_ENABLED=0 produces fully static binaries (works on Alpine/musl)
-              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "dist/${output}" ./cmd/preflight
+              # -trimpath removes file paths from binary
+              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -trimpath -o "dist/${output}" ./cmd/preflight
             done
           done
+
+      - name: Compress Linux binaries with UPX
+        run: |
+          upx --best dist/preflight-linux-*
+          ls -lh dist/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
