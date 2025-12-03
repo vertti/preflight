@@ -98,9 +98,37 @@ preflight cmd java --version-cmd "-version"     # runs: java -version
 - `--match` - Regex pattern to match against version output
 - `--version-cmd` - Override the default `--version` argument
 
+### `preflight env`
+
+Validates environment variables exist and match requirements. By default, the variable must exist and be non-empty.
+
+```sh
+# Check if DATABASE_URL exists and is non-empty (default)
+preflight env DATABASE_URL
+
+# Allow empty values (just check if defined)
+preflight env DATABASE_URL --required
+
+# Match against regex pattern
+preflight env DATABASE_URL --match '^postgres://'
+
+# Require exact value
+preflight env NODE_ENV --exact production
+
+# Hide sensitive values in output
+preflight env API_KEY --hide-value              # shows: [hidden]
+preflight env API_KEY --mask-value              # shows: sk-•••xyz
+```
+
+**Flags:**
+- `--required` - Fail if not set (allows empty values)
+- `--match` - Regex pattern to match against value
+- `--exact` - Exact value required
+- `--hide-value` - Don't show value in output
+- `--mask-value` - Show first/last 3 chars only
+
 ### Coming Soon
 
-- `preflight env` - Validate environment variables
 - `preflight file` - Check files and directories
 
 ## Development

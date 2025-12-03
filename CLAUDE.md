@@ -41,3 +41,9 @@ preflight/
 - Use table-driven tests where appropriate
 - Mock external dependencies (exec, filesystem, env)
 - Aim for high coverage on pkg/* code
+
+## Pull Requests
+
+- Do NOT add "Test plan" sections to PR descriptions
+- Run tests yourself before opening PR
+- If manual testing is needed, tell the user how to test
