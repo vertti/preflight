@@ -1,4 +1,4 @@
-.PHONY: all build test test-coverage lint fmt clean
+.PHONY: all build test test-coverage lint fmt fmt-md check-md clean install-hooks
 
 # Build the preflight binary
 build:
@@ -21,8 +21,20 @@ lint:
 fmt:
 	goimports -w .
 
+# Format markdown files
+fmt-md:
+	dprint fmt
+
+# Check markdown formatting
+check-md:
+	dprint check
+
 # Run all checks (lint, test, build)
 all: lint test build
+
+# Install pre-commit hooks
+install-hooks:
+	hk install --mise
 
 # Clean build artifacts
 clean:

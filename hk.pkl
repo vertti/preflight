@@ -1,0 +1,26 @@
+amends "package://github.com/jdx/hk/releases/download/v1.25.0/hk@1.25.0#/Config.pkl"
+
+local linters = new Mapping<String, Step> {
+    ["gofmt"] {
+        glob = List("*.go")
+        check = "gofmt -l {{files}}"
+        fix = "gofmt -w {{files}}"
+    }
+    ["golangci-lint"] {
+        glob = List("*.go")
+        check = "golangci-lint run"
+    }
+    ["dprint"] {
+        glob = List("*.md")
+        check = "dprint check"
+        fix = "dprint fmt"
+    }
+}
+
+hooks {
+    ["pre-commit"] {
+        fix = true
+        stash = "git"
+        steps = linters
+    }
+}

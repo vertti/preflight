@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.20.0.wasm"
+  ],
+  "markdown": {},
+  "includes": ["**/*.md"],
+  "excludes": ["**/node_modules"]
+}
