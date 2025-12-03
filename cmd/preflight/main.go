@@ -13,6 +13,9 @@ import (
 	"github.com/vertti/preflight/pkg/version"
 )
 
+// Version is set at build time via ldflags
+var Version = "dev"
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -20,9 +23,10 @@ func main() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "preflight",
-	Short: "Docker preflight checks for your runtime environment",
-	Long:  "Preflight is a CLI tool for running sanity checks on container and CI environments.",
+	Use:     "preflight",
+	Short:   "Docker preflight checks for your runtime environment",
+	Long:    "Preflight is a CLI tool for running sanity checks on container and CI environments.",
+	Version: Version,
 }
 
 var cmdCmd = &cobra.Command{
