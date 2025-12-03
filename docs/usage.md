@@ -136,6 +136,41 @@ preflight file /var/log/app.log --max-size 10485760  # 10MB
 
 ---
 
+## CI & Container Verification
+
+Preflight can verify container images in CI pipelines, replacing ad-hoc shell scripts. These examples assume preflight is installed in the container image.
+
+### Verifying a built container image
+
+```sh
+# Instead of:
+TAG=$(docker run "myapp:latest" -c "echo \$VERSION_TAG")
+if [ "$TAG" != "$EXPECTED" ]; then exit 1; fi
+
+# Use:
+docker run myapp:latest preflight env VERSION_TAG --exact "$EXPECTED"
+```
+
+### Running multiple checks against a container
+
+```sh
+docker run myapp:latest sh -c '
+  preflight env VERSION_TAG --exact "$EXPECTED_VERSION" &&
+  preflight cmd node --min 18 &&
+  preflight file /app/config.json --not-empty
+'
+```
+
+### In GitHub Actions
+
+```yaml
+- name: Verify container
+  run: |
+    docker run myapp:${{ github.sha }} preflight env VERSION_TAG --exact "${{ github.sha }}"
+```
+
+---
+
 ## Output Format
 
 ### Success
