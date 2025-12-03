@@ -47,7 +47,12 @@ jobs:
 
       - name: Compress binaries with UPX
         run: |
-          upx --best dist/preflight-*
+          # UPX supports: Linux (amd64, arm64), Windows (amd64 only)
+          # Not supported: Darwin, Windows arm64
+          upx --best \
+            dist/preflight-linux-amd64 \
+            dist/preflight-linux-arm64 \
+            dist/preflight-windows-amd64.exe
           ls -lh dist/
 
       - name: Create Release
