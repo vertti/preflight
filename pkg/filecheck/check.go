@@ -35,67 +35,56 @@ func (c *Check) Run() check.Result {
 
 	info, err := c.FS.Stat(c.Path)
 	if err != nil {
-		result.Status = check.StatusFail
 		switch {
 		case os.IsNotExist(err):
-			result.Details = append(result.Details, "not found")
+			return *result.Fail("not found", err)
 		case os.IsPermission(err):
-			result.Details = append(result.Details, "permission denied")
+			return *result.Fail("permission denied", err)
 		default:
-			result.Details = append(result.Details, fmt.Sprintf("stat failed: %v", err))
+			return *result.Failf("stat failed: %v", err)
 		}
-		result.Err = err
-		return result
 	}
 
 	// Type check: --dir flag
 	if c.ExpectDir {
 		if !info.IsDir() {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, "expected directory, got file")
-			result.Err = fmt.Errorf("expected directory, got file")
-			return result
+			return *result.Fail("expected directory, got file", fmt.Errorf("expected directory, got file"))
 		}
-		result.Details = append(result.Details, "type: directory")
+		result.AddDetail("type: directory")
 	} else {
 		if info.IsDir() {
-			result.Details = append(result.Details, "type: directory")
+			result.AddDetail("type: directory")
 		} else {
-			result.Details = append(result.Details, "type: file")
+			result.AddDetail("type: file")
 		}
 	}
 
 	// Size details and checks (only for files)
 	if !info.IsDir() {
-		result.Details = append(result.Details, fmt.Sprintf("size: %d", info.Size()))
+		result.AddDetailf("size: %d", info.Size())
 
 		// --not-empty
 		if c.NotEmpty && info.Size() == 0 {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, "file is empty")
-			result.Err = fmt.Errorf("file is empty")
-			return result
+			return *result.Fail("file is empty", fmt.Errorf("file is empty"))
 		}
 
 		// --min-size
 		if c.MinSize > 0 && info.Size() < c.MinSize {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("size %d < minimum %d", info.Size(), c.MinSize))
-			result.Err = fmt.Errorf("file size %d below minimum %d", info.Size(), c.MinSize)
-			return result
+			return *result.Fail(
+				fmt.Sprintf("size %d < minimum %d", info.Size(), c.MinSize),
+				fmt.Errorf("file size %d below minimum %d", info.Size(), c.MinSize))
 		}
 
 		// --max-size
 		if c.MaxSize > 0 && info.Size() > c.MaxSize {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("size %d > maximum %d", info.Size(), c.MaxSize))
-			result.Err = fmt.Errorf("file size %d above maximum %d", info.Size(), c.MaxSize)
-			return result
+			return *result.Fail(
+				fmt.Sprintf("size %d > maximum %d", info.Size(), c.MaxSize),
+				fmt.Errorf("file size %d above maximum %d", info.Size(), c.MaxSize))
 		}
 	}
 
 	// Permission details
-	result.Details = append(result.Details, fmt.Sprintf("permissions: %s", info.Mode().Perm()))
+	result.AddDetailf("permissions: %s", info.Mode().Perm())
 
 	// --mode: minimum permissions check
 	if c.Mode != "" {
@@ -114,20 +103,14 @@ func (c *Check) Run() check.Result {
 	// --writable
 	if c.Writable {
 		if !isWritable(info.Mode()) {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, "not writable")
-			result.Err = fmt.Errorf("file is not writable")
-			return result
+			return *result.Fail("not writable", fmt.Errorf("file is not writable"))
 		}
 	}
 
 	// --executable
 	if c.Executable {
 		if !isExecutable(info.Mode()) {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, "not executable")
-			result.Err = fmt.Errorf("file is not executable")
-			return result
+			return *result.Fail("not executable", fmt.Errorf("file is not executable"))
 		}
 	}
 
@@ -145,19 +128,16 @@ func (c *Check) Run() check.Result {
 func (c *Check) checkModeMinimum(mode fs.FileMode, result *check.Result) error {
 	required, err := parseOctalMode(c.Mode)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("invalid mode: %v", err))
-		result.Err = err
+		result.Failf("invalid mode: %v", err)
 		return err
 	}
 
 	actual := mode.Perm()
 	// Check if actual permissions include at least the required permissions
 	if actual&required != required {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("permissions %s do not include minimum %s", actual, required))
-		result.Err = fmt.Errorf("permissions %s do not include minimum %s", actual, required)
-		return result.Err
+		err := fmt.Errorf("permissions %s do not include minimum %s", actual, required)
+		result.Fail(fmt.Sprintf("permissions %s do not include minimum %s", actual, required), err)
+		return err
 	}
 	return nil
 }
@@ -165,18 +145,15 @@ func (c *Check) checkModeMinimum(mode fs.FileMode, result *check.Result) error {
 func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 	required, err := parseOctalMode(c.ModeExact)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("invalid mode: %v", err))
-		result.Err = err
+		result.Failf("invalid mode: %v", err)
 		return err
 	}
 
 	actual := mode.Perm()
 	if actual != required {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("permissions %s != required %s", actual, required))
-		result.Err = fmt.Errorf("permissions %s do not match required %s", actual, required)
-		return result.Err
+		err := fmt.Errorf("permissions %s do not match required %s", actual, required)
+		result.Fail(fmt.Sprintf("permissions %s != required %s", actual, required), err)
+		return err
 	}
 	return nil
 }
@@ -184,19 +161,16 @@ func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 func (c *Check) checkContent(result *check.Result) error {
 	content, err := c.FS.ReadFile(c.Path, c.Head)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("failed to read file: %v", err))
-		result.Err = err
+		result.Failf("failed to read file: %v", err)
 		return err
 	}
 
 	// --contains: literal string search
 	if c.Contains != "" {
 		if !strings.Contains(string(content), c.Contains) {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("content does not contain %q", c.Contains))
-			result.Err = fmt.Errorf("content does not contain %q", c.Contains)
-			return result.Err
+			err := fmt.Errorf("content does not contain %q", c.Contains)
+			result.Fail(fmt.Sprintf("content does not contain %q", c.Contains), err)
+			return err
 		}
 	}
 
@@ -204,16 +178,13 @@ func (c *Check) checkContent(result *check.Result) error {
 	if c.Match != "" {
 		re, err := regexp.Compile(c.Match)
 		if err != nil {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("invalid regex pattern: %v", err))
-			result.Err = err
+			result.Failf("invalid regex pattern: %v", err)
 			return err
 		}
 		if !re.Match(content) {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("content does not match pattern %q", c.Match))
-			result.Err = fmt.Errorf("content does not match pattern %q", c.Match)
-			return result.Err
+			err := fmt.Errorf("content does not match pattern %q", c.Match)
+			result.Fail(fmt.Sprintf("content does not match pattern %q", c.Match), err)
+			return err
 		}
 	}
 
