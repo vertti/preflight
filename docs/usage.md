@@ -211,6 +211,56 @@ healthcheck:
 
 ---
 
+## `preflight user`
+
+Checks that a user exists on the system and optionally validates uid, gid, and home directory. Useful for verifying non-root container configurations.
+
+```sh
+preflight user <username> [flags]
+```
+
+### Flags
+
+| Flag            | Description               |
+| --------------- | ------------------------- |
+| `--uid <id>`    | Expected user ID          |
+| `--gid <id>`    | Expected primary group ID |
+| `--home <path>` | Expected home directory   |
+
+### Examples
+
+```sh
+# Check user exists
+preflight user appuser
+
+# Verify specific uid/gid (common for non-root containers)
+preflight user appuser --uid 1000 --gid 1000
+
+# Verify home directory
+preflight user appuser --home /app
+
+# All constraints
+preflight user appuser --uid 1000 --gid 1000 --home /app
+```
+
+### Use Cases
+
+**Non-root container validation:**
+
+```dockerfile
+RUN preflight user appuser --uid 1000 --gid 1000
+USER appuser
+```
+
+**Kubernetes security context verification:**
+
+```sh
+# Verify container runs as expected user
+preflight user nobody --uid 65534
+```
+
+---
+
 ## CI & Container Verification
 
 Preflight can verify container images in CI pipelines, replacing ad-hoc shell scripts. These examples assume preflight is installed in the container image.
@@ -282,6 +332,14 @@ docker run myapp:latest sh -c '
 
 [FAIL] tcp:localhost:9999
       connection failed: dial tcp [::1]:9999: connect: connection refused
+
+[OK] user:appuser
+      uid: 1000
+      gid: 1000
+      home: /app
+
+[FAIL] user:nonexistent
+      user not found: user: unknown user nonexistent
 ```
 
 ---
