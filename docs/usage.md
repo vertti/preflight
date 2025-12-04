@@ -287,8 +287,8 @@ preflight run [flags]
 
 ### Flags
 
-| Flag            | Description                          |
-| --------------- | ------------------------------------ |
+| Flag            | Description                                     |
+| --------------- | ----------------------------------------------- |
 | `--file <path>` | Path to preflight file (default: auto-discover) |
 
 ### File Format

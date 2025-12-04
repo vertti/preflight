@@ -56,29 +56,29 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 Like `which`, but verifies the binary actually runs (catches missing `.so` dependencies).
 
 ```sh
-preflight cmd myapp                   # exists and runs
-preflight cmd myapp --min 2.0         # minimum version
-preflight cmd onnxruntime             # ML runtime with native deps
-preflight cmd ffmpeg --version-cmd -version  # custom version flag
+preflight cmd myapp             # exists and runs
+preflight cmd myapp --min 2.0   # minimum version
 ```
+
+[All cmd options](docs/usage.md#preflight-cmd)
 
 ### Check environment variables
 
 ```sh
-preflight env MODEL_PATH                           # exists and non-empty
-preflight env MODEL_PATH --match '^/models/'       # matches pattern
-preflight env APP_ENV --one-of dev,staging,prod    # allowed values
-preflight env AWS_SECRET_ARN --mask-value          # hide in output
+preflight env MODEL_PATH                      # exists and non-empty
+preflight env MODEL_PATH --match '^/models/'  # matches pattern
 ```
+
+[All env options](docs/usage.md#preflight-env)
 
 ### Check files and directories
 
 ```sh
-preflight file /models/bert.onnx --not-empty     # model file exists
-preflight file /app/config --dir --writable      # directory is writable
-preflight file /app/config.yaml --contains "api" # content check
-preflight file /usr/local/bin/myapp --executable # binary is executable
+preflight file /models/bert.onnx --not-empty      # model file exists
+preflight file /usr/local/bin/myapp --executable  # binary is executable
 ```
+
+[All file options](docs/usage.md#preflight-file)
 
 ### Run checks from a file
 
