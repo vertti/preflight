@@ -59,14 +59,20 @@ preflight env <variable> [flags]
 
 ### Flags
 
-| Flag                | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `--required`        | Fail if not set (allows empty values)            |
-| `--match <pattern>` | Regex pattern to match against value             |
-| `--exact <value>`   | Exact value required                             |
-| `--one-of <values>` | Value must be one of these (comma-separated)     |
-| `--hide-value`      | Don't show value in output                       |
-| `--mask-value`      | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `--required`          | Fail if not set (allows empty values)            |
+| `--match <pattern>`   | Regex pattern to match against value             |
+| `--exact <value>`     | Exact value required                             |
+| `--one-of <values>`   | Value must be one of these (comma-separated)     |
+| `--starts-with <str>` | Value must start with string                     |
+| `--ends-with <str>`   | Value must end with string                       |
+| `--contains <str>`    | Value must contain substring                     |
+| `--is-numeric`        | Value must be a valid number                     |
+| `--min-len <n>`       | Minimum string length                            |
+| `--max-len <n>`       | Maximum string length                            |
+| `--hide-value`        | Don't show value in output                       |
+| `--mask-value`        | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
 
 ### Examples
 
@@ -86,6 +92,16 @@ preflight env APP_ENV --exact production
 
 # Value from allowed list
 preflight env APP_ENV --one-of dev,staging,production
+
+# String matchers
+preflight env MODEL_PATH --starts-with /models/
+preflight env CONFIG_FILE --ends-with .yaml
+preflight env WEBHOOK_URL --contains example.com
+
+# Numeric and length validation
+preflight env PORT --is-numeric
+preflight env API_KEY --min-len 32
+preflight env CODE --max-len 6
 
 # Hide sensitive values in logs
 preflight env AWS_SECRET_ARN --hide-value   # shows: [hidden]

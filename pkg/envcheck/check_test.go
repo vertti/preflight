@@ -170,6 +170,141 @@ func TestEnvCheck_Run(t *testing.T) {
 			wantStatus: check.StatusOK,
 			wantDetail: "value: •••",
 		},
+
+		// --starts-with flag tests
+		{
+			name: "starts-with passes",
+			check: Check{
+				Name:       "PATH",
+				StartsWith: "/usr",
+				Getter:     &MockEnvGetter{Vars: map[string]string{"PATH": "/usr/local/bin"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "starts-with fails",
+			check: Check{
+				Name:       "PATH",
+				StartsWith: "/usr",
+				Getter:     &MockEnvGetter{Vars: map[string]string{"PATH": "/opt/bin"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: `value does not start with "/usr"`,
+		},
+
+		// --ends-with flag tests
+		{
+			name: "ends-with passes",
+			check: Check{
+				Name:     "CONFIG",
+				EndsWith: ".yaml",
+				Getter:   &MockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.yaml"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "ends-with fails",
+			check: Check{
+				Name:     "CONFIG",
+				EndsWith: ".yaml",
+				Getter:   &MockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.json"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: `value does not end with ".yaml"`,
+		},
+
+		// --contains flag tests
+		{
+			name: "contains passes",
+			check: Check{
+				Name:     "URL",
+				Contains: "example",
+				Getter:   &MockEnvGetter{Vars: map[string]string{"URL": "https://example.com/api"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "contains fails",
+			check: Check{
+				Name:     "URL",
+				Contains: "example",
+				Getter:   &MockEnvGetter{Vars: map[string]string{"URL": "https://other.com/api"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: `value does not contain "example"`,
+		},
+
+		// --is-numeric flag tests
+		{
+			name: "is-numeric passes with integer",
+			check: Check{
+				Name:      "PORT",
+				IsNumeric: true,
+				Getter:    &MockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-numeric passes with float",
+			check: Check{
+				Name:      "RATE",
+				IsNumeric: true,
+				Getter:    &MockEnvGetter{Vars: map[string]string{"RATE": "3.14"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-numeric fails",
+			check: Check{
+				Name:      "PORT",
+				IsNumeric: true,
+				Getter:    &MockEnvGetter{Vars: map[string]string{"PORT": "not-a-number"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not numeric",
+		},
+
+		// --min-len flag tests
+		{
+			name: "min-len passes",
+			check: Check{
+				Name:   "API_KEY",
+				MinLen: 10,
+				Getter: &MockEnvGetter{Vars: map[string]string{"API_KEY": "abcdefghijk"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "min-len fails",
+			check: Check{
+				Name:   "API_KEY",
+				MinLen: 10,
+				Getter: &MockEnvGetter{Vars: map[string]string{"API_KEY": "short"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value length 5 < minimum 10",
+		},
+
+		// --max-len flag tests
+		{
+			name: "max-len passes",
+			check: Check{
+				Name:   "CODE",
+				MaxLen: 10,
+				Getter: &MockEnvGetter{Vars: map[string]string{"CODE": "abc"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "max-len fails",
+			check: Check{
+				Name:   "CODE",
+				MaxLen: 5,
+				Getter: &MockEnvGetter{Vars: map[string]string{"CODE": "toolongvalue"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value length 12 > maximum 5",
+		},
 	}
 
 	for _, tt := range tests {

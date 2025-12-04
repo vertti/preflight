@@ -3,20 +3,28 @@ package envcheck
 import (
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/vertti/preflight/pkg/check"
 )
 
 // Check verifies that an environment variable meets requirements.
 type Check struct {
-	Name      string    // env var name
-	Required  bool      // --required: fail if undefined (allows empty)
-	Match     string    // --match: regex pattern
-	Exact     string    // --exact: exact value
-	OneOf     []string  // --one-of: value must be one of these
-	HideValue bool      // --hide-value: don't show value in output
-	MaskValue bool      // --mask-value: show first/last 3 chars
-	Getter    EnvGetter // injected for testing
+	Name       string    // env var name
+	Required   bool      // --required: fail if undefined (allows empty)
+	Match      string    // --match: regex pattern
+	Exact      string    // --exact: exact value
+	OneOf      []string  // --one-of: value must be one of these
+	HideValue  bool      // --hide-value: don't show value in output
+	MaskValue  bool      // --mask-value: show first/last 3 chars
+	StartsWith string    // --starts-with: value must start with this
+	EndsWith   string    // --ends-with: value must end with this
+	Contains   string    // --contains: value must contain this
+	IsNumeric  bool      // --is-numeric: value must be a valid number
+	MinLen     int       // --min-len: minimum string length (0 = no check)
+	MaxLen     int       // --max-len: maximum string length (0 = no check)
+	Getter     EnvGetter // injected for testing
 }
 
 // Run executes the environment variable check.
@@ -83,6 +91,56 @@ func (c *Check) Run() check.Result {
 			result.Err = fmt.Errorf("value not in allowed list %v", c.OneOf)
 			return result
 		}
+	}
+
+	// --starts-with: value must start with prefix
+	if c.StartsWith != "" && !strings.HasPrefix(value, c.StartsWith) {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value does not start with %q", c.StartsWith))
+		result.Err = fmt.Errorf("value does not start with %q", c.StartsWith)
+		return result
+	}
+
+	// --ends-with: value must end with suffix
+	if c.EndsWith != "" && !strings.HasSuffix(value, c.EndsWith) {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value does not end with %q", c.EndsWith))
+		result.Err = fmt.Errorf("value does not end with %q", c.EndsWith)
+		return result
+	}
+
+	// --contains: value must contain substring
+	if c.Contains != "" && !strings.Contains(value, c.Contains) {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value does not contain %q", c.Contains))
+		result.Err = fmt.Errorf("value does not contain %q", c.Contains)
+		return result
+	}
+
+	// --is-numeric: value must be a valid number
+	if c.IsNumeric {
+		if _, err := strconv.ParseFloat(value, 64); err != nil {
+			result.Status = check.StatusFail
+			result.Details = append(result.Details, "value is not numeric")
+			result.Err = fmt.Errorf("value is not numeric")
+			return result
+		}
+	}
+
+	// --min-len: minimum string length
+	if c.MinLen > 0 && len(value) < c.MinLen {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value length %d < minimum %d", len(value), c.MinLen))
+		result.Err = fmt.Errorf("value length %d < minimum %d", len(value), c.MinLen)
+		return result
+	}
+
+	// --max-len: maximum string length
+	if c.MaxLen > 0 && len(value) > c.MaxLen {
+		result.Status = check.StatusFail
+		result.Details = append(result.Details, fmt.Sprintf("value length %d > maximum %d", len(value), c.MaxLen))
+		result.Err = fmt.Errorf("value length %d > maximum %d", len(value), c.MaxLen)
+		return result
 	}
 
 	result.Status = check.StatusOK
