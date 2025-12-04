@@ -37,17 +37,12 @@ func (c *Check) Run() check.Result {
 
 	u, err := c.Lookup.Lookup(c.Username)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("user not found: %v", err))
-		result.Err = err
-		return result
+		return *result.Failf("user not found: %v", err)
 	}
 
-	result.Details = append(result.Details,
-		fmt.Sprintf("uid: %s", u.Uid),
-		fmt.Sprintf("gid: %s", u.Gid),
-		fmt.Sprintf("home: %s", u.HomeDir),
-	)
+	result.AddDetailf("uid: %s", u.Uid)
+	result.AddDetailf("gid: %s", u.Gid)
+	result.AddDetailf("home: %s", u.HomeDir)
 
 	checks := []struct {
 		name     string
@@ -61,10 +56,9 @@ func (c *Check) Run() check.Result {
 
 	for _, chk := range checks {
 		if chk.expected != "" && chk.actual != chk.expected {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("%s mismatch: expected %s, got %s", chk.name, chk.expected, chk.actual))
-			result.Err = fmt.Errorf("%s mismatch", chk.name)
-			return result
+			return *result.Fail(
+				fmt.Sprintf("%s mismatch: expected %s, got %s", chk.name, chk.expected, chk.actual),
+				fmt.Errorf("%s mismatch", chk.name))
 		}
 	}
 
