@@ -56,8 +56,9 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 Like `which`, but verifies the binary actually runs (catches missing `.so` dependencies).
 
 ```sh
-preflight cmd myapp             # exists and runs
-preflight cmd myapp --min 2.0   # minimum version
+preflight cmd node                            # exists and runs
+preflight cmd node --min 18.0                 # version constraint
+preflight cmd ffmpeg --version-cmd -version   # custom version flag
 ```
 
 [All cmd options](docs/usage.md#preflight-cmd)
@@ -65,8 +66,9 @@ preflight cmd myapp --min 2.0   # minimum version
 ### Check environment variables
 
 ```sh
-preflight env MODEL_PATH                      # exists and non-empty
-preflight env MODEL_PATH --match '^/models/'  # matches pattern
+preflight env DATABASE_URL                       # exists and non-empty
+preflight env MODEL_PATH --match '^/models/'     # matches pattern
+preflight env APP_ENV --one-of dev,staging,prod  # allowed values
 ```
 
 [All env options](docs/usage.md#preflight-env)
@@ -74,8 +76,9 @@ preflight env MODEL_PATH --match '^/models/'  # matches pattern
 ### Check files and directories
 
 ```sh
-preflight file /models/bert.onnx --not-empty      # model file exists
-preflight file /usr/local/bin/myapp --executable  # binary is executable
+preflight file /models/bert.onnx --not-empty   # file exists and has content
+preflight file /var/log/app --dir --writable   # directory is writable
+preflight file /app/entrypoint.sh --executable # script is executable
 ```
 
 [All file options](docs/usage.md#preflight-file)
