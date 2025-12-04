@@ -41,14 +41,11 @@ func (c *Check) Run() check.Result {
 
 	conn, err := c.Dialer.DialTimeout("tcp", c.Address, timeout)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("connection failed: %v", err))
-		result.Err = err
-		return result
+		return *result.Failf("connection failed: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 
 	result.Status = check.StatusOK
-	result.Details = append(result.Details, fmt.Sprintf("connected to %s", c.Address))
+	result.AddDetailf("connected to %s", c.Address)
 	return result
 }
