@@ -41,6 +41,20 @@ func Parse(s string) (Version, error) {
 	return parseMatches(matches), nil
 }
 
+// ParseOptional parses a version string if non-empty.
+// Returns nil, nil for empty strings.
+func ParseOptional(s string) (*Version, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	v, err := Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
 // Extract finds and parses the first version number in a string.
 func Extract(s string) (Version, error) {
 	matches := versionRegex.FindStringSubmatch(s)

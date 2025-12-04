@@ -33,6 +33,36 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParseOptional(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    *Version
+		wantErr bool
+	}{
+		{"", nil, false},
+		{"   ", nil, false},
+		{"1.2.3", &Version{1, 2, 3}, false},
+		{"v1.2", &Version{1, 2, 0}, false},
+		{"abc", nil, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := ParseOptional(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseOptional(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if tt.want == nil && got != nil {
+				t.Errorf("ParseOptional(%q) = %v, want nil", tt.input, got)
+			}
+			if tt.want != nil && (got == nil || *got != *tt.want) {
+				t.Errorf("ParseOptional(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtract(t *testing.T) {
 	tests := []struct {
 		input   string
