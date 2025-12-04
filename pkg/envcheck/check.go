@@ -36,44 +36,29 @@ func (c *Check) Run() check.Result {
 	value, exists := c.Getter.LookupEnv(c.Name)
 
 	if !exists {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, "not set")
-		result.Err = fmt.Errorf("environment variable %s is not set", c.Name)
-		return result
+		return *result.Fail("not set", fmt.Errorf("environment variable %s is not set", c.Name))
 	}
 
 	// --required flag: allow empty values
 	// Default: require non-empty
 	if !c.Required && value == "" {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, "empty value")
-		result.Err = fmt.Errorf("environment variable %s is empty", c.Name)
-		return result
+		return *result.Fail("empty value", fmt.Errorf("environment variable %s is empty", c.Name))
 	}
 
 	// --match: regex pattern
 	if c.Match != "" {
 		re, err := regexp.Compile(c.Match)
 		if err != nil {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("invalid regex pattern: %v", err))
-			result.Err = err
-			return result
+			return *result.Failf("invalid regex pattern: %v", err)
 		}
 		if !re.MatchString(value) {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("value does not match pattern %q", c.Match))
-			result.Err = fmt.Errorf("value does not match pattern %q", c.Match)
-			return result
+			return *result.Failf("value does not match pattern %q", c.Match)
 		}
 	}
 
 	// --exact: exact value match
 	if c.Exact != "" && value != c.Exact {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value does not equal %q", c.Exact))
-		result.Err = fmt.Errorf("value does not equal %q", c.Exact)
-		return result
+		return *result.Failf("value does not equal %q", c.Exact)
 	}
 
 	// --one-of: value must be one of the allowed values
@@ -86,65 +71,46 @@ func (c *Check) Run() check.Result {
 			}
 		}
 		if !found {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf))
-			result.Err = fmt.Errorf("value not in allowed list %v", c.OneOf)
+			result.Fail(fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf),
+				fmt.Errorf("value not in allowed list %v", c.OneOf))
 			return result
 		}
 	}
 
 	// --starts-with: value must start with prefix
 	if c.StartsWith != "" && !strings.HasPrefix(value, c.StartsWith) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value does not start with %q", c.StartsWith))
-		result.Err = fmt.Errorf("value does not start with %q", c.StartsWith)
-		return result
+		return *result.Failf("value does not start with %q", c.StartsWith)
 	}
 
 	// --ends-with: value must end with suffix
 	if c.EndsWith != "" && !strings.HasSuffix(value, c.EndsWith) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value does not end with %q", c.EndsWith))
-		result.Err = fmt.Errorf("value does not end with %q", c.EndsWith)
-		return result
+		return *result.Failf("value does not end with %q", c.EndsWith)
 	}
 
 	// --contains: value must contain substring
 	if c.Contains != "" && !strings.Contains(value, c.Contains) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value does not contain %q", c.Contains))
-		result.Err = fmt.Errorf("value does not contain %q", c.Contains)
-		return result
+		return *result.Failf("value does not contain %q", c.Contains)
 	}
 
 	// --is-numeric: value must be a valid number
 	if c.IsNumeric {
 		if _, err := strconv.ParseFloat(value, 64); err != nil {
-			result.Status = check.StatusFail
-			result.Details = append(result.Details, "value is not numeric")
-			result.Err = fmt.Errorf("value is not numeric")
-			return result
+			return *result.Fail("value is not numeric", fmt.Errorf("value is not numeric"))
 		}
 	}
 
 	// --min-len: minimum string length
 	if c.MinLen > 0 && len(value) < c.MinLen {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value length %d < minimum %d", len(value), c.MinLen))
-		result.Err = fmt.Errorf("value length %d < minimum %d", len(value), c.MinLen)
-		return result
+		return *result.Failf("value length %d < minimum %d", len(value), c.MinLen)
 	}
 
 	// --max-len: maximum string length
 	if c.MaxLen > 0 && len(value) > c.MaxLen {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("value length %d > maximum %d", len(value), c.MaxLen))
-		result.Err = fmt.Errorf("value length %d > maximum %d", len(value), c.MaxLen)
-		return result
+		return *result.Failf("value length %d > maximum %d", len(value), c.MaxLen)
 	}
 
 	result.Status = check.StatusOK
-	result.Details = append(result.Details, fmt.Sprintf("value: %s", c.formatValue(value)))
+	result.AddDetailf("value: %s", c.formatValue(value))
 	return result
 }
 
