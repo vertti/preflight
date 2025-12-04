@@ -129,14 +129,12 @@ chmod +x preflight
 
 ### Output
 
-```ansi
-[32m[OK][0m [90mcmd:[0m myapp
-     [90mpath:[0m /usr/local/bin/myapp
-     [90mversion:[0m 2.1.0
-
-[31m[FAIL][0m [90menv:[0m MODEL_PATH
-       [90merror:[0m not set
-```
+> ${\color{green}[OK]}$ ${\color{gray}cmd:}$ myapp
+> ${\color{gray}path:}$ /usr/local/bin/myapp
+> ${\color{gray}version:}$ 2.1.0
+>
+> ${\color{red}[FAIL]}$ ${\color{gray}env:}$ MODEL_PATH
+> ${\color{gray}error:}$ not set
 
 Exit code `0` on success, `1` on failure.
 
