@@ -89,7 +89,7 @@ Create a `.preflight` file in your project to define all checks in one place:
 file /etc/localtime --not-empty
 cmd myapp --min 2.0
 cmd go
-preflight env HOME
+env HOME
 ```
 
 Run all checks:
@@ -99,33 +99,7 @@ preflight run                             # finds .preflight automatically
 preflight run --file /path/to/.preflight  # specify file explicitly
 ```
 
-#### File discovery
-
-`preflight run` searches up from the current directory until it finds a `.preflight` file, reaches `$HOME`, or encounters a `.git` directory (whichever comes first).
-
-### Hashbang support
-
-Make `.preflight` files executable and run them directly:
-
-```sh
-#!/usr/bin/env preflight
-
-file /models/bert.onnx --not-empty
-cmd myapp
-preflight env PATH
-```
-
-```sh
-chmod +x preflight
-./preflight
-```
-
-**File format**:
-
-- Lines starting with `#` are treated as comments
-- Empty lines are ignored
-- Lines without `preflight` prefix are automatically prepended with `preflight`
-- Commands execute sequentially and can exit as needed
+[File format, discovery, and hashbang support](docs/usage.md#preflight-run)
 
 ### Output
 

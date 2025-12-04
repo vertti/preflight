@@ -277,6 +277,84 @@ preflight user nobody --uid 65534
 
 ---
 
+## `preflight run`
+
+Run multiple checks from a `.preflight` file. This is useful for defining all your checks in one place and running them together.
+
+```sh
+preflight run [flags]
+```
+
+### Flags
+
+| Flag            | Description                          |
+| --------------- | ------------------------------------ |
+| `--file <path>` | Path to preflight file (default: auto-discover) |
+
+### File Format
+
+```sh
+# .preflight
+# Lines starting with # are comments
+# Empty lines are ignored
+
+# Commands can omit the "preflight" prefix
+file /etc/localtime --not-empty
+cmd myapp --min 2.0
+env HOME
+
+# Or include it explicitly
+preflight tcp localhost:5432
+```
+
+- Lines starting with `#` are treated as comments
+- Empty lines are ignored
+- Lines without `preflight` prefix are automatically prepended with `preflight`
+- Commands execute sequentially
+
+### File Discovery
+
+When run without `--file`, `preflight run` searches for a `.preflight` file:
+
+1. Start from the current directory
+2. Search upward through parent directories
+3. Stop when finding `.preflight`, reaching `$HOME`, or encountering a `.git` directory
+
+This allows you to run `preflight run` from any subdirectory in your project.
+
+### Hashbang Support
+
+Make `.preflight` files executable and run them directly:
+
+```sh
+#!/usr/bin/env preflight
+
+file /models/bert.onnx --not-empty
+cmd myapp
+env PATH
+```
+
+```sh
+chmod +x .preflight
+./.preflight
+```
+
+### Examples
+
+```sh
+# Auto-discover .preflight file
+preflight run
+
+# Specify file explicitly
+preflight run --file /path/to/.preflight
+
+# In Dockerfile
+COPY .preflight .
+RUN preflight run
+```
+
+---
+
 ## CI & Container Verification
 
 Preflight can verify container images in CI pipelines, replacing ad-hoc shell scripts. These examples assume preflight is installed in the container image.
