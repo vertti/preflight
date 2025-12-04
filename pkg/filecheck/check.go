@@ -30,7 +30,7 @@ type Check struct {
 // Run executes the file check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("file:%s", c.Path),
+		Name: fmt.Sprintf("file: %s", c.Path),
 	}
 
 	info, err := c.FS.Stat(c.Path)

@@ -30,7 +30,7 @@ type Check struct {
 // Run executes the environment variable check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("env:%s", c.Name),
+		Name: fmt.Sprintf("env: %s", c.Name),
 	}
 
 	value, exists := c.Getter.LookupEnv(c.Name)

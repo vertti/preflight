@@ -27,7 +27,7 @@ func TestCommandCheck_Run(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "cmd:nonexistent",
+			wantName:   "cmd: nonexistent",
 		},
 		{
 			name: "version command fails",
@@ -58,7 +58,7 @@ func TestCommandCheck_Run(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "cmd:node",
+			wantName:   "cmd: node",
 		},
 
 		// --min version tests
