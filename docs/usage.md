@@ -399,10 +399,10 @@ RUN preflight file /app/config.yaml
 
 ### Environment Variables
 
-| Variable           | Description                      |
-| ------------------ | -------------------------------- |
-| `PREFLIGHT_COLOR=1`| Enable colors (for Docker builds)|
-| `NO_COLOR=1`       | Disable colors                   |
+| Variable            | Description                       |
+| ------------------- | --------------------------------- |
+| `PREFLIGHT_COLOR=1` | Enable colors (for Docker builds) |
+| `NO_COLOR=1`        | Disable colors                    |
 
 ### Examples
 

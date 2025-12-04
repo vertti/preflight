@@ -121,6 +121,7 @@ chmod +x preflight
 ```
 
 **File format**:
+
 - Lines starting with `#` are treated as comments
 - Empty lines are ignored
 - Lines without `preflight` prefix are automatically prepended with `preflight`
