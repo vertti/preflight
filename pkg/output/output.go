@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/jwalton/go-supportscolor"
 
@@ -15,7 +16,14 @@ var (
 )
 
 func init() {
-	if !supportscolor.Stdout().SupportsColor {
+	colorEnabled := supportscolor.Stdout().SupportsColor
+
+	// PREFLIGHT_COLOR=1 forces colors (useful for Docker builds)
+	if os.Getenv("PREFLIGHT_COLOR") == "1" {
+		colorEnabled = true
+	}
+
+	if !colorEnabled {
 		green, red, reset = "", "", ""
 	}
 }

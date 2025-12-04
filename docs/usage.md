@@ -376,14 +376,33 @@ Preflight outputs colored status indicators:
 - `[OK]` in green
 - `[FAIL]` in red
 
-Colors are automatically enabled in terminals and CI environments (GitHub Actions, GitLab CI, etc.).
+### Where Colors Work Automatically
+
+- **Terminals** - colors are detected automatically
+- **GitHub Actions** - colors are enabled automatically
+- **GitLab CI** - colors are enabled automatically
+- **Other CI systems** - most are detected automatically
+
+### Docker Builds
+
+Docker builds don't allocate a TTY, so colors are disabled by default. To enable colors in your Dockerfile, set `PREFLIGHT_COLOR=1`:
+
+```dockerfile
+FROM alpine
+
+ENV PREFLIGHT_COLOR=1
+
+RUN preflight cmd myapp
+RUN preflight env MODEL_PATH
+RUN preflight file /app/config.yaml
+```
 
 ### Environment Variables
 
-| Variable      | Description                                |
-| ------------- | ------------------------------------------ |
-| `NO_COLOR=1`  | Disable colored output                     |
-| `FORCE_COLOR` | Force colors (useful when piping to `cat`) |
+| Variable           | Description                      |
+| ------------------ | -------------------------------- |
+| `PREFLIGHT_COLOR=1`| Enable colors (for Docker builds)|
+| `NO_COLOR=1`       | Disable colors                   |
 
 ### Examples
 
@@ -391,6 +410,6 @@ Colors are automatically enabled in terminals and CI environments (GitHub Action
 # Disable colors
 NO_COLOR=1 preflight cmd myapp
 
-# Force colors when piping
-FORCE_COLOR=1 preflight cmd myapp | tee output.log
+# Enable colors in scripts/Docker
+PREFLIGHT_COLOR=1 preflight cmd myapp
 ```
