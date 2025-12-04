@@ -46,28 +46,15 @@ func runCmdCheck(cmd *cobra.Command, args []string) error {
 		Runner:       &cmdcheck.RealRunner{},
 	}
 
-	if minVersion != "" {
-		v, err := version.Parse(minVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --min version: %w", err)
-		}
-		c.MinVersion = &v
+	var err error
+	if c.MinVersion, err = version.ParseOptional(minVersion); err != nil {
+		return fmt.Errorf("invalid --min version: %w", err)
 	}
-
-	if maxVersion != "" {
-		v, err := version.Parse(maxVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --max version: %w", err)
-		}
-		c.MaxVersion = &v
+	if c.MaxVersion, err = version.ParseOptional(maxVersion); err != nil {
+		return fmt.Errorf("invalid --max version: %w", err)
 	}
-
-	if exactVersion != "" {
-		v, err := version.Parse(exactVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --exact version: %w", err)
-		}
-		c.ExactVersion = &v
+	if c.ExactVersion, err = version.ParseOptional(exactVersion); err != nil {
+		return fmt.Errorf("invalid --exact version: %w", err)
 	}
 
 	result := c.Run()
