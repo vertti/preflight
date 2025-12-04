@@ -27,13 +27,10 @@ func (c *Check) Run() check.Result {
 
 	path, err := c.Runner.LookPath(c.Name)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("not found in PATH: %v", err))
-		result.Err = err
-		return result
+		return *result.Failf("not found in PATH: %v", err)
 	}
 
-	result.Details = append(result.Details, fmt.Sprintf("path: %s", path))
+	result.AddDetailf("path: %s", path)
 
 	args := c.VersionArgs
 	if len(args) == 0 {
@@ -42,11 +39,11 @@ func (c *Check) Run() check.Result {
 
 	stdout, stderr, err := c.Runner.RunCommand(c.Name, args...)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("version command failed: %v", err))
+		result.AddDetailf("version command failed: %v", err)
 		if stderr != "" {
-			result.Details = append(result.Details, fmt.Sprintf("stderr: %s", stderr))
+			result.AddDetailf("stderr: %s", stderr)
 		}
+		result.Status = check.StatusFail
 		result.Err = err
 		return result
 	}
@@ -67,7 +64,7 @@ func (c *Check) Run() check.Result {
 		}
 	default:
 		if versionOutput != "" {
-			result.Details = append(result.Details, fmt.Sprintf("version: %s", versionOutput))
+			result.AddDetailf("version: %s", versionOutput)
 		}
 	}
 
@@ -78,54 +75,46 @@ func (c *Check) Run() check.Result {
 func (c *Check) checkMatchPattern(output string, result *check.Result) error {
 	re, err := regexp.Compile(c.MatchPattern)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("invalid regex pattern: %v", err))
-		result.Err = err
+		result.Failf("invalid regex pattern: %v", err)
 		return err
 	}
 	if !re.MatchString(output) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("version output %q does not match pattern %q", output, c.MatchPattern))
-		result.Err = fmt.Errorf("version output does not match pattern %q", c.MatchPattern)
-		return result.Err
+		err := fmt.Errorf("version output does not match pattern %q", c.MatchPattern)
+		result.Fail(fmt.Sprintf("version output %q does not match pattern %q", output, c.MatchPattern), err)
+		return err
 	}
-	result.Details = append(result.Details, fmt.Sprintf("version: %s", output))
+	result.AddDetailf("version: %s", output)
 	return nil
 }
 
 func (c *Check) checkVersionConstraints(output string, result *check.Result) error {
 	parsedVersion, err := version.Extract(output)
 	if err != nil {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("could not parse version from output: %v", err))
-		result.Err = err
+		result.Failf("could not parse version from output: %v", err)
 		return err
 	}
 
-	result.Details = append(result.Details, fmt.Sprintf("version: %s", parsedVersion))
+	result.AddDetailf("version: %s", parsedVersion)
 
 	// Check exact version
 	if c.ExactVersion != nil && parsedVersion.Compare(*c.ExactVersion) != 0 {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("version %s != required %s", parsedVersion, c.ExactVersion))
-		result.Err = fmt.Errorf("version %s does not match required %s", parsedVersion, c.ExactVersion)
-		return result.Err
+		err := fmt.Errorf("version %s does not match required %s", parsedVersion, c.ExactVersion)
+		result.Fail(fmt.Sprintf("version %s != required %s", parsedVersion, c.ExactVersion), err)
+		return err
 	}
 
 	// Check min version (inclusive: version >= min)
 	if c.MinVersion != nil && !parsedVersion.GreaterThanOrEqual(*c.MinVersion) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("version %s < minimum %s", parsedVersion, c.MinVersion))
-		result.Err = fmt.Errorf("version %s below minimum %s", parsedVersion, c.MinVersion)
-		return result.Err
+		err := fmt.Errorf("version %s below minimum %s", parsedVersion, c.MinVersion)
+		result.Fail(fmt.Sprintf("version %s < minimum %s", parsedVersion, c.MinVersion), err)
+		return err
 	}
 
 	// Check max version (exclusive: version < max)
 	if c.MaxVersion != nil && !parsedVersion.LessThan(*c.MaxVersion) {
-		result.Status = check.StatusFail
-		result.Details = append(result.Details, fmt.Sprintf("version %s >= maximum %s", parsedVersion, c.MaxVersion))
-		result.Err = fmt.Errorf("version %s at or above maximum %s", parsedVersion, c.MaxVersion)
-		return result.Err
+		err := fmt.Errorf("version %s at or above maximum %s", parsedVersion, c.MaxVersion)
+		result.Fail(fmt.Sprintf("version %s >= maximum %s", parsedVersion, c.MaxVersion), err)
+		return err
 	}
 
 	return nil
