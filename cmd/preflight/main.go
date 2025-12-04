@@ -9,14 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vertti/preflight/pkg/cmdcheck"
 	"github.com/vertti/preflight/pkg/envcheck"
 	"github.com/vertti/preflight/pkg/filecheck"
 	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/preflightfile"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/usercheck"
-	"github.com/vertti/preflight/pkg/version"
 )
 
 // Version is set at build time via ldflags
@@ -57,13 +55,6 @@ var rootCmd = &cobra.Command{
 	Version: Version,
 }
 
-var cmdCmd = &cobra.Command{
-	Use:   "cmd <command>",
-	Short: "Check that a command exists and can run",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runCmdCheck,
-}
-
 var envCmd = &cobra.Command{
 	Use:   "env <variable>",
 	Short: "Check that an environment variable is set",
@@ -100,13 +91,6 @@ var runCmd = &cobra.Command{
 }
 
 var (
-	// cmd flags
-	minVersion   string
-	maxVersion   string
-	exactVersion string
-	matchPattern string
-	versionCmd   string
-
 	// env flags
 	envRequired   bool
 	envMatch      string
@@ -147,14 +131,6 @@ var (
 )
 
 func init() {
-	// cmd subcommand
-	cmdCmd.Flags().StringVar(&minVersion, "min", "", "minimum version required (inclusive)")
-	cmdCmd.Flags().StringVar(&maxVersion, "max", "", "maximum version allowed (exclusive)")
-	cmdCmd.Flags().StringVar(&exactVersion, "exact", "", "exact version required")
-	cmdCmd.Flags().StringVar(&matchPattern, "match", "", "regex pattern to match against version output")
-	cmdCmd.Flags().StringVar(&versionCmd, "version-cmd", "--version", "command to get version")
-	rootCmd.AddCommand(cmdCmd)
-
 	// env subcommand
 	envCmd.Flags().BoolVar(&envRequired, "required", false, "fail if not set (allows empty)")
 	envCmd.Flags().StringVar(&envMatch, "match", "", "regex pattern to match value")
@@ -197,53 +173,6 @@ func init() {
 	// run subcommand
 	runCmd.Flags().StringVar(&runFile, "file", "", "path to .preflight file (default: search up from current directory)")
 	rootCmd.AddCommand(runCmd)
-}
-
-func runCmdCheck(cmd *cobra.Command, args []string) error {
-	commandName := args[0]
-
-	c := &cmdcheck.Check{
-		Name:         commandName,
-		VersionArgs:  parseVersionArgs(versionCmd),
-		MatchPattern: matchPattern,
-		Runner:       &cmdcheck.RealRunner{},
-	}
-
-	if minVersion != "" {
-		v, err := version.Parse(minVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --min version: %w", err)
-		}
-		c.MinVersion = &v
-	}
-
-	if maxVersion != "" {
-		v, err := version.Parse(maxVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --max version: %w", err)
-		}
-		c.MaxVersion = &v
-	}
-
-	if exactVersion != "" {
-		v, err := version.Parse(exactVersion)
-		if err != nil {
-			return fmt.Errorf("invalid --exact version: %w", err)
-		}
-		c.ExactVersion = &v
-	}
-
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
-}
-
-func parseVersionArgs(s string) []string {
-	return strings.Fields(s)
 }
 
 func runEnvCheck(cmd *cobra.Command, args []string) error {
