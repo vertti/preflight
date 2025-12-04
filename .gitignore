@@ -33,6 +33,7 @@ go.work.sum
 
 # Planning docs
 PLAN_PREFLIGHT.md
+*plan*.md
 
 # Build output
 bin/
