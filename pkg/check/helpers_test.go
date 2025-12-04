@@ -20,9 +20,6 @@ func TestResult_Fail(t *testing.T) {
 	if result.Err != err {
 		t.Errorf("Err = %v, want %v", result.Err, err)
 	}
-	if result != r {
-		t.Error("Fail should return the same Result pointer")
-	}
 }
 
 func TestResult_Failf(t *testing.T) {

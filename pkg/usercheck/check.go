@@ -37,7 +37,7 @@ func (c *Check) Run() check.Result {
 
 	u, err := c.Lookup.Lookup(c.Username)
 	if err != nil {
-		return *result.Failf("user not found: %v", err)
+		return result.Failf("user not found: %v", err)
 	}
 
 	result.AddDetailf("uid: %s", u.Uid)
@@ -56,7 +56,7 @@ func (c *Check) Run() check.Result {
 
 	for _, chk := range checks {
 		if chk.expected != "" && chk.actual != chk.expected {
-			return *result.Fail(
+			return result.Fail(
 				fmt.Sprintf("%s mismatch: expected %s, got %s", chk.name, chk.expected, chk.actual),
 				fmt.Errorf("%s mismatch", chk.name))
 		}

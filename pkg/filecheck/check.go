@@ -37,18 +37,18 @@ func (c *Check) Run() check.Result {
 	if err != nil {
 		switch {
 		case os.IsNotExist(err):
-			return *result.Fail("not found", err)
+			return result.Fail("not found", err)
 		case os.IsPermission(err):
-			return *result.Fail("permission denied", err)
+			return result.Fail("permission denied", err)
 		default:
-			return *result.Failf("stat failed: %v", err)
+			return result.Failf("stat failed: %v", err)
 		}
 	}
 
 	// Type check: --dir flag
 	if c.ExpectDir {
 		if !info.IsDir() {
-			return *result.Fail("expected directory, got file", fmt.Errorf("expected directory, got file"))
+			return result.Fail("expected directory, got file", fmt.Errorf("expected directory, got file"))
 		}
 		result.AddDetail("type: directory")
 	} else {
@@ -65,19 +65,19 @@ func (c *Check) Run() check.Result {
 
 		// --not-empty
 		if c.NotEmpty && info.Size() == 0 {
-			return *result.Fail("file is empty", fmt.Errorf("file is empty"))
+			return result.Fail("file is empty", fmt.Errorf("file is empty"))
 		}
 
 		// --min-size
 		if c.MinSize > 0 && info.Size() < c.MinSize {
-			return *result.Fail(
+			return result.Fail(
 				fmt.Sprintf("size %d < minimum %d", info.Size(), c.MinSize),
 				fmt.Errorf("file size %d below minimum %d", info.Size(), c.MinSize))
 		}
 
 		// --max-size
 		if c.MaxSize > 0 && info.Size() > c.MaxSize {
-			return *result.Fail(
+			return result.Fail(
 				fmt.Sprintf("size %d > maximum %d", info.Size(), c.MaxSize),
 				fmt.Errorf("file size %d above maximum %d", info.Size(), c.MaxSize))
 		}
@@ -103,14 +103,14 @@ func (c *Check) Run() check.Result {
 	// --writable
 	if c.Writable {
 		if !isWritable(info.Mode()) {
-			return *result.Fail("not writable", fmt.Errorf("file is not writable"))
+			return result.Fail("not writable", fmt.Errorf("file is not writable"))
 		}
 	}
 
 	// --executable
 	if c.Executable {
 		if !isExecutable(info.Mode()) {
-			return *result.Fail("not executable", fmt.Errorf("file is not executable"))
+			return result.Fail("not executable", fmt.Errorf("file is not executable"))
 		}
 	}
 

@@ -27,7 +27,7 @@ func (c *Check) Run() check.Result {
 
 	path, err := c.Runner.LookPath(c.Name)
 	if err != nil {
-		return *result.Failf("not found in PATH: %v", err)
+		return result.Failf("not found in PATH: %v", err)
 	}
 
 	result.AddDetailf("path: %s", path)

@@ -41,7 +41,7 @@ func (c *Check) Run() check.Result {
 
 	conn, err := c.Dialer.DialTimeout("tcp", c.Address, timeout)
 	if err != nil {
-		return *result.Failf("connection failed: %v", err)
+		return result.Failf("connection failed: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 

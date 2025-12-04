@@ -18,7 +18,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			name: "undefined variable fails",
 			check: Check{
 				Name:   "MISSING_VAR",
-				Getter: &MockEnvGetter{Vars: map[string]string{}},
+				Getter: &mockEnvGetter{Vars: map[string]string{}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "not set",
@@ -27,7 +27,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			name: "empty variable fails by default",
 			check: Check{
 				Name:   "EMPTY_VAR",
-				Getter: &MockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "empty value",
@@ -36,28 +36,28 @@ func TestEnvCheck_Run(t *testing.T) {
 			name: "non-empty variable passes",
 			check: Check{
 				Name:   "MY_VAR",
-				Getter: &MockEnvGetter{Vars: map[string]string{"MY_VAR": "some_value"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"MY_VAR": "some_value"}},
 			},
 			wantStatus: check.StatusOK,
 			wantDetail: "value: some_value",
 		},
 
-		// --required flag tests
+		// --allow-empty flag tests
 		{
-			name: "required allows empty value",
+			name: "allow-empty allows empty value",
 			check: Check{
-				Name:     "EMPTY_VAR",
-				Required: true,
-				Getter:   &MockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
+				Name:       "EMPTY_VAR",
+				AllowEmpty: true,
+				Getter:     &mockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
 			},
 			wantStatus: check.StatusOK,
 		},
 		{
-			name: "required still fails if undefined",
+			name: "allow-empty still fails if undefined",
 			check: Check{
-				Name:     "MISSING_VAR",
-				Required: true,
-				Getter:   &MockEnvGetter{Vars: map[string]string{}},
+				Name:       "MISSING_VAR",
+				AllowEmpty: true,
+				Getter:     &mockEnvGetter{Vars: map[string]string{}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "not set",
@@ -69,7 +69,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "DATABASE_URL",
 				Match:  `^postgres://`,
-				Getter: &MockEnvGetter{Vars: map[string]string{"DATABASE_URL": "postgres://localhost:5432/db"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATABASE_URL": "postgres://localhost:5432/db"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -78,7 +78,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "DATABASE_URL",
 				Match:  `^postgres://`,
-				Getter: &MockEnvGetter{Vars: map[string]string{"DATABASE_URL": "mysql://localhost:3306/db"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATABASE_URL": "mysql://localhost:3306/db"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value does not match pattern "^postgres://"`,
@@ -90,7 +90,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "NODE_ENV",
 				Exact:  "production",
-				Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "production"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"NODE_ENV": "production"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -99,7 +99,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "NODE_ENV",
 				Exact:  "production",
-				Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "development"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"NODE_ENV": "development"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value does not equal "production"`,
@@ -111,7 +111,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "NODE_ENV",
 				OneOf:  []string{"dev", "staging", "production"},
-				Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "production"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"NODE_ENV": "production"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -120,7 +120,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "NODE_ENV",
 				OneOf:  []string{"dev", "staging", "production"},
-				Getter: &MockEnvGetter{Vars: map[string]string{"NODE_ENV": "test"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"NODE_ENV": "test"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value "test" not in allowed list [dev staging production]`,
@@ -131,7 +131,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Name:      "SECRET_ENV",
 				OneOf:     []string{"a", "b", "c"},
 				HideValue: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"SECRET_ENV": "x"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"SECRET_ENV": "x"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value "[hidden]" not in allowed list [a b c]`,
@@ -143,7 +143,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "SECRET",
 				HideValue: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"SECRET": "super-secret"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"SECRET": "super-secret"}},
 			},
 			wantStatus: check.StatusOK,
 			wantDetail: "value: [hidden]",
@@ -155,7 +155,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "API_KEY",
 				MaskValue: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"API_KEY": "sk-secret-key-xyz"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"API_KEY": "sk-secret-key-xyz"}},
 			},
 			wantStatus: check.StatusOK,
 			wantDetail: "value: sk-•••xyz",
@@ -165,7 +165,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "SHORT",
 				MaskValue: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"SHORT": "abc"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"SHORT": "abc"}},
 			},
 			wantStatus: check.StatusOK,
 			wantDetail: "value: •••",
@@ -177,7 +177,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "PATH",
 				StartsWith: "/usr",
-				Getter:     &MockEnvGetter{Vars: map[string]string{"PATH": "/usr/local/bin"}},
+				Getter:     &mockEnvGetter{Vars: map[string]string{"PATH": "/usr/local/bin"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -186,7 +186,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "PATH",
 				StartsWith: "/usr",
-				Getter:     &MockEnvGetter{Vars: map[string]string{"PATH": "/opt/bin"}},
+				Getter:     &mockEnvGetter{Vars: map[string]string{"PATH": "/opt/bin"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value does not start with "/usr"`,
@@ -198,7 +198,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:     "CONFIG",
 				EndsWith: ".yaml",
-				Getter:   &MockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.yaml"}},
+				Getter:   &mockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.yaml"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -207,7 +207,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:     "CONFIG",
 				EndsWith: ".yaml",
-				Getter:   &MockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.json"}},
+				Getter:   &mockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.json"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value does not end with ".yaml"`,
@@ -219,7 +219,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:     "URL",
 				Contains: "example",
-				Getter:   &MockEnvGetter{Vars: map[string]string{"URL": "https://example.com/api"}},
+				Getter:   &mockEnvGetter{Vars: map[string]string{"URL": "https://example.com/api"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -228,7 +228,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:     "URL",
 				Contains: "example",
-				Getter:   &MockEnvGetter{Vars: map[string]string{"URL": "https://other.com/api"}},
+				Getter:   &mockEnvGetter{Vars: map[string]string{"URL": "https://other.com/api"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: `value does not contain "example"`,
@@ -240,7 +240,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "PORT",
 				IsNumeric: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -249,7 +249,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "RATE",
 				IsNumeric: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"RATE": "3.14"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"RATE": "3.14"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -258,7 +258,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:      "PORT",
 				IsNumeric: true,
-				Getter:    &MockEnvGetter{Vars: map[string]string{"PORT": "not-a-number"}},
+				Getter:    &mockEnvGetter{Vars: map[string]string{"PORT": "not-a-number"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "value is not numeric",
@@ -270,7 +270,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "API_KEY",
 				MinLen: 10,
-				Getter: &MockEnvGetter{Vars: map[string]string{"API_KEY": "abcdefghijk"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"API_KEY": "abcdefghijk"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -279,7 +279,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "API_KEY",
 				MinLen: 10,
-				Getter: &MockEnvGetter{Vars: map[string]string{"API_KEY": "short"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"API_KEY": "short"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "value length 5 < minimum 10",
@@ -291,7 +291,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "CODE",
 				MaxLen: 10,
-				Getter: &MockEnvGetter{Vars: map[string]string{"CODE": "abc"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"CODE": "abc"}},
 			},
 			wantStatus: check.StatusOK,
 		},
@@ -300,7 +300,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			check: Check{
 				Name:   "CODE",
 				MaxLen: 5,
-				Getter: &MockEnvGetter{Vars: map[string]string{"CODE": "toolongvalue"}},
+				Getter: &mockEnvGetter{Vars: map[string]string{"CODE": "toolongvalue"}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "value length 12 > maximum 5",

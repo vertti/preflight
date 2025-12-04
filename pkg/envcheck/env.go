@@ -14,12 +14,12 @@ func (r *RealEnvGetter) LookupEnv(key string) (string, bool) {
 	return os.LookupEnv(key)
 }
 
-// MockEnvGetter is a test double for EnvGetter.
-type MockEnvGetter struct {
+// mockEnvGetter is a test double for EnvGetter.
+type mockEnvGetter struct {
 	Vars map[string]string
 }
 
-func (m *MockEnvGetter) LookupEnv(key string) (string, bool) {
+func (m *mockEnvGetter) LookupEnv(key string) (string, bool) {
 	val, ok := m.Vars[key]
 	return val, ok
 }

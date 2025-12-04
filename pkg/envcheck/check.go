@@ -12,7 +12,7 @@ import (
 // Check verifies that an environment variable meets requirements.
 type Check struct {
 	Name       string    // env var name
-	Required   bool      // --required: fail if undefined (allows empty)
+	AllowEmpty bool      // --allow-empty: pass if defined but empty
 	Match      string    // --match: regex pattern
 	Exact      string    // --exact: exact value
 	OneOf      []string  // --one-of: value must be one of these
@@ -36,29 +36,29 @@ func (c *Check) Run() check.Result {
 	value, exists := c.Getter.LookupEnv(c.Name)
 
 	if !exists {
-		return *result.Fail("not set", fmt.Errorf("environment variable %s is not set", c.Name))
+		return result.Fail("not set", fmt.Errorf("environment variable %s is not set", c.Name))
 	}
 
-	// --required flag: allow empty values
+	// --allow-empty flag: pass if defined but empty
 	// Default: require non-empty
-	if !c.Required && value == "" {
-		return *result.Fail("empty value", fmt.Errorf("environment variable %s is empty", c.Name))
+	if !c.AllowEmpty && value == "" {
+		return result.Fail("empty value", fmt.Errorf("environment variable %s is empty", c.Name))
 	}
 
 	// --match: regex pattern
 	if c.Match != "" {
 		re, err := regexp.Compile(c.Match)
 		if err != nil {
-			return *result.Failf("invalid regex pattern: %v", err)
+			return result.Failf("invalid regex pattern: %v", err)
 		}
 		if !re.MatchString(value) {
-			return *result.Failf("value does not match pattern %q", c.Match)
+			return result.Failf("value does not match pattern %q", c.Match)
 		}
 	}
 
 	// --exact: exact value match
 	if c.Exact != "" && value != c.Exact {
-		return *result.Failf("value does not equal %q", c.Exact)
+		return result.Failf("value does not equal %q", c.Exact)
 	}
 
 	// --one-of: value must be one of the allowed values
@@ -79,34 +79,34 @@ func (c *Check) Run() check.Result {
 
 	// --starts-with: value must start with prefix
 	if c.StartsWith != "" && !strings.HasPrefix(value, c.StartsWith) {
-		return *result.Failf("value does not start with %q", c.StartsWith)
+		return result.Failf("value does not start with %q", c.StartsWith)
 	}
 
 	// --ends-with: value must end with suffix
 	if c.EndsWith != "" && !strings.HasSuffix(value, c.EndsWith) {
-		return *result.Failf("value does not end with %q", c.EndsWith)
+		return result.Failf("value does not end with %q", c.EndsWith)
 	}
 
 	// --contains: value must contain substring
 	if c.Contains != "" && !strings.Contains(value, c.Contains) {
-		return *result.Failf("value does not contain %q", c.Contains)
+		return result.Failf("value does not contain %q", c.Contains)
 	}
 
 	// --is-numeric: value must be a valid number
 	if c.IsNumeric {
 		if _, err := strconv.ParseFloat(value, 64); err != nil {
-			return *result.Fail("value is not numeric", fmt.Errorf("value is not numeric"))
+			return result.Fail("value is not numeric", fmt.Errorf("value is not numeric"))
 		}
 	}
 
 	// --min-len: minimum string length
 	if c.MinLen > 0 && len(value) < c.MinLen {
-		return *result.Failf("value length %d < minimum %d", len(value), c.MinLen)
+		return result.Failf("value length %d < minimum %d", len(value), c.MinLen)
 	}
 
 	// --max-len: maximum string length
 	if c.MaxLen > 0 && len(value) > c.MaxLen {
-		return *result.Failf("value length %d > maximum %d", len(value), c.MaxLen)
+		return result.Failf("value length %d > maximum %d", len(value), c.MaxLen)
 	}
 
 	result.Status = check.StatusOK

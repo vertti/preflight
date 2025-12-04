@@ -6,7 +6,7 @@ import (
 )
 
 func TestMockRunner_LookPath(t *testing.T) {
-	mock := &MockRunner{
+	mock := &mockRunner{
 		LookPathFunc: func(file string) (string, error) {
 			if file == "node" {
 				return "/usr/bin/node", nil
@@ -30,7 +30,7 @@ func TestMockRunner_LookPath(t *testing.T) {
 }
 
 func TestMockRunner_RunCommand(t *testing.T) {
-	mock := &MockRunner{
+	mock := &mockRunner{
 		RunCommandFunc: func(name string, args ...string) (string, string, error) {
 			if name == "node" && len(args) == 1 && args[0] == "--version" {
 				return "v18.17.0", "", nil
