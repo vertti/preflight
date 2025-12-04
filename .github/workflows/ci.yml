@@ -14,6 +14,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v3
 
+      - name: Check formatting (dprint)
+        run: dprint check
+
       - name: Run golangci-lint
         run: golangci-lint run
 
