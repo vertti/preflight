@@ -29,18 +29,18 @@ func (r *RealRunner) RunCommand(name string, args ...string) (stdout, stderr str
 	return outBuf.String(), errBuf.String(), err
 }
 
-// MockRunner is a test double for Runner.
-type MockRunner struct {
+// mockRunner is a test double for Runner.
+type mockRunner struct {
 	LookPathFunc   func(file string) (string, error)
 	RunCommandFunc func(name string, args ...string) (string, string, error)
 }
 
 // LookPath calls the mock function.
-func (m *MockRunner) LookPath(file string) (string, error) {
+func (m *mockRunner) LookPath(file string) (string, error) {
 	return m.LookPathFunc(file)
 }
 
 // RunCommand calls the mock function.
-func (m *MockRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
+func (m *mockRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
 	return m.RunCommandFunc(name, args...)
 }

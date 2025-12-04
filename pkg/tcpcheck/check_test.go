@@ -9,26 +9,26 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// MockDialer is a mock implementation of Dialer for testing.
-type MockDialer struct {
+// mockDialer is a mock implementation of Dialer for testing.
+type mockDialer struct {
 	DialFunc func(network, address string, timeout time.Duration) (net.Conn, error)
 }
 
-func (m *MockDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+func (m *mockDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
 	return m.DialFunc(network, address, timeout)
 }
 
-// MockConn is a minimal net.Conn implementation for testing.
-type MockConn struct{}
+// mockConn is a minimal net.Conn implementation for testing.
+type mockConn struct{}
 
-func (m *MockConn) Read(b []byte) (n int, err error)   { return 0, nil }
-func (m *MockConn) Write(b []byte) (n int, err error)  { return len(b), nil }
-func (m *MockConn) Close() error                       { return nil }
-func (m *MockConn) LocalAddr() net.Addr                { return nil }
-func (m *MockConn) RemoteAddr() net.Addr               { return nil }
-func (m *MockConn) SetDeadline(t time.Time) error      { return nil }
-func (m *MockConn) SetReadDeadline(t time.Time) error  { return nil }
-func (m *MockConn) SetWriteDeadline(t time.Time) error { return nil }
+func (m *mockConn) Read(b []byte) (n int, err error)   { return 0, nil }
+func (m *mockConn) Write(b []byte) (n int, err error)  { return len(b), nil }
+func (m *mockConn) Close() error                       { return nil }
+func (m *mockConn) LocalAddr() net.Addr                { return nil }
+func (m *mockConn) RemoteAddr() net.Addr               { return nil }
+func (m *mockConn) SetDeadline(t time.Time) error      { return nil }
+func (m *mockConn) SetReadDeadline(t time.Time) error  { return nil }
+func (m *mockConn) SetWriteDeadline(t time.Time) error { return nil }
 
 func TestTCPCheck(t *testing.T) {
 	tests := []struct {
@@ -43,7 +43,7 @@ func TestTCPCheck(t *testing.T) {
 			name:    "successful connection",
 			address: "localhost:5432",
 			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
-				return &MockConn{}, nil
+				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
 			wantName:   "tcp: localhost:5432",
@@ -84,7 +84,7 @@ func TestTCPCheck(t *testing.T) {
 				if timeout != 10*time.Second {
 					t.Errorf("expected timeout 10s, got %v", timeout)
 				}
-				return &MockConn{}, nil
+				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
 			wantName:   "tcp: localhost:8080",
@@ -97,7 +97,7 @@ func TestTCPCheck(t *testing.T) {
 				if timeout != 5*time.Second {
 					t.Errorf("expected default timeout 5s, got %v", timeout)
 				}
-				return &MockConn{}, nil
+				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
 			wantName:   "tcp: localhost:3000",
@@ -109,7 +109,7 @@ func TestTCPCheck(t *testing.T) {
 			c := &Check{
 				Address: tt.address,
 				Timeout: tt.timeout,
-				Dialer: &MockDialer{
+				Dialer: &mockDialer{
 					DialFunc: tt.dialFunc,
 				},
 			}

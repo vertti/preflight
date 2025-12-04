@@ -8,12 +8,12 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// MockUserLookup is a mock implementation of UserLookup for testing.
-type MockUserLookup struct {
+// mockUserLookup is a mock implementation of UserLookup for testing.
+type mockUserLookup struct {
 	LookupFunc func(username string) (*user.User, error)
 }
 
-func (m *MockUserLookup) Lookup(username string) (*user.User, error) {
+func (m *mockUserLookup) Lookup(username string) (*user.User, error) {
 	return m.LookupFunc(username)
 }
 
@@ -159,7 +159,7 @@ func TestUserCheck(t *testing.T) {
 				UID:      tt.uid,
 				GID:      tt.gid,
 				Home:     tt.home,
-				Lookup: &MockUserLookup{
+				Lookup: &mockUserLookup{
 					LookupFunc: tt.lookupFunc,
 				},
 			}

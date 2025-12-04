@@ -21,9 +21,9 @@ func TestCheck_Run(t *testing.T) {
 			name: "file exists",
 			check: Check{
 				Path: "/etc/config",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "config",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -38,7 +38,7 @@ func TestCheck_Run(t *testing.T) {
 			name: "file not found",
 			check: Check{
 				Path: "/missing",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
 						return nil, os.ErrNotExist
 					},
@@ -51,7 +51,7 @@ func TestCheck_Run(t *testing.T) {
 			name: "permission denied",
 			check: Check{
 				Path: "/secret",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
 						return nil, os.ErrPermission
 					},
@@ -67,9 +67,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:      "/var/log",
 				ExpectDir: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue:  "log",
 							IsDirValue: true,
 							ModeValue:  0o755 | fs.ModeDir,
@@ -85,9 +85,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:      "/etc/config",
 				ExpectDir: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "config",
 							ModeValue: 0o644,
 						}, nil
@@ -104,9 +104,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/data.json",
 				NotEmpty: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -121,9 +121,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/empty.txt",
 				NotEmpty: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "empty.txt",
 							SizeValue: 0,
 							ModeValue: 0o644,
@@ -139,9 +139,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:    "/data.json",
 				MinSize: 50,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -156,9 +156,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:    "/data.json",
 				MinSize: 200,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -174,9 +174,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:    "/data.json",
 				MaxSize: 200,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -191,9 +191,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:    "/data.json",
 				MaxSize: 50,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -211,9 +211,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/data.json",
 				Writable: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.json",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -228,9 +228,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/readonly.txt",
 				Writable: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "readonly.txt",
 							SizeValue: 100,
 							ModeValue: 0o444,
@@ -246,9 +246,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:       "/script.sh",
 				Executable: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "script.sh",
 							SizeValue: 100,
 							ModeValue: 0o755,
@@ -263,9 +263,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:       "/data.txt",
 				Executable: true,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "data.txt",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -283,9 +283,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path: "/key.pem",
 				Mode: "0600",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "key.pem",
 							SizeValue: 100,
 							ModeValue: 0o600,
@@ -300,9 +300,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path: "/key.pem",
 				Mode: "0600",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "key.pem",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -317,9 +317,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path: "/key.pem",
 				Mode: "0644",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "key.pem",
 							SizeValue: 100,
 							ModeValue: 0o600,
@@ -335,9 +335,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:      "/key.pem",
 				ModeExact: "0600",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "key.pem",
 							SizeValue: 100,
 							ModeValue: 0o600,
@@ -352,9 +352,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:      "/key.pem",
 				ModeExact: "0600",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "key.pem",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -372,9 +372,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/config.txt",
 				Contains: "database",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "config.txt",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -392,9 +392,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:     "/config.txt",
 				Contains: "redis",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "config.txt",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -413,9 +413,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:  "/hosts",
 				Match: "^127\\.0\\.0\\.1",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "hosts",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -433,9 +433,9 @@ func TestCheck_Run(t *testing.T) {
 			check: Check{
 				Path:  "/hosts",
 				Match: "^192\\.168",
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "hosts",
 							SizeValue: 100,
 							ModeValue: 0o644,
@@ -455,9 +455,9 @@ func TestCheck_Run(t *testing.T) {
 				Path:     "/large.log",
 				Contains: "ERROR",
 				Head:     1024,
-				FS: &MockFileSystem{
+				FS: &mockFileSystem{
 					StatFunc: func(name string) (fs.FileInfo, error) {
-						return &MockFileInfo{
+						return &mockFileInfo{
 							NameValue: "large.log",
 							SizeValue: 10000,
 							ModeValue: 0o644,
