@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
 
       - name: Run golangci-lint
         run: golangci-lint run
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
 
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
@@ -42,7 +42,7 @@ jobs:
         goarch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
 
       - name: Build
         env:
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
 
       - name: Install UPX
         run: |
@@ -93,7 +93,7 @@ jobs:
             cmd: python
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
 
       - name: Build static binary
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o preflight ./cmd/preflight
