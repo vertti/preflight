@@ -1,5 +1,15 @@
 # Usage Guide
 
+Preflight provides consistent checks for validating your container environment. Use it at different stages:
+
+- **Build time** (`RUN preflight ...`) – validate binaries, configs, and paths during image build
+- **Runtime** (`CMD ["sh", "-c", "preflight ... && ./app"]`) – verify services are reachable before app startup
+- **CI/CD** (`docker run myimage preflight ...`) – verify built images have correct tools and settings
+
+This is especially useful for complex multi-stage builds where it's easy to make small mistakes (wrong COPY paths, missing shared libraries, misconfigured environment).
+
+---
+
 ## `preflight cmd`
 
 Verifies a command exists on PATH and can execute. By default, runs `<command> --version` to ensure the binary actually works (catches missing shared libraries, corrupt binaries, etc.).
@@ -22,19 +32,19 @@ preflight cmd <command> [flags]
 
 ```sh
 # Basic check - exists and runs
-preflight cmd node
+preflight cmd myapp
 
 # Version constraints
-preflight cmd node --min 18
-preflight cmd node --min 18 --max 22
-preflight cmd node --exact 18.17.0
+preflight cmd myapp --min 2.0
+preflight cmd myapp --min 2.0 --max 3.0
+preflight cmd onnxruntime --exact 1.16.0
 
 # Regex match on version output
-preflight cmd node --match "^v18\."
+preflight cmd myapp --match "^v2\."
 
 # Custom version command
-preflight cmd go --version-cmd version      # runs: go version
-preflight cmd java --version-cmd "-version" # runs: java -version
+preflight cmd ffmpeg --version-cmd -version  # runs: ffmpeg -version
+preflight cmd java --version-cmd "-version"  # runs: java -version
 ```
 
 ---
@@ -62,23 +72,24 @@ preflight env <variable> [flags]
 
 ```sh
 # Basic check - exists and non-empty
-preflight env DATABASE_URL
+preflight env MODEL_PATH
 
 # Allow empty values (just check if defined)
-preflight env OPTIONAL_VAR --required
+preflight env OPTIONAL_CONFIG --required
 
 # Pattern matching
-preflight env DATABASE_URL --match '^postgres://'
+preflight env MODEL_PATH --match '^/models/'
+preflight env AWS_SECRET_ARN --match '^arn:aws:secretsmanager:'
 
 # Exact value
-preflight env NODE_ENV --exact production
+preflight env APP_ENV --exact production
 
 # Value from allowed list
-preflight env NODE_ENV --one-of dev,staging,production
+preflight env APP_ENV --one-of dev,staging,production
 
 # Hide sensitive values in logs
-preflight env API_KEY --hide-value   # shows: [hidden]
-preflight env API_KEY --mask-value   # shows: sk-•••xyz
+preflight env AWS_SECRET_ARN --hide-value   # shows: [hidden]
+preflight env AWS_SECRET_ARN --mask-value   # shows: arn•••xyz
 ```
 
 ---
@@ -208,20 +219,20 @@ Preflight can verify container images in CI pipelines, replacing ad-hoc shell sc
 
 ```sh
 # Instead of:
-TAG=$(docker run "myapp:latest" -c "echo \$VERSION_TAG")
+TAG=$(docker run "myapp:latest" sh -c "echo \$APP_VERSION")
 if [ "$TAG" != "$EXPECTED" ]; then exit 1; fi
 
 # Use:
-docker run myapp:latest preflight env VERSION_TAG --exact "$EXPECTED"
+docker run myapp:latest preflight env APP_VERSION --exact "$EXPECTED"
 ```
 
 ### Running multiple checks against a container
 
 ```sh
 docker run myapp:latest sh -c '
-  preflight env VERSION_TAG --exact "$EXPECTED_VERSION" &&
-  preflight cmd node --min 18 &&
-  preflight file /app/config.json --not-empty
+  preflight env APP_VERSION --exact "$EXPECTED_VERSION" &&
+  preflight cmd myapp &&
+  preflight file /models/model.onnx --not-empty
 '
 ```
 
@@ -230,7 +241,7 @@ docker run myapp:latest sh -c '
 ```yaml
 - name: Verify container
   run: |
-    docker run myapp:${{ github.sha }} preflight env VERSION_TAG --exact "${{ github.sha }}"
+    docker run myapp:${{ github.sha }} preflight env APP_VERSION --exact "${{ github.sha }}"
 ```
 
 ---
@@ -240,25 +251,25 @@ docker run myapp:latest sh -c '
 ### Success
 
 ```
-[OK] cmd:node
-      path: /usr/bin/node
-      version: 18.17.0
+[OK] cmd:myapp
+      path: /usr/local/bin/myapp
+      version: 2.1.0
 ```
 
 ### Failure
 
 ```
-[FAIL] cmd:node
+[FAIL] cmd:myapp
       not found in PATH
 
-[FAIL] cmd:node
-      version 16.0.0 < minimum 18.0.0
+[FAIL] cmd:myapp
+      version 1.5.0 < minimum 2.0.0
 
-[FAIL] env:DATABASE_URL
+[FAIL] env:MODEL_PATH
       not set
 
-[FAIL] env:DATABASE_URL
-      value does not match pattern "^postgres://"
+[FAIL] env:MODEL_PATH
+      value does not match pattern "^/models/"
 
 [FAIL] file:/var/log/app
       not writable
