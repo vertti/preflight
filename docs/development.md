@@ -11,6 +11,9 @@
 # Install dependencies via mise
 mise install
 
+# Install pre-commit hooks (runs gofmt, golangci-lint, dprint on commit)
+hk install
+
 # Run tests
 make test
 
