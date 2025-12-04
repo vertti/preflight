@@ -15,6 +15,7 @@ import (
 	"github.com/vertti/preflight/pkg/filecheck"
 	"github.com/vertti/preflight/pkg/preflightfile"
 	"github.com/vertti/preflight/pkg/tcpcheck"
+	"github.com/vertti/preflight/pkg/usercheck"
 	"github.com/vertti/preflight/pkg/version"
 )
 
@@ -26,7 +27,7 @@ func main() {
 		firstArg := os.Args[1]
 
 		if !strings.HasPrefix(firstArg, "-") {
-			knownSubcommands := []string{"cmd", "env", "file", "tcp", "run", "version", "help", "--help", "-h"}
+			knownSubcommands := []string{"cmd", "env", "file", "tcp", "user", "run", "version", "help", "--help", "-h"}
 			isSubcommand := false
 			for _, subcmd := range knownSubcommands {
 				if firstArg == subcmd {
@@ -84,6 +85,13 @@ var tcpCmd = &cobra.Command{
 	RunE:  runTCPCheck,
 }
 
+var userCmd = &cobra.Command{
+	Use:   "user <username>",
+	Short: "Check that a user exists and meets requirements",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runUserCheck,
+}
+
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run checks from a .preflight file",
@@ -122,6 +130,11 @@ var (
 
 	// tcp flags
 	tcpTimeout time.Duration
+
+	// user flags
+	userUID  string
+	userGID  string
+	userHome string
 
 	// run flags
 	runFile string
@@ -162,6 +175,12 @@ func init() {
 	// tcp subcommand
 	tcpCmd.Flags().DurationVar(&tcpTimeout, "timeout", 5*time.Second, "connection timeout")
 	rootCmd.AddCommand(tcpCmd)
+
+	// user subcommand
+	userCmd.Flags().StringVar(&userUID, "uid", "", "expected user ID")
+	userCmd.Flags().StringVar(&userGID, "gid", "", "expected primary group ID")
+	userCmd.Flags().StringVar(&userHome, "home", "", "expected home directory")
+	rootCmd.AddCommand(userCmd)
 
 	// run subcommand
 	runCmd.Flags().StringVar(&runFile, "file", "", "path to .preflight file (default: search up from current directory)")
@@ -273,6 +292,26 @@ func runTCPCheck(cmd *cobra.Command, args []string) error {
 		Address: address,
 		Timeout: tcpTimeout,
 		Dialer:  &tcpcheck.RealDialer{},
+	}
+
+	result := c.Run()
+	printResult(result)
+
+	if !result.OK() {
+		os.Exit(1)
+	}
+	return nil
+}
+
+func runUserCheck(cmd *cobra.Command, args []string) error {
+	username := args[0]
+
+	c := &usercheck.Check{
+		Username: username,
+		UID:      userUID,
+		GID:      userGID,
+		Home:     userHome,
+		Lookup:   &usercheck.RealUserLookup{},
 	}
 
 	result := c.Run()
