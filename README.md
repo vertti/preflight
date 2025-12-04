@@ -4,14 +4,23 @@
 
 > Sanity checks for containers. Tiny binary, zero dependencies.
 
+Preflight validates your container environment at build time, runtime, or in CI. It replaces brittle shell scripts with clear, consistent checks.
+
+**Use it for:**
+
+- **Docker builds** – verify binaries built from source actually work
+- **Multi-stage builds** – catch broken paths, missing libs, or copy mistakes
+- **Container startup** – validate services are reachable before your app starts
+- **CI pipelines** – verify container images have the right tools and config
+
 ## The Problem
 
-Dockerfiles are littered with brittle shell checks:
+Complex multi-stage Docker builds make it easy to break things silently. A typo in a COPY path, a missing shared library, or a misconfigured environment variable might not surface until production.
 
 ```sh
-RUN command -v node || (echo "node missing"; exit 1)
-RUN [ -n "$DATABASE_URL" ] || (echo "DATABASE_URL not set"; exit 1)
-RUN grep -q "worker_processes" /etc/nginx/nginx.conf || (echo "nginx misconfigured"; exit 1)
+RUN command -v myapp || (echo "myapp missing"; exit 1)
+RUN [ -n "$MODEL_PATH" ] || (echo "MODEL_PATH not set"; exit 1)
+RUN [ -x /usr/local/bin/inference ] || (echo "inference not executable"; exit 1)
 ```
 
 ## The Solution
@@ -19,9 +28,9 @@ RUN grep -q "worker_processes" /etc/nginx/nginx.conf || (echo "nginx misconfigur
 ```dockerfile
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
-RUN preflight cmd node --min 18
-RUN preflight env DATABASE_URL --match '^postgres://'
-RUN preflight file /etc/nginx/nginx.conf --contains "worker_processes"
+RUN preflight cmd myapp
+RUN preflight env MODEL_PATH --match '^/models/'
+RUN preflight file /usr/local/bin/inference --executable
 ```
 
 ## Install
@@ -44,42 +53,41 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 
 ### Check commands
 
-Like `which`, but verifies the binary actually runs.
+Like `which`, but verifies the binary actually runs (catches missing `.so` dependencies).
 
 ```sh
-preflight cmd node                    # exists and runs
-preflight cmd node --min 18           # minimum version
-preflight cmd node --min 18 --max 22  # version range
-preflight cmd node --exact 18.17.0    # exact version
-preflight cmd go --version-cmd version # custom version flag
+preflight cmd myapp                   # exists and runs
+preflight cmd myapp --min 2.0         # minimum version
+preflight cmd onnxruntime             # ML runtime with native deps
+preflight cmd ffmpeg --version-cmd -version  # custom version flag
 ```
 
 ### Check environment variables
 
 ```sh
-preflight env DATABASE_URL                       # exists and non-empty
-preflight env DATABASE_URL --match '^postgres://' # matches pattern
-preflight env NODE_ENV --exact production        # exact value
-preflight env API_KEY --mask-value               # hide in output
+preflight env MODEL_PATH                           # exists and non-empty
+preflight env MODEL_PATH --match '^/models/'       # matches pattern
+preflight env APP_ENV --one-of dev,staging,prod    # allowed values
+preflight env AWS_SECRET_ARN --mask-value          # hide in output
 ```
 
 ### Check files and directories
 
 ```sh
-preflight file /etc/nginx/nginx.conf             # exists and readable
-preflight file /var/log/app --dir --writable     # directory is writable
-preflight file /app/config.json --not-empty      # file has content
-preflight file /etc/hosts --contains "localhost" # content check
+preflight file /models/bert.onnx --not-empty     # model file exists
+preflight file /app/config --dir --writable      # directory is writable
+preflight file /app/config.yaml --contains "api" # content check
+preflight file /usr/local/bin/myapp --executable # binary is executable
 ```
 
 ### Output
 
 ```
-[OK] cmd:node
-      path: /usr/bin/node
-      version: 18.17.0
+[OK] cmd:myapp
+      path: /usr/local/bin/myapp
+      version: 2.1.0
 
-[FAIL] env:DATABASE_URL
+[FAIL] env:MODEL_PATH
       not set
 ```
 
