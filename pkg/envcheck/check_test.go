@@ -42,22 +42,22 @@ func TestEnvCheck_Run(t *testing.T) {
 			wantDetail: "value: some_value",
 		},
 
-		// --required flag tests
+		// --allow-empty flag tests
 		{
-			name: "required allows empty value",
+			name: "allow-empty allows empty value",
 			check: Check{
-				Name:     "EMPTY_VAR",
-				Required: true,
-				Getter:   &MockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
+				Name:       "EMPTY_VAR",
+				AllowEmpty: true,
+				Getter:     &MockEnvGetter{Vars: map[string]string{"EMPTY_VAR": ""}},
 			},
 			wantStatus: check.StatusOK,
 		},
 		{
-			name: "required still fails if undefined",
+			name: "allow-empty still fails if undefined",
 			check: Check{
-				Name:     "MISSING_VAR",
-				Required: true,
-				Getter:   &MockEnvGetter{Vars: map[string]string{}},
+				Name:       "MISSING_VAR",
+				AllowEmpty: true,
+				Getter:     &MockEnvGetter{Vars: map[string]string{}},
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "not set",

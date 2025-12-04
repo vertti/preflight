@@ -12,7 +12,7 @@ import (
 // Check verifies that an environment variable meets requirements.
 type Check struct {
 	Name       string    // env var name
-	Required   bool      // --required: fail if undefined (allows empty)
+	AllowEmpty bool      // --allow-empty: pass if defined but empty
 	Match      string    // --match: regex pattern
 	Exact      string    // --exact: exact value
 	OneOf      []string  // --one-of: value must be one of these
@@ -39,9 +39,9 @@ func (c *Check) Run() check.Result {
 		return result.Fail("not set", fmt.Errorf("environment variable %s is not set", c.Name))
 	}
 
-	// --required flag: allow empty values
+	// --allow-empty flag: pass if defined but empty
 	// Default: require non-empty
-	if !c.Required && value == "" {
+	if !c.AllowEmpty && value == "" {
 		return result.Fail("empty value", fmt.Errorf("environment variable %s is empty", c.Name))
 	}
 
