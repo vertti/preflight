@@ -366,3 +366,50 @@ docker run myapp:latest sh -c '
 | ---- | ------------------------- |
 | `0`  | All checks passed         |
 | `1`  | One or more checks failed |
+
+---
+
+## Colored Output
+
+Preflight outputs colored status indicators:
+
+- `[OK]` in green
+- `[FAIL]` in red
+
+### Where Colors Work Automatically
+
+- **Terminals** - colors are detected automatically
+- **GitHub Actions** - colors are enabled automatically
+- **GitLab CI** - colors are enabled automatically
+- **Other CI systems** - most are detected automatically
+
+### Docker Builds
+
+Docker builds don't allocate a TTY, so colors are disabled by default. To enable colors in your Dockerfile, set `PREFLIGHT_COLOR=1`:
+
+```dockerfile
+FROM alpine
+
+ENV PREFLIGHT_COLOR=1
+
+RUN preflight cmd myapp
+RUN preflight env MODEL_PATH
+RUN preflight file /app/config.yaml
+```
+
+### Environment Variables
+
+| Variable           | Description                      |
+| ------------------ | -------------------------------- |
+| `PREFLIGHT_COLOR=1`| Enable colors (for Docker builds)|
+| `NO_COLOR=1`       | Disable colors                   |
+
+### Examples
+
+```sh
+# Disable colors
+NO_COLOR=1 preflight cmd myapp
+
+# Enable colors in scripts/Docker
+PREFLIGHT_COLOR=1 preflight cmd myapp
+```

@@ -39,16 +39,16 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "user not found",
 			username: "nonexistent",
 			lookupFunc: func(username string) (*user.User, error) {
-				return nil, errors.New("user: unknown user nonexistent")
+				return nil, errors.New("user:  unknown user nonexistent")
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "user:nonexistent",
+			wantName:   "user: nonexistent",
 		},
 		{
 			name:     "uid matches",
@@ -62,7 +62,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "uid mismatch",
@@ -76,7 +76,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "gid matches",
@@ -90,7 +90,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "gid mismatch",
@@ -104,7 +104,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "home matches",
@@ -118,7 +118,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "home mismatch",
@@ -132,7 +132,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 		{
 			name:     "all constraints match",
@@ -148,7 +148,7 @@ func TestUserCheck(t *testing.T) {
 				}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "user:appuser",
+			wantName:   "user: appuser",
 		},
 	}
 

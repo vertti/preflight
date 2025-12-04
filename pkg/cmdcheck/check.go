@@ -22,7 +22,7 @@ type Check struct {
 // Run executes the command check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("cmd:%s", c.Name),
+		Name: fmt.Sprintf("cmd: %s", c.Name),
 	}
 
 	path, err := c.Runner.LookPath(c.Name)

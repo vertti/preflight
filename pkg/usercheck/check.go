@@ -32,7 +32,7 @@ type Check struct {
 // Run executes the user check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("user:%s", c.Username),
+		Name: fmt.Sprintf("user: %s", c.Username),
 	}
 
 	u, err := c.Lookup.Lookup(c.Username)

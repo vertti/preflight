@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/cmdcheck"
 	"github.com/vertti/preflight/pkg/envcheck"
 	"github.com/vertti/preflight/pkg/filecheck"
+	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/preflightfile"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/usercheck"
@@ -234,7 +234,7 @@ func runCmdCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	result := c.Run()
-	printResult(result)
+	output.PrintResult(result)
 
 	if !result.OK() {
 		os.Exit(1)
@@ -267,7 +267,7 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	result := c.Run()
-	printResult(result)
+	output.PrintResult(result)
 
 	if !result.OK() {
 		os.Exit(1)
@@ -295,7 +295,7 @@ func runFileCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	result := c.Run()
-	printResult(result)
+	output.PrintResult(result)
 
 	if !result.OK() {
 		os.Exit(1)
@@ -313,7 +313,7 @@ func runTCPCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	result := c.Run()
-	printResult(result)
+	output.PrintResult(result)
 
 	if !result.OK() {
 		os.Exit(1)
@@ -333,7 +333,7 @@ func runUserCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	result := c.Run()
-	printResult(result)
+	output.PrintResult(result)
 
 	if !result.OK() {
 		os.Exit(1)
@@ -386,15 +386,4 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func printResult(r check.Result) {
-	if r.OK() {
-		fmt.Printf("[OK] %s\n", r.Name)
-	} else {
-		fmt.Printf("[FAIL] %s\n", r.Name)
-	}
-	for _, d := range r.Details {
-		fmt.Printf("      %s\n", d)
-	}
 }

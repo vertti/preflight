@@ -46,7 +46,7 @@ func TestTCPCheck(t *testing.T) {
 				return &MockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "tcp:localhost:5432",
+			wantName:   "tcp: localhost:5432",
 		},
 		{
 			name:    "connection refused",
@@ -55,7 +55,7 @@ func TestTCPCheck(t *testing.T) {
 				return nil, errors.New("connection refused")
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "tcp:localhost:9999",
+			wantName:   "tcp: localhost:9999",
 		},
 		{
 			name:    "timeout",
@@ -65,7 +65,7 @@ func TestTCPCheck(t *testing.T) {
 				return nil, errors.New("i/o timeout")
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "tcp:10.255.255.1:80",
+			wantName:   "tcp: 10.255.255.1:80",
 		},
 		{
 			name:    "dns resolution failure",
@@ -74,7 +74,7 @@ func TestTCPCheck(t *testing.T) {
 				return nil, errors.New("no such host")
 			},
 			wantStatus: check.StatusFail,
-			wantName:   "tcp:nonexistent.invalid:80",
+			wantName:   "tcp: nonexistent.invalid:80",
 		},
 		{
 			name:    "custom timeout used",
@@ -87,7 +87,7 @@ func TestTCPCheck(t *testing.T) {
 				return &MockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "tcp:localhost:8080",
+			wantName:   "tcp: localhost:8080",
 		},
 		{
 			name:    "default timeout when zero",
@@ -100,7 +100,7 @@ func TestTCPCheck(t *testing.T) {
 				return &MockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
-			wantName:   "tcp:localhost:3000",
+			wantName:   "tcp: localhost:3000",
 		},
 	}
 
