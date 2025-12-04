@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/vertti/preflight/pkg/cmdcheck"
 	"github.com/vertti/preflight/pkg/envcheck"
 	"github.com/vertti/preflight/pkg/filecheck"
+	"github.com/vertti/preflight/pkg/preflightfile"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/version"
 )
@@ -20,6 +22,28 @@ import (
 var Version = "dev"
 
 func main() {
+	if len(os.Args) > 1 {
+		firstArg := os.Args[1]
+
+		if !strings.HasPrefix(firstArg, "-") {
+			knownSubcommands := []string{"cmd", "env", "file", "tcp", "run", "version", "help", "--help", "-h"}
+			isSubcommand := false
+			for _, subcmd := range knownSubcommands {
+				if firstArg == subcmd {
+					isSubcommand = true
+					break
+				}
+			}
+
+			if !isSubcommand {
+				if info, err := os.Stat(firstArg); err == nil && !info.IsDir() {
+					runFile = firstArg
+					os.Args = append([]string{os.Args[0], "run"}, os.Args[2:]...)
+				}
+			}
+		}
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -60,6 +84,13 @@ var tcpCmd = &cobra.Command{
 	RunE:  runTCPCheck,
 }
 
+var runCmd = &cobra.Command{
+	Use:   "run",
+	Short: "Run checks from a .preflight file",
+	Args:  cobra.NoArgs,
+	RunE:  runRun,
+}
+
 var (
 	// cmd flags
 	minVersion   string
@@ -91,6 +122,9 @@ var (
 
 	// tcp flags
 	tcpTimeout time.Duration
+
+	// run flags
+	runFile string
 )
 
 func init() {
@@ -128,6 +162,10 @@ func init() {
 	// tcp subcommand
 	tcpCmd.Flags().DurationVar(&tcpTimeout, "timeout", 5*time.Second, "connection timeout")
 	rootCmd.AddCommand(tcpCmd)
+
+	// run subcommand
+	runCmd.Flags().StringVar(&runFile, "file", "", "path to .preflight file (default: search up from current directory)")
+	rootCmd.AddCommand(runCmd)
 }
 
 func runCmdCheck(cmd *cobra.Command, args []string) error {
@@ -243,6 +281,53 @@ func runTCPCheck(cmd *cobra.Command, args []string) error {
 	if !result.OK() {
 		os.Exit(1)
 	}
+	return nil
+}
+
+func runRun(cmd *cobra.Command, args []string) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	preflightPath, err := preflightfile.FindFile(wd, runFile)
+	if err != nil {
+		return err
+	}
+
+	commands, err := preflightfile.ParseFile(preflightPath)
+	if err != nil {
+		return err
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	for _, command := range commands {
+		parts := strings.Fields(command)
+		if len(parts) == 0 {
+			continue
+		}
+
+		if parts[0] == "preflight" {
+			parts[0] = executable
+		}
+
+		execCmd := exec.Command(parts[0], parts[1:]...)
+		execCmd.Stdout = os.Stdout
+		execCmd.Stderr = os.Stderr
+		execCmd.Stdin = os.Stdin
+
+		if err := execCmd.Run(); err != nil {
+			if exitError, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitError.ExitCode())
+			}
+			return fmt.Errorf("failed to execute command %q: %w", command, err)
+		}
+	}
+
 	return nil
 }
 
