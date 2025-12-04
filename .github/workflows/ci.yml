@@ -30,11 +30,10 @@ jobs:
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v5
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage
-          path: coverage.out
+          files: coverage.out
 
   build:
     name: Build

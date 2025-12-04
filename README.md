@@ -1,6 +1,7 @@
 # Preflight
 
 [![CI](https://github.com/vertti/preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/vertti/preflight/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/vertti/preflight/graph/badge.svg)](https://codecov.io/gh/vertti/preflight)
 
 > Sanity checks for containers. Tiny binary, zero dependencies.
 
