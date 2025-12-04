@@ -366,3 +366,31 @@ docker run myapp:latest sh -c '
 | ---- | ------------------------- |
 | `0`  | All checks passed         |
 | `1`  | One or more checks failed |
+
+---
+
+## Colored Output
+
+Preflight outputs colored status indicators:
+
+- `[OK]` in green
+- `[FAIL]` in red
+
+Colors are automatically enabled in terminals and CI environments (GitHub Actions, GitLab CI, etc.).
+
+### Environment Variables
+
+| Variable      | Description                                |
+| ------------- | ------------------------------------------ |
+| `NO_COLOR=1`  | Disable colored output                     |
+| `FORCE_COLOR` | Force colors (useful when piping to `cat`) |
+
+### Examples
+
+```sh
+# Disable colors
+NO_COLOR=1 preflight cmd myapp
+
+# Force colors when piping
+FORCE_COLOR=1 preflight cmd myapp | tee output.log
+```
