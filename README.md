@@ -129,12 +129,14 @@ chmod +x preflight
 
 ### Output
 
-> ${\color{green}[OK]}$ ${\color{gray}cmd:}$ myapp
-> ${\color{gray}path:}$ /usr/local/bin/myapp
-> ${\color{gray}version:}$ 2.1.0
->
-> ${\color{red}[FAIL]}$ ${\color{gray}env:}$ MODEL_PATH
-> ${\color{gray}error:}$ not set
+```
+[OK] cmd: myapp
+     path: /usr/local/bin/myapp
+     version: 2.1.0
+
+[FAIL] env: MODEL_PATH
+       error: not set
+```
 
 Exit code `0` on success, `1` on failure.
 
