@@ -1,0 +1,11 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 75%
+    patch:
+      default:
+        target: 70%
+
+ignore:
+  - "cmd/preflight/cmd_*.go"  # Cobra wiring, init() functions
