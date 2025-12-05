@@ -9,6 +9,7 @@ This roadmap documents planned enhancements based on analysis of real-world shel
 | `preflight cmd`  | Verify binary exists and runs, version constraints         |
 | `preflight env`  | Validate environment variables with pattern matching       |
 | `preflight file` | Check files/directories exist with permissions and content |
+| `preflight http` | HTTP health checks with status, retry, headers             |
 | `preflight tcp`  | TCP port connectivity                                      |
 | `preflight user` | Verify user exists with uid/gid/home                       |
 | `preflight run`  | Run checks from `.preflight` file                          |
@@ -16,42 +17,6 @@ This roadmap documents planned enhancements based on analysis of real-world shel
 ---
 
 ## Priority 1: High Impact
-
-### `preflight http`
-
-HTTP health checks appear in nearly every Docker HEALTHCHECK directive. Currently requires curl/wget to be installed.
-
-**Shell patterns replaced:**
-
-```bash
-# curl with --fail (returns exit 22 on HTTP errors)
-curl --fail http://localhost:5000/healthz || exit 1
-
-# wget spider mode
-wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
-
-# curl with timeout and retries
-curl --fail --retry 3 --max-time 5 http://localhost/ready
-```
-
-**Must-have flags:**
-
-| Flag                   | Description                         |
-| ---------------------- | ----------------------------------- |
-| `--status <code>`      | Expected HTTP status (default: 200) |
-| `--timeout <duration>` | Request timeout (default: 5s)       |
-
-**Optional flags:**
-
-| Flag                       | Description            |
-| -------------------------- | ---------------------- |
-| `--retry <n>`              | Retry count on failure |
-| `--retry-delay <duration>` | Delay between retries  |
-| `--method <GET\|HEAD>`     | HTTP method            |
-| `--header <key:value>`     | Custom header          |
-| `--insecure`               | Skip TLS verification  |
-
----
 
 ### `preflight hash`
 
@@ -363,15 +328,14 @@ openssl x509 -checkend 86400 -noout -in /path/to/cert.pem
 
 ## Summary
 
-| Priority | Command    | Impact                             |
-| -------- | ---------- | ---------------------------------- |
-| 1        | `http`     | Health checks in every HEALTHCHECK |
-| 1        | `hash`     | Supply chain security              |
-| 2        | `dns`      | Service discovery                  |
-| 2        | `sys`      | Multi-arch containers              |
-| 2        | `resource` | CI environment validation          |
-| 3        | `pkg`      | Package verification               |
-| 3        | `proc`     | Service orchestration              |
-| 3        | `file` ext | Sockets, symlinks                  |
-| 3        | `git`      | CI automation                      |
-| 3        | `cert`     | TLS validation                     |
+| Priority | Command    | Impact                    |
+| -------- | ---------- | ------------------------- |
+| 1        | `hash`     | Supply chain security     |
+| 2        | `dns`      | Service discovery         |
+| 2        | `sys`      | Multi-arch containers     |
+| 2        | `resource` | CI environment validation |
+| 3        | `pkg`      | Package verification      |
+| 3        | `proc`     | Service orchestration     |
+| 3        | `file` ext | Sockets, symlinks         |
+| 3        | `git`      | CI automation             |
+| 3        | `cert`     | TLS validation            |

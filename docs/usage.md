@@ -227,6 +227,113 @@ healthcheck:
 
 ---
 
+## `preflight http`
+
+HTTP health checks for verifying services are up and responding correctly. Replaces `curl --fail` or `wget --spider` in containers, eliminating the need to install those tools.
+
+```sh
+preflight http <url> [flags]
+```
+
+### Flags
+
+| Flag                   | Description                         |
+| ---------------------- | ----------------------------------- |
+| `--status <code>`      | Expected HTTP status (default: 200) |
+| `--timeout <duration>` | Request timeout (default: 5s)       |
+| `--retry <n>`          | Retry count on failure              |
+| `--retry-delay <dur>`  | Delay between retries (default: 1s) |
+| `--method <method>`    | HTTP method: GET or HEAD            |
+| `--header <key:value>` | Custom header (can be repeated)     |
+| `--insecure`           | Skip TLS certificate verification   |
+
+### Examples
+
+```sh
+# Basic health check
+preflight http http://localhost:8080/health
+
+# Custom expected status
+preflight http http://localhost/api --status 204
+
+# With timeout
+preflight http http://slow-service:8080/ready --timeout 30s
+
+# Retry on failure (3 retries = 4 total attempts)
+preflight http http://localhost:8080/health --retry 3 --retry-delay 2s
+
+# HEAD request (lighter weight)
+preflight http http://localhost:8080/health --method HEAD
+
+# Custom headers
+preflight http http://localhost/api --header "Authorization:Bearer token123"
+preflight http http://localhost/api --header "X-API-Key:secret" --header "Accept:application/json"
+
+# Skip TLS verification (self-signed certs)
+preflight http https://internal-service/health --insecure
+```
+
+### Redirect Handling
+
+Redirects are **not followed** automatically. If the server returns a 3xx status, that status is checked against `--status`. This matches `curl --fail` behavior.
+
+```sh
+# This fails if server returns 302
+preflight http http://localhost/old-path
+
+# This passes if server returns 302
+preflight http http://localhost/old-path --status 302
+```
+
+### Runtime Use Cases
+
+HTTP checks are useful for **runtime validation** - ensuring services are healthy before your application starts.
+
+**Container startup (HEALTHCHECK):**
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD preflight http http://localhost:8080/health
+```
+
+**Container startup script:**
+
+```dockerfile
+CMD ["sh", "-c", "preflight http http://api:8080/ready --retry 5 && ./myapp"]
+```
+
+**Kubernetes liveness/readiness probes:**
+
+```yaml
+livenessProbe:
+  exec:
+    command: ["preflight", "http", "http://localhost:8080/health"]
+readinessProbe:
+  exec:
+    command: ["preflight", "http", "http://localhost:8080/ready", "--timeout", "10s"]
+```
+
+**Docker Compose health checks:**
+
+```yaml
+healthcheck:
+  test: ["CMD", "preflight", "http", "http://localhost:8080/health"]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+```
+
+### Why Not curl?
+
+`preflight http` provides several advantages over `curl --fail`:
+
+1. **No extra dependencies** - curl is 3-8MB and requires TLS libraries
+2. **Consistent exit codes** - curl's exit codes vary by error type
+3. **Built-in retry** - no need for shell loops
+4. **Same syntax** - consistent with other preflight commands
+
+---
+
 ## `preflight user`
 
 Checks that a user exists on the system and optionally validates uid, gid, and home directory. Useful for verifying non-root container configurations.
@@ -426,6 +533,15 @@ docker run myapp:latest sh -c '
 
 [FAIL] tcp:localhost:9999
       connection failed: dial tcp [::1]:9999: connect: connection refused
+
+[OK] http: http://localhost:8080/health
+      status 200
+
+[FAIL] http: http://localhost:8080/health
+       status 503, expected 200
+
+[FAIL] http: http://localhost:9999/health
+       request failed: dial tcp [::1]:9999: connect: connection refused
 
 [OK] user:appuser
       uid: 1000
