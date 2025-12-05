@@ -11,6 +11,7 @@ This roadmap documents planned enhancements based on analysis of real-world shel
 | `preflight file` | Check files/directories exist with permissions and content |
 | `preflight hash` | SHA256/SHA512/MD5 checksum verification                    |
 | `preflight http` | HTTP health checks with status, retry, headers             |
+| `preflight sys`  | Platform/architecture detection (os, arch)                 |
 | `preflight tcp`  | TCP port connectivity                                      |
 | `preflight user` | Verify user exists with uid/gid/home                       |
 | `preflight run`  | Run checks from `.preflight` file                          |
@@ -46,42 +47,6 @@ nslookup myservice.local || exit 1
 | -------- | ------------------- |
 | `--ipv4` | Require IPv4 result |
 | `--ipv6` | Require IPv6 result |
-
----
-
-### `preflight sys`
-
-Multi-architecture containers require platform detection.
-
-**Shell patterns replaced:**
-
-```bash
-# Architecture detection (note: uname -m returns x86_64/aarch64)
-arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
-
-# OS detection
-case $(uname -s | tr '[:upper:]' '[:lower:]') in
-  linux*)  echo 'linux' ;;
-  darwin*) echo 'darwin' ;;
-esac
-
-# Kernel version check
-kernelVersion="$(uname -r)"
-```
-
-**Must-have flags:**
-
-| Flag            | Description                          |
-| --------------- | ------------------------------------ |
-| `--arch <arch>` | Required architecture (amd64, arm64) |
-| `--os <os>`     | Required OS (linux, darwin)          |
-
-**Optional flags:**
-
-| Flag                     | Description                               |
-| ------------------------ | ----------------------------------------- |
-| `--kernel-min <version>` | Minimum kernel version                    |
-| `--distro <name>`        | Linux distribution (alpine, debian, etc.) |
 
 ---
 
@@ -296,7 +261,6 @@ openssl x509 -checkend 86400 -noout -in /path/to/cert.pem
 | Priority | Command    | Impact                    |
 | -------- | ---------- | ------------------------- |
 | 2        | `dns`      | Service discovery         |
-| 2        | `sys`      | Multi-arch containers     |
 | 2        | `resource` | CI environment validation |
 | 3        | `pkg`      | Package verification      |
 | 3        | `proc`     | Service orchestration     |

@@ -410,6 +410,69 @@ RUN preflight hash --checksum-file /tmp/SHASUMS256.txt /tmp/node.tar.gz
 
 ---
 
+## `preflight sys`
+
+Checks the system's OS and architecture. Useful for multi-architecture container builds to verify the correct platform.
+
+```sh
+preflight sys [flags]
+```
+
+### Flags
+
+| Flag            | Description                          |
+| --------------- | ------------------------------------ |
+| `--os <os>`     | Required OS (linux, darwin, windows) |
+| `--arch <arch>` | Required architecture (amd64, arm64) |
+
+At least one of `--os` or `--arch` is required.
+
+### Examples
+
+```sh
+# Check OS only
+preflight sys --os linux
+
+# Check architecture only
+preflight sys --arch amd64
+
+# Check both
+preflight sys --os linux --arch arm64
+```
+
+### Shell Pattern Replaced
+
+```bash
+# Before - brittle shell script
+arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
+if [ "$arch" != "amd64" ]; then
+    echo "Unsupported architecture: $arch"
+    exit 1
+fi
+
+# After - clear intent
+preflight sys --arch amd64
+```
+
+### Use Cases
+
+**Multi-arch Dockerfile:**
+
+```dockerfile
+# Verify we're building for the expected platform
+RUN preflight sys --os linux --arch arm64
+```
+
+**CI platform verification:**
+
+```yaml
+# GitHub Actions
+- name: Verify platform
+  run: preflight sys --arch amd64
+```
+
+---
+
 ## `preflight user`
 
 Checks that a user exists on the system and optionally validates uid, gid, and home directory. Useful for verifying non-root container configurations.

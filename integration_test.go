@@ -14,6 +14,7 @@ import (
 	"github.com/vertti/preflight/pkg/filecheck"
 	"github.com/vertti/preflight/pkg/hashcheck"
 	"github.com/vertti/preflight/pkg/httpcheck"
+	"github.com/vertti/preflight/pkg/syscheck"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/usercheck"
 )
@@ -154,6 +155,22 @@ func TestIntegration_User(t *testing.T) {
 	c := usercheck.Check{
 		Username: username,
 		Lookup:   &usercheck.RealUserLookup{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_Sys(t *testing.T) {
+	// Get the actual OS from RealSysInfo and verify it matches
+	info := &syscheck.RealSysInfo{}
+
+	c := syscheck.Check{
+		ExpectedOS: info.OS(), // Use actual OS so test always passes
+		Info:       info,
 	}
 
 	result := c.Run()
