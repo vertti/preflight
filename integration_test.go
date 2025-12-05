@@ -78,6 +78,70 @@ func TestIntegration_File(t *testing.T) {
 	}
 }
 
+func TestIntegration_FileSocket(t *testing.T) {
+	// Create a temporary Unix socket
+	tmpDir, err := os.MkdirTemp("", "preflight-socket-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	socketPath := tmpDir + "/test.sock"
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("failed to create unix socket: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	// Test that --socket flag works
+	c := filecheck.Check{
+		Path:         socketPath,
+		ExpectSocket: true,
+		FS:           &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Verify we see the socket type in details
+	foundSocketType := false
+	for _, detail := range result.Details {
+		if detail == "type: socket" {
+			foundSocketType = true
+			break
+		}
+	}
+	if !foundSocketType {
+		t.Errorf("Details = %v, want to contain 'type: socket'", result.Details)
+	}
+}
+
+func TestIntegration_FileSocketFail(t *testing.T) {
+	// Create a regular file, not a socket
+	tmpFile, err := os.CreateTemp("", "preflight-not-socket-*.txt")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
+
+	// Test that --socket fails on a regular file
+	c := filecheck.Check{
+		Path:         tmpFile.Name(),
+		ExpectSocket: true,
+		FS:           &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail (details: %v)", result.Status, result.Details)
+	}
+}
+
 func TestIntegration_Hash(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "preflight-integration-*.txt")
 	if err != nil {

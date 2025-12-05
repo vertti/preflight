@@ -127,6 +127,76 @@ func TestCheck_Run(t *testing.T) {
 			wantDetail: "expected directory, got file",
 		},
 
+		// Socket tests
+		{
+			name: "socket exists and is socket",
+			check: Check{
+				Path:         "/var/run/docker.sock",
+				ExpectSocket: true,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "docker.sock",
+							ModeValue: 0o600 | fs.ModeSocket,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "type: socket",
+		},
+		{
+			name: "expected socket but got file",
+			check: Check{
+				Path:         "/etc/config",
+				ExpectSocket: true,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "config",
+							ModeValue: 0o644,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "expected socket, got file/directory",
+		},
+		{
+			name: "expected socket but got directory",
+			check: Check{
+				Path:         "/var/log",
+				ExpectSocket: true,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue:  "log",
+							IsDirValue: true,
+							ModeValue:  0o755 | fs.ModeDir,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "expected socket, got file/directory",
+		},
+		{
+			name: "socket without --socket flag shows type",
+			check: Check{
+				Path: "/var/run/docker.sock",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "docker.sock",
+							ModeValue: 0o600 | fs.ModeSocket,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "type: socket",
+		},
+
 		// Size tests
 		{
 			name: "not empty - passes",

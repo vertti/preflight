@@ -8,6 +8,7 @@ import (
 
 var (
 	fileDir        bool
+	fileSocket     bool
 	fileWritable   bool
 	fileExecutable bool
 	fileNotEmpty   bool
@@ -29,6 +30,7 @@ var fileCmd = &cobra.Command{
 
 func init() {
 	fileCmd.Flags().BoolVar(&fileDir, "dir", false, "expect a directory")
+	fileCmd.Flags().BoolVar(&fileSocket, "socket", false, "expect a Unix socket")
 	fileCmd.Flags().BoolVar(&fileWritable, "writable", false, "check write permission")
 	fileCmd.Flags().BoolVar(&fileExecutable, "executable", false, "check execute permission")
 	fileCmd.Flags().BoolVar(&fileNotEmpty, "not-empty", false, "file must have size > 0")
@@ -46,19 +48,20 @@ func runFileCheck(_ *cobra.Command, args []string) error {
 	path := args[0]
 
 	c := &filecheck.Check{
-		Path:       path,
-		ExpectDir:  fileDir,
-		Writable:   fileWritable,
-		Executable: fileExecutable,
-		NotEmpty:   fileNotEmpty,
-		MinSize:    fileMinSize,
-		MaxSize:    fileMaxSize,
-		Match:      fileMatch,
-		Contains:   fileContains,
-		Head:       fileHead,
-		Mode:       fileMode,
-		ModeExact:  fileModeExact,
-		FS:         &filecheck.RealFileSystem{},
+		Path:         path,
+		ExpectDir:    fileDir,
+		ExpectSocket: fileSocket,
+		Writable:     fileWritable,
+		Executable:   fileExecutable,
+		NotEmpty:     fileNotEmpty,
+		MinSize:      fileMinSize,
+		MaxSize:      fileMaxSize,
+		Match:        fileMatch,
+		Contains:     fileContains,
+		Head:         fileHead,
+		Mode:         fileMode,
+		ModeExact:    fileModeExact,
+		FS:           &filecheck.RealFileSystem{},
 	}
 
 	return runCheck(c)
