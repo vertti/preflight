@@ -62,16 +62,7 @@ func (c *Check) Run() check.Result {
 
 	// --one-of: value must be one of the allowed values
 	if len(c.OneOf) > 0 {
-		found := false
-		for _, allowed := range c.OneOf {
-			if value == allowed {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result.Fail(fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf),
-				fmt.Errorf("value not in allowed list %v", c.OneOf))
+		if err := c.validateOneOf(value, &result); err != nil {
 			return result
 		}
 	}
@@ -128,4 +119,15 @@ func maskValue(value string) string {
 		return "•••"
 	}
 	return value[:3] + "•••" + value[len(value)-3:]
+}
+
+func (c *Check) validateOneOf(value string, result *check.Result) error {
+	for _, allowed := range c.OneOf {
+		if value == allowed {
+			return nil
+		}
+	}
+	err := fmt.Errorf("value not in allowed list %v", c.OneOf)
+	result.Fail(fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf), err)
+	return err
 }
