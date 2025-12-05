@@ -5,6 +5,19 @@ import (
 	"testing"
 )
 
+type mockRunner struct {
+	LookPathFunc   func(file string) (string, error)
+	RunCommandFunc func(name string, args ...string) (string, string, error)
+}
+
+func (m *mockRunner) LookPath(file string) (string, error) {
+	return m.LookPathFunc(file)
+}
+
+func (m *mockRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
+	return m.RunCommandFunc(name, args...)
+}
+
 func TestMockRunner_LookPath(t *testing.T) {
 	mock := &mockRunner{
 		LookPathFunc: func(file string) (string, error) {
