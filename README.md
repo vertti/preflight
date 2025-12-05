@@ -84,6 +84,18 @@ preflight file /app/entrypoint.sh --executable # script is executable
 
 [All file options](docs/usage.md#preflight-file)
 
+### Check HTTP endpoints
+
+Health checks for services without requiring curl or wget in your container.
+
+```sh
+preflight http http://localhost:8080/health         # basic health check
+preflight http https://api.example.com --status 204 # custom status code
+preflight http http://localhost/ready --retry 3     # retry on failure
+```
+
+[All http options](docs/usage.md#preflight-http)
+
 ### Run checks from a file
 
 Create a `.preflight` file in your project to define all checks in one place:
