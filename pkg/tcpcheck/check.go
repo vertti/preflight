@@ -8,16 +8,16 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// Dialer abstracts network dialing for testability.
-type Dialer interface {
+// TCPDialer abstracts network dialing for testability.
+type TCPDialer interface {
 	DialTimeout(network, address string, timeout time.Duration) (net.Conn, error)
 }
 
-// RealDialer uses the real net package.
-type RealDialer struct{}
+// RealTCPDialer uses the real net package.
+type RealTCPDialer struct{}
 
 // DialTimeout dials the network address with a timeout.
-func (d *RealDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+func (d *RealTCPDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
 	return net.DialTimeout(network, address, timeout)
 }
 
@@ -25,7 +25,7 @@ func (d *RealDialer) DialTimeout(network, address string, timeout time.Duration)
 type Check struct {
 	Address string        // host:port to connect to
 	Timeout time.Duration // connection timeout (default 5s)
-	Dialer  Dialer        // injected for testing
+	Dialer  TCPDialer     // injected for testing
 }
 
 // Run executes the TCP connectivity check.

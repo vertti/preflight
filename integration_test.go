@@ -138,7 +138,7 @@ func TestIntegration_TCP(t *testing.T) {
 	c := tcpcheck.Check{
 		Address: addr,
 		Timeout: 5 * time.Second,
-		Dialer:  &tcpcheck.RealDialer{},
+		Dialer:  &tcpcheck.RealTCPDialer{},
 	}
 
 	result := c.Run()

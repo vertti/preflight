@@ -28,7 +28,7 @@ func runTCPCheck(_ *cobra.Command, args []string) error {
 	c := &tcpcheck.Check{
 		Address: address,
 		Timeout: tcpTimeout,
-		Dialer:  &tcpcheck.RealDialer{},
+		Dialer:  &tcpcheck.RealTCPDialer{},
 	}
 
 	return runCheck(c)

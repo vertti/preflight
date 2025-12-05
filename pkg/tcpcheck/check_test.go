@@ -9,12 +9,12 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// mockDialer is a mock implementation of Dialer for testing.
-type mockDialer struct {
+// mockTCPDialer is a mock implementation of TCPDialer for testing.
+type mockTCPDialer struct {
 	DialFunc func(network, address string, timeout time.Duration) (net.Conn, error)
 }
 
-func (m *mockDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+func (m *mockTCPDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
 	return m.DialFunc(network, address, timeout)
 }
 
@@ -109,7 +109,7 @@ func TestTCPCheck(t *testing.T) {
 			c := &Check{
 				Address: tt.address,
 				Timeout: tt.timeout,
-				Dialer: &mockDialer{
+				Dialer: &mockTCPDialer{
 					DialFunc: tt.dialFunc,
 				},
 			}
