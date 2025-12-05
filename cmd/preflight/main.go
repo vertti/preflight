@@ -11,7 +11,7 @@ import (
 var Version = "dev"
 
 // knownSubcommands lists all valid preflight subcommands
-var knownSubcommands = []string{"cmd", "env", "file", "hash", "http", "sys", "tcp", "user", "run", "version", "help", "--help", "-h"}
+var knownSubcommands = []string{"cmd", "env", "file", "git", "hash", "http", "sys", "tcp", "user", "run", "version", "help", "--help", "-h"}
 
 // fileChecker abstracts file existence checks for testing
 type fileChecker func(path string) (isFile bool)
