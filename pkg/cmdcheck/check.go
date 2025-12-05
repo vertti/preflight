@@ -2,7 +2,6 @@ package cmdcheck
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
@@ -16,7 +15,7 @@ type Check struct {
 	MaxVersion   *version.Version // maximum version allowed (exclusive)
 	ExactVersion *version.Version // exact version required
 	MatchPattern string           // regex pattern to match against version output
-	Runner       Runner           // injected for testing
+	Runner       CmdRunner        // injected for testing
 }
 
 // Run executes the command check.
@@ -73,7 +72,7 @@ func (c *Check) Run() check.Result {
 }
 
 func (c *Check) checkMatchPattern(output string, result *check.Result) error {
-	re, err := regexp.Compile(c.MatchPattern)
+	re, err := check.CompileRegex(c.MatchPattern)
 	if err != nil {
 		result.Failf("invalid regex pattern: %v", err)
 		return err

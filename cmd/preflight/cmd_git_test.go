@@ -17,8 +17,8 @@ func TestRunGitCheck_RequiresFlag(t *testing.T) {
 		t.Error("expected error when no flags provided")
 	}
 
-	expectedMsg := "at least one check flag required"
-	if err != nil && err.Error()[:len(expectedMsg)] != expectedMsg {
-		t.Errorf("error = %q, want prefix %q", err.Error(), expectedMsg)
+	expectedPrefix := "at least one of"
+	if err != nil && len(err.Error()) >= len(expectedPrefix) && err.Error()[:len(expectedPrefix)] != expectedPrefix {
+		t.Errorf("error = %q, want prefix %q", err.Error(), expectedPrefix)
 	}
 }

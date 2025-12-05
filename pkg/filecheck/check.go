@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/vertti/preflight/pkg/check"
@@ -46,40 +45,14 @@ func (c *Check) Run() check.Result {
 	}
 
 	// Type check: --dir flag
-	if c.ExpectDir {
-		if !info.IsDir() {
-			return result.Fail("expected directory, got file", fmt.Errorf("expected directory, got file"))
-		}
-		result.AddDetail("type: directory")
-	} else {
-		if info.IsDir() {
-			result.AddDetail("type: directory")
-		} else {
-			result.AddDetail("type: file")
-		}
+	if err := c.checkTypeConstraint(info, &result); err != nil {
+		return result
 	}
 
 	// Size details and checks (only for files)
 	if !info.IsDir() {
-		result.AddDetailf("size: %d", info.Size())
-
-		// --not-empty
-		if c.NotEmpty && info.Size() == 0 {
-			return result.Fail("file is empty", fmt.Errorf("file is empty"))
-		}
-
-		// --min-size
-		if c.MinSize > 0 && info.Size() < c.MinSize {
-			return result.Fail(
-				fmt.Sprintf("size %d < minimum %d", info.Size(), c.MinSize),
-				fmt.Errorf("file size %d below minimum %d", info.Size(), c.MinSize))
-		}
-
-		// --max-size
-		if c.MaxSize > 0 && info.Size() > c.MaxSize {
-			return result.Fail(
-				fmt.Sprintf("size %d > maximum %d", info.Size(), c.MaxSize),
-				fmt.Errorf("file size %d above maximum %d", info.Size(), c.MaxSize))
+		if err := c.checkSizeConstraints(info, &result); err != nil {
+			return result
 		}
 	}
 
@@ -158,6 +131,51 @@ func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 	return nil
 }
 
+func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) error {
+	if c.ExpectDir {
+		if !info.IsDir() {
+			err := fmt.Errorf("expected directory, got file")
+			result.Fail("expected directory, got file", err)
+			return err
+		}
+		result.AddDetail("type: directory")
+	} else {
+		if info.IsDir() {
+			result.AddDetail("type: directory")
+		} else {
+			result.AddDetail("type: file")
+		}
+	}
+	return nil
+}
+
+func (c *Check) checkSizeConstraints(info fs.FileInfo, result *check.Result) error {
+	result.AddDetailf("size: %d", info.Size())
+
+	// --not-empty
+	if c.NotEmpty && info.Size() == 0 {
+		err := fmt.Errorf("file is empty")
+		result.Fail("file is empty", err)
+		return err
+	}
+
+	// --min-size
+	if c.MinSize > 0 && info.Size() < c.MinSize {
+		err := fmt.Errorf("file size %d below minimum %d", info.Size(), c.MinSize)
+		result.Fail(fmt.Sprintf("size %d < minimum %d", info.Size(), c.MinSize), err)
+		return err
+	}
+
+	// --max-size
+	if c.MaxSize > 0 && info.Size() > c.MaxSize {
+		err := fmt.Errorf("file size %d above maximum %d", info.Size(), c.MaxSize)
+		result.Fail(fmt.Sprintf("size %d > maximum %d", info.Size(), c.MaxSize), err)
+		return err
+	}
+
+	return nil
+}
+
 func (c *Check) checkContent(result *check.Result) error {
 	content, err := c.FS.ReadFile(c.Path, c.Head)
 	if err != nil {
@@ -176,7 +194,7 @@ func (c *Check) checkContent(result *check.Result) error {
 
 	// --match: regex pattern
 	if c.Match != "" {
-		re, err := regexp.Compile(c.Match)
+		re, err := check.CompileRegex(c.Match)
 		if err != nil {
 			result.Failf("invalid regex pattern: %v", err)
 			return err

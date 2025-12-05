@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/cmdcheck"
-	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/version"
 )
 
@@ -36,14 +34,14 @@ func init() {
 	rootCmd.AddCommand(cmdCmd)
 }
 
-func runCmdCheck(cmd *cobra.Command, args []string) error {
+func runCmdCheck(_ *cobra.Command, args []string) error {
 	commandName := args[0]
 
 	c := &cmdcheck.Check{
 		Name:         commandName,
 		VersionArgs:  parseVersionArgs(versionCmd),
 		MatchPattern: matchPattern,
-		Runner:       &cmdcheck.RealRunner{},
+		Runner:       &cmdcheck.RealCmdRunner{},
 	}
 
 	var err error
@@ -57,13 +55,7 @@ func runCmdCheck(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid --exact version: %w", err)
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }
 
 func parseVersionArgs(s string) []string {

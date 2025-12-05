@@ -63,3 +63,53 @@ func TestResult_AddDetailf(t *testing.T) {
 		t.Errorf("Details = %v, want [path: /usr/bin/go]", result.Details)
 	}
 }
+
+func TestCompileRegex(t *testing.T) {
+	tests := []struct {
+		name      string
+		pattern   string
+		wantNil   bool
+		wantError bool
+	}{
+		{
+			name:    "empty pattern returns nil",
+			pattern: "",
+			wantNil: true,
+		},
+		{
+			name:    "valid pattern compiles",
+			pattern: "^foo.*bar$",
+			wantNil: false,
+		},
+		{
+			name:      "invalid pattern returns error",
+			pattern:   "[invalid",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			re, err := CompileRegex(tt.pattern)
+
+			if tt.wantError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if tt.wantNil && re != nil {
+				t.Errorf("expected nil regex, got %v", re)
+			}
+			if !tt.wantNil && re == nil {
+				t.Error("expected non-nil regex, got nil")
+			}
+		})
+	}
+}

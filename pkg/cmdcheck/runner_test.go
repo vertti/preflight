@@ -5,21 +5,21 @@ import (
 	"testing"
 )
 
-type mockRunner struct {
+type mockCmdRunner struct {
 	LookPathFunc   func(file string) (string, error)
 	RunCommandFunc func(name string, args ...string) (string, string, error)
 }
 
-func (m *mockRunner) LookPath(file string) (string, error) {
+func (m *mockCmdRunner) LookPath(file string) (string, error) {
 	return m.LookPathFunc(file)
 }
 
-func (m *mockRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
+func (m *mockCmdRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
 	return m.RunCommandFunc(name, args...)
 }
 
-func TestMockRunner_LookPath(t *testing.T) {
-	mock := &mockRunner{
+func TestMockCmdRunner_LookPath(t *testing.T) {
+	mock := &mockCmdRunner{
 		LookPathFunc: func(file string) (string, error) {
 			if file == "node" {
 				return "/usr/bin/node", nil
@@ -42,8 +42,8 @@ func TestMockRunner_LookPath(t *testing.T) {
 	}
 }
 
-func TestMockRunner_RunCommand(t *testing.T) {
-	mock := &mockRunner{
+func TestMockCmdRunner_RunCommand(t *testing.T) {
+	mock := &mockCmdRunner{
 		RunCommandFunc: func(name string, args ...string) (string, string, error) {
 			if name == "node" && len(args) == 1 && args[0] == "--version" {
 				return "v18.17.0", "", nil

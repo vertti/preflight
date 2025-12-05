@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/resourcecheck"
 )
 
@@ -43,10 +41,14 @@ func init() {
 	rootCmd.AddCommand(resourceCmd)
 }
 
-func runResourceCheck(cmd *cobra.Command, args []string) error {
+func runResourceCheck(_ *cobra.Command, _ []string) error {
 	// Require at least one check flag
-	if resourceMinDisk == "" && resourceMinMemory == "" && resourceMinCPUs == 0 {
-		return fmt.Errorf("at least one check flag required: --min-disk, --min-memory, or --min-cpus")
+	if err := requireAtLeastOne(
+		flagSet{"--min-disk", resourceMinDisk != ""},
+		flagSet{"--min-memory", resourceMinMemory != ""},
+		flagSet{"--min-cpus", resourceMinCPUs != 0},
+	); err != nil {
+		return err
 	}
 
 	c := &resourcecheck.Check{
@@ -73,11 +75,5 @@ func runResourceCheck(cmd *cobra.Command, args []string) error {
 		c.MinMemory = size
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

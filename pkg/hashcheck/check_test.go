@@ -10,12 +10,12 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// mockFileOpener implements FileOpener for testing.
-type mockFileOpener struct {
+// mockHashFileOpener implements HashFileOpener for testing.
+type mockHashFileOpener struct {
 	OpenFunc func(name string) (io.ReadCloser, error)
 }
 
-func (m *mockFileOpener) Open(name string) (io.ReadCloser, error) {
+func (m *mockHashFileOpener) Open(name string) (io.ReadCloser, error) {
 	return m.OpenFunc(name)
 }
 
@@ -61,7 +61,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA256,
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -76,7 +76,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA512,
 				Algorithm:    AlgorithmSHA512,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -90,7 +90,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentMD5,
 				Algorithm:    AlgorithmMD5,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -104,7 +104,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA256,
 				// Algorithm not set - should default to SHA256
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -118,7 +118,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: strings.ToUpper(testContentSHA256),
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -134,7 +134,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: "0000000000000000000000000000000000000000000000000000000000000000",
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -149,7 +149,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: "0000000000000000000000000000000000000000000000000000000000000000",
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -166,7 +166,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "nonexistent.txt",
 				ExpectedHash: testContentSHA256,
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return nil, os.ErrNotExist
 					},
@@ -181,7 +181,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "protected.txt",
 				ExpectedHash: testContentSHA256,
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return nil, os.ErrPermission
 					},
@@ -196,7 +196,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "error.txt",
 				ExpectedHash: testContentSHA256,
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return nil, errors.New("disk I/O error")
 					},
@@ -221,7 +221,7 @@ func TestHashCheck(t *testing.T) {
 			check: Check{
 				File:         "test.txt",
 				ExpectedHash: "",
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -236,7 +236,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -251,7 +251,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: "abcd1234", // too short
 				Algorithm:    AlgorithmSHA256,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -266,7 +266,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA256, // 64 chars, but SHA512 needs 128
 				Algorithm:    AlgorithmSHA512,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -281,7 +281,7 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA256, // 64 chars, but MD5 needs 32
 				Algorithm:    AlgorithmMD5,
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
 					},
@@ -413,7 +413,7 @@ def456  another.txt
 			c := &Check{
 				File:         tt.targetFile,
 				ChecksumFile: "checksums.txt",
-				Opener: &mockFileOpener{
+				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						if name == "checksums.txt" {
 							return newMockReader(tt.checksumContent), nil
@@ -457,7 +457,7 @@ func TestChecksumFileIntegration(t *testing.T) {
 		c := Check{
 			File:         "test.txt",
 			ChecksumFile: "checksums.txt",
-			Opener: &mockFileOpener{
+			Opener: &mockHashFileOpener{
 				OpenFunc: func(name string) (io.ReadCloser, error) {
 					if name == "checksums.txt" {
 						return newMockReader(checksumContent), nil
@@ -478,7 +478,7 @@ func TestChecksumFileIntegration(t *testing.T) {
 		c := Check{
 			File:         "test.txt",
 			ChecksumFile: "nonexistent.txt",
-			Opener: &mockFileOpener{
+			Opener: &mockHashFileOpener{
 				OpenFunc: func(name string) (io.ReadCloser, error) {
 					if name == "nonexistent.txt" {
 						return nil, os.ErrNotExist
@@ -500,9 +500,9 @@ func TestChecksumFileIntegration(t *testing.T) {
 	})
 }
 
-func TestRealFileOpener(t *testing.T) {
+func TestRealHashFileOpener(t *testing.T) {
 	t.Run("opens real file", func(t *testing.T) {
-		opener := &RealFileOpener{}
+		opener := &RealHashFileOpener{}
 		// This file should exist in any Go project
 		f, err := opener.Open("check.go")
 		if err != nil {

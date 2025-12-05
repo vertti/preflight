@@ -1,14 +1,12 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/httpcheck"
-	"github.com/vertti/preflight/pkg/output"
 )
 
 var (
@@ -43,7 +41,7 @@ func init() {
 	rootCmd.AddCommand(httpCmd)
 }
 
-func runHTTPCheck(cmd *cobra.Command, args []string) error {
+func runHTTPCheck(_ *cobra.Command, args []string) error {
 	url := args[0]
 
 	headers := parseHeaders(httpHeaders)
@@ -60,13 +58,7 @@ func runHTTPCheck(cmd *cobra.Command, args []string) error {
 		Client:         &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }
 
 // parseHeaders converts ["key:value", ...] to map[string]string

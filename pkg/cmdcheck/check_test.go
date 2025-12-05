@@ -20,7 +20,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			name: "command not found",
 			check: Check{
 				Name: "nonexistent",
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "", errors.New("executable file not found in $PATH")
 					},
@@ -33,7 +33,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			name: "version command fails",
 			check: Check{
 				Name: "broken",
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/broken", nil
 					},
@@ -48,7 +48,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			name: "command found and runs",
 			check: Check{
 				Name: "node",
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -67,7 +67,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "node",
 				MinVersion: &version.Version{Major: 18, Minor: 0, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -83,7 +83,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "node",
 				MinVersion: &version.Version{Major: 18, Minor: 0, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -101,7 +101,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "node",
 				MaxVersion: &version.Version{Major: 22, Minor: 0, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -117,7 +117,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "node",
 				MaxVersion: &version.Version{Major: 22, Minor: 0, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -135,7 +135,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:         "node",
 				ExactVersion: &version.Version{Major: 18, Minor: 17, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -151,7 +151,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:         "node",
 				ExactVersion: &version.Version{Major: 18, Minor: 17, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -169,7 +169,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:         "node",
 				MatchPattern: `^v18\.`,
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -185,7 +185,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:         "node",
 				MatchPattern: `^v18\.`,
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -201,7 +201,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:         "node",
 				MatchPattern: `[invalid`,
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
@@ -217,7 +217,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:       "myapp",
 				MinVersion: &version.Version{Major: 1, Minor: 0, Patch: 0},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/myapp", nil
 					},
@@ -232,7 +232,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			name: "version from stderr when stdout empty",
 			check: Check{
 				Name: "java",
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/java", nil
 					},
@@ -248,7 +248,7 @@ func TestCommandCheck_Run(t *testing.T) {
 			check: Check{
 				Name:        "ffmpeg",
 				VersionArgs: []string{"-version"},
-				Runner: &mockRunner{
+				Runner: &mockCmdRunner{
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/ffmpeg", nil
 					},
