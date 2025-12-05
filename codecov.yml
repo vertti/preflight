@@ -7,5 +7,9 @@ coverage:
       default:
         target: 70%
 
+comment:
+  layout: "header, diff, files"
+  hide_project_coverage: false
+
 ignore:
   - "cmd/preflight/cmd_*.go"  # Cobra wiring, init() functions
