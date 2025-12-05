@@ -43,8 +43,12 @@ func init() {
 
 func runResourceCheck(_ *cobra.Command, _ []string) error {
 	// Require at least one check flag
-	if resourceMinDisk == "" && resourceMinMemory == "" && resourceMinCPUs == 0 {
-		return fmt.Errorf("at least one check flag required: --min-disk, --min-memory, or --min-cpus")
+	if err := requireAtLeastOne(
+		flagSet{"--min-disk", resourceMinDisk != ""},
+		flagSet{"--min-memory", resourceMinMemory != ""},
+		flagSet{"--min-cpus", resourceMinCPUs != 0},
+	); err != nil {
+		return err
 	}
 
 	c := &resourcecheck.Check{

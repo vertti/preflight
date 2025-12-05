@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/hashcheck"
@@ -40,35 +38,29 @@ func init() {
 func runHashCheck(_ *cobra.Command, args []string) error {
 	file := args[0]
 
+	// Validate exactly one hash flag is set
+	if err := requireExactlyOne(
+		flagValue{"--sha256", hashSHA256},
+		flagValue{"--sha512", hashSHA512},
+		flagValue{"--md5", hashMD5},
+		flagValue{"--checksum-file", hashChecksumFile},
+	); err != nil {
+		return err
+	}
+
 	// Determine algorithm and expected hash from flags
 	var algorithm hashcheck.HashAlgorithm
 	var expectedHash string
-
-	flagCount := 0
-	if hashSHA256 != "" {
+	switch {
+	case hashSHA256 != "":
 		algorithm = hashcheck.AlgorithmSHA256
 		expectedHash = hashSHA256
-		flagCount++
-	}
-	if hashSHA512 != "" {
+	case hashSHA512 != "":
 		algorithm = hashcheck.AlgorithmSHA512
 		expectedHash = hashSHA512
-		flagCount++
-	}
-	if hashMD5 != "" {
+	case hashMD5 != "":
 		algorithm = hashcheck.AlgorithmMD5
 		expectedHash = hashMD5
-		flagCount++
-	}
-	if hashChecksumFile != "" {
-		flagCount++
-	}
-
-	if flagCount == 0 {
-		return fmt.Errorf("one of --sha256, --sha512, --md5, or --checksum-file is required")
-	}
-	if flagCount > 1 {
-		return fmt.Errorf("only one of --sha256, --sha512, --md5, or --checksum-file can be specified")
 	}
 
 	c := &hashcheck.Check{
