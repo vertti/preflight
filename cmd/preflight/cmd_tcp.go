@@ -1,12 +1,10 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 )
 
@@ -24,7 +22,7 @@ func init() {
 	rootCmd.AddCommand(tcpCmd)
 }
 
-func runTCPCheck(cmd *cobra.Command, args []string) error {
+func runTCPCheck(_ *cobra.Command, args []string) error {
 	address := args[0]
 
 	c := &tcpcheck.Check{
@@ -33,11 +31,5 @@ func runTCPCheck(cmd *cobra.Command, args []string) error {
 		Dialer:  &tcpcheck.RealDialer{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

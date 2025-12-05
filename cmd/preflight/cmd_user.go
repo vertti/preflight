@@ -1,11 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
-	"github.com/vertti/preflight/pkg/output"
 	"github.com/vertti/preflight/pkg/usercheck"
 )
 
@@ -29,7 +26,7 @@ func init() {
 	rootCmd.AddCommand(userCmd)
 }
 
-func runUserCheck(cmd *cobra.Command, args []string) error {
+func runUserCheck(_ *cobra.Command, args []string) error {
 	username := args[0]
 
 	c := &usercheck.Check{
@@ -40,11 +37,5 @@ func runUserCheck(cmd *cobra.Command, args []string) error {
 		Lookup:   &usercheck.RealUserLookup{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

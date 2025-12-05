@@ -1,12 +1,9 @@
 package main
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/filecheck"
-	"github.com/vertti/preflight/pkg/output"
 )
 
 var (
@@ -45,7 +42,7 @@ func init() {
 	rootCmd.AddCommand(fileCmd)
 }
 
-func runFileCheck(cmd *cobra.Command, args []string) error {
+func runFileCheck(_ *cobra.Command, args []string) error {
 	path := args[0]
 
 	c := &filecheck.Check{
@@ -64,11 +61,5 @@ func runFileCheck(cmd *cobra.Command, args []string) error {
 		FS:         &filecheck.RealFileSystem{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

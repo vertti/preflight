@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/gitcheck"
-	"github.com/vertti/preflight/pkg/output"
 )
 
 var (
@@ -46,7 +44,7 @@ func init() {
 	rootCmd.AddCommand(gitCmd)
 }
 
-func runGitCheck(cmd *cobra.Command, args []string) error {
+func runGitCheck(_ *cobra.Command, _ []string) error {
 	// Require at least one check flag
 	if !gitClean && !gitNoUncommitted && !gitNoUntracked &&
 		gitBranch == "" && gitTagMatch == "" {
@@ -62,11 +60,5 @@ func runGitCheck(cmd *cobra.Command, args []string) error {
 		Runner:        &gitcheck.RealGitRunner{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

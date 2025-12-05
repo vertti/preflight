@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/hashcheck"
-	"github.com/vertti/preflight/pkg/output"
 )
 
 var (
@@ -39,7 +37,7 @@ func init() {
 	rootCmd.AddCommand(hashCmd)
 }
 
-func runHashCheck(cmd *cobra.Command, args []string) error {
+func runHashCheck(_ *cobra.Command, args []string) error {
 	file := args[0]
 
 	// Determine algorithm and expected hash from flags
@@ -81,11 +79,5 @@ func runHashCheck(cmd *cobra.Command, args []string) error {
 		Opener:       &hashcheck.RealFileOpener{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }

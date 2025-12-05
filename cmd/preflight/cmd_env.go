@@ -1,12 +1,9 @@
 package main
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/envcheck"
-	"github.com/vertti/preflight/pkg/output"
 )
 
 var (
@@ -47,7 +44,7 @@ func init() {
 	rootCmd.AddCommand(envCmd)
 }
 
-func runEnvCheck(cmd *cobra.Command, args []string) error {
+func runEnvCheck(_ *cobra.Command, args []string) error {
 	varName := args[0]
 
 	c := &envcheck.Check{
@@ -67,11 +64,5 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 		Getter:     &envcheck.RealEnvGetter{},
 	}
 
-	result := c.Run()
-	output.PrintResult(result)
-
-	if !result.OK() {
-		os.Exit(1)
-	}
-	return nil
+	return runCheck(c)
 }
