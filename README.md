@@ -7,13 +7,6 @@
 
 Preflight validates your container environment at build time, runtime, or in CI. It replaces brittle shell scripts with clear, consistent checks.
 
-**Use it for:**
-
-- **Docker builds** – verify binaries built from source actually work
-- **Multi-stage builds** – catch broken paths, missing libs, or copy mistakes
-- **Container startup** – validate services are reachable before your app starts
-- **CI pipelines** – verify container images have the right tools and config
-
 ## The Problem
 
 Complex multi-stage Docker builds make it easy to break things silently. A typo in a COPY path, a missing shared library, or a misconfigured environment variable might not surface until production.
@@ -33,6 +26,13 @@ RUN preflight cmd myapp
 RUN preflight env MODEL_PATH --match '^/models/'
 RUN preflight file /usr/local/bin/inference --executable
 ```
+
+**Use it for:**
+
+- **Docker builds** – verify binaries built from source actually work
+- **Multi-stage builds** – catch broken paths, missing libs, or copy mistakes
+- **Container startup** – validate services are reachable before your app starts
+- **CI pipelines** – verify container images have the right tools and config
 
 ## Install
 
