@@ -12,6 +12,7 @@ import (
 	"github.com/vertti/preflight/pkg/cmdcheck"
 	"github.com/vertti/preflight/pkg/envcheck"
 	"github.com/vertti/preflight/pkg/filecheck"
+	"github.com/vertti/preflight/pkg/gitcheck"
 	"github.com/vertti/preflight/pkg/hashcheck"
 	"github.com/vertti/preflight/pkg/httpcheck"
 	"github.com/vertti/preflight/pkg/syscheck"
@@ -171,6 +172,53 @@ func TestIntegration_Sys(t *testing.T) {
 	c := syscheck.Check{
 		ExpectedOS: info.OS(), // Use actual OS so test always passes
 		Info:       info,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_Git(t *testing.T) {
+	// This test runs in the preflight repo itself, which is a git repository
+	runner := &gitcheck.RealGitRunner{}
+
+	// Verify we're in a git repo
+	isRepo, err := runner.IsGitRepo()
+	if err != nil {
+		t.Fatalf("IsGitRepo() error = %v", err)
+	}
+	if !isRepo {
+		t.Skip("not running in a git repository")
+	}
+
+	// Test that CurrentBranch works
+	branch, err := runner.CurrentBranch()
+	if err != nil {
+		t.Errorf("CurrentBranch() error = %v", err)
+	}
+	if branch == "" {
+		t.Error("CurrentBranch() returned empty string")
+	}
+
+	// Test that Status works (output varies, just verify no error)
+	_, err = runner.Status()
+	if err != nil {
+		t.Errorf("Status() error = %v", err)
+	}
+
+	// Test that TagsAtHead works (may return empty, just verify no error)
+	_, err = runner.TagsAtHead()
+	if err != nil {
+		t.Errorf("TagsAtHead() error = %v", err)
+	}
+
+	// Test full check with branch verification
+	c := gitcheck.Check{
+		Branch: branch, // Use actual branch so test passes
+		Runner: runner,
 	}
 
 	result := c.Run()

@@ -163,6 +163,116 @@ preflight file /var/log/app.log --max-size 10485760  # 10MB
 
 ---
 
+## `preflight git`
+
+Verifies git repository state. Useful for CI pipelines that need to ensure a clean working directory or verify branch/tag state before builds or releases.
+
+```sh
+preflight git [flags]
+```
+
+### Flags
+
+| Flag               | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `--clean`          | Working directory must be clean (no changes at all) |
+| `--no-uncommitted` | No staged or modified files allowed                 |
+| `--no-untracked`   | No untracked files allowed                          |
+| `--branch <name>`  | Must be on specified branch                         |
+| `--tag-match <p>`  | HEAD must have tag matching glob pattern            |
+
+At least one flag is required.
+
+### Examples
+
+```sh
+# Verify clean state after code generation
+go generate ./...
+preflight git --clean
+
+# Check formatting didn't change anything
+go fmt ./...
+preflight git --no-uncommitted
+
+# Allow untracked files, but no uncommitted changes
+preflight git --no-uncommitted
+
+# Must be on specific branch
+preflight git --branch main
+
+# HEAD must have a version tag
+preflight git --tag-match "v*"
+
+# Combined checks for release
+preflight git --clean --branch release --tag-match "v*"
+```
+
+### Use Cases
+
+**CI vendor verification:**
+
+```sh
+# Verify go mod tidy didn't change anything
+go mod tidy
+preflight git --clean
+
+# Verify formatting is consistent
+go fmt ./...
+preflight git --no-uncommitted
+```
+
+**Release verification:**
+
+```sh
+# Ensure releasing from correct branch with proper tag
+preflight git --branch main --tag-match "v*"
+```
+
+**GitHub Actions:**
+
+```yaml
+- name: Verify clean state
+  run: |
+    go generate ./...
+    preflight git --clean
+```
+
+### Tools Replaced
+
+`preflight git` replaces common shell patterns for git state verification:
+
+**Before (vendor verification):**
+
+```bash
+hugo mod vendor
+if [ -n "$(git status --porcelain)" ]; then
+    echo 'ERROR: Vendor result differs'
+    exit 1
+fi
+```
+
+**After:**
+
+```sh
+hugo mod vendor
+preflight git --clean
+```
+
+**Before (formatting check):**
+
+```bash
+go fmt ./... && git diff --exit-code
+```
+
+**After:**
+
+```sh
+go fmt ./...
+preflight git --no-uncommitted
+```
+
+---
+
 ## `preflight tcp`
 
 Checks TCP connectivity to a host:port. Useful for verifying that a database, cache, or other service is reachable before starting your application.
