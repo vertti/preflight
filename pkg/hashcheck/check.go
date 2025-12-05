@@ -17,15 +17,15 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// FileOpener abstracts file operations for testability.
-type FileOpener interface {
+// HashFileOpener abstracts file operations for testability.
+type HashFileOpener interface {
 	Open(name string) (io.ReadCloser, error)
 }
 
-// RealFileOpener implements FileOpener using the real filesystem.
-type RealFileOpener struct{}
+// RealHashFileOpener implements HashFileOpener using the real filesystem.
+type RealHashFileOpener struct{}
 
-func (r *RealFileOpener) Open(name string) (io.ReadCloser, error) {
+func (r *RealHashFileOpener) Open(name string) (io.ReadCloser, error) {
 	return os.Open(name)
 }
 
@@ -66,7 +66,7 @@ type Check struct {
 	ExpectedHash string
 	Algorithm    HashAlgorithm
 	ChecksumFile string
-	Opener       FileOpener
+	Opener       HashFileOpener
 }
 
 func (c *Check) Run() check.Result {
@@ -104,7 +104,7 @@ func (c *Check) Run() check.Result {
 
 	opener := c.Opener
 	if opener == nil {
-		opener = &RealFileOpener{}
+		opener = &RealHashFileOpener{}
 	}
 
 	f, err := opener.Open(c.File)
@@ -160,7 +160,7 @@ var bsdFormatRegex = regexp.MustCompile(`^(SHA256|SHA512|MD5)\s+\((.+)\)\s*=\s*(
 func (c *Check) parseChecksumFile() (string, HashAlgorithm, error) {
 	opener := c.Opener
 	if opener == nil {
-		opener = &RealFileOpener{}
+		opener = &RealHashFileOpener{}
 	}
 
 	f, err := opener.Open(c.ChecksumFile)

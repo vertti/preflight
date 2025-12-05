@@ -68,7 +68,7 @@ func runHashCheck(_ *cobra.Command, args []string) error {
 		ExpectedHash: expectedHash,
 		Algorithm:    algorithm,
 		ChecksumFile: hashChecksumFile,
-		Opener:       &hashcheck.RealFileOpener{},
+		Opener:       &hashcheck.RealHashFileOpener{},
 	}
 
 	return runCheck(c)
