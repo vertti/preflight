@@ -648,12 +648,12 @@ preflight resource [flags]
 
 ### Flags
 
-| Flag               | Description                                       |
-| ------------------ | ------------------------------------------------- |
-| `--min-disk <size>` | Minimum free disk space (e.g., 10G, 500M)        |
-| `--min-memory <size>` | Minimum available memory (e.g., 2G, 512M)      |
-| `--min-cpus <n>`   | Minimum number of CPU cores                       |
-| `--path <path>`    | Path for disk space check (default: current dir)  |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `--min-disk <size>`   | Minimum free disk space (e.g., 10G, 500M)        |
+| `--min-memory <size>` | Minimum available memory (e.g., 2G, 512M)        |
+| `--min-cpus <n>`      | Minimum number of CPU cores                      |
+| `--path <path>`       | Path for disk space check (default: current dir) |
 
 At least one of `--min-disk`, `--min-memory`, or `--min-cpus` is required.
 
@@ -661,13 +661,13 @@ At least one of `--min-disk`, `--min-memory`, or `--min-cpus` is required.
 
 Sizes support common units (case-insensitive):
 
-| Unit       | Example | Bytes          |
-| ---------- | ------- | -------------- |
-| B (bytes)  | `1024`  | 1,024          |
-| K/KB       | `500K`  | 512,000        |
-| M/MB       | `500M`  | 524,288,000    |
-| G/GB       | `10G`   | 10,737,418,240 |
-| T/TB       | `1T`    | 1,099,511,627,776 |
+| Unit      | Example | Bytes             |
+| --------- | ------- | ----------------- |
+| B (bytes) | `1024`  | 1,024             |
+| K/KB      | `500K`  | 512,000           |
+| M/MB      | `500M`  | 524,288,000       |
+| G/GB      | `10G`   | 10,737,418,240    |
+| T/TB      | `1T`    | 1,099,511,627,776 |
 
 Decimals are supported: `1.5G`, `2.5TB`
 
