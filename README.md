@@ -3,36 +3,25 @@
 [![CI](https://github.com/vertti/preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/vertti/preflight/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/vertti/preflight/graph/badge.svg)](https://codecov.io/gh/vertti/preflight)
 
-> Sanity checks for containers. Tiny binary, zero dependencies.
+> A swiss army knife for CI and container checks. Single binary, zero dependencies.
 
-Preflight validates your container environment at build time, runtime, or in CI. It replaces brittle shell scripts with clear, consistent checks.
-
-## The Problem
-
-Complex multi-stage Docker builds make it easy to break things silently. A typo in a COPY path, a missing shared library, or a misconfigured environment variable might not surface until production.
-
-```sh
-RUN command -v myapp || (echo "myapp missing"; exit 1)
-RUN [ -n "$MODEL_PATH" ] || (echo "MODEL_PATH not set"; exit 1)
-RUN [ -x /usr/local/bin/inference ] || (echo "inference not executable"; exit 1)
-```
-
-## The Solution
+Stop copying brittle shell scripts and installing a variety of tools for container validation. Preflight is a small, dependency-free binary that handles service readiness, health checks, environment validation, file verification, and more.
 
 ```dockerfile
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
-RUN preflight cmd myapp
+RUN preflight cmd myapp --min 2.0
 RUN preflight env MODEL_PATH --match '^/models/'
-RUN preflight file /usr/local/bin/inference --executable
+RUN preflight file /app/config.yaml --not-empty
+RUN preflight tcp postgres:5432
 ```
 
 **Use it for:**
 
-- **Docker builds** – verify binaries built from source actually work
-- **Multi-stage builds** – catch broken paths, missing libs, or copy mistakes
-- **Container startup** – validate services are reachable before your app starts
-- **CI pipelines** – verify container images have the right tools and config
+- **Docker builds** – verify binaries, configs, and paths during image build
+- **Container startup** – wait for databases and services before your app starts
+- **CI pipelines** – validate environments, check connectivity, verify checksums
+- **Health checks** – HTTP and TCP checks without curl or netcat
 
 ## Install
 
