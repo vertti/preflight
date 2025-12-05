@@ -96,6 +96,17 @@ preflight http http://localhost/ready --retry 3     # retry on failure
 
 [All http options](docs/usage.md#preflight-http)
 
+### Verify file checksums
+
+Supply chain security - verify downloaded binaries match expected hashes.
+
+```sh
+preflight hash --sha256 67574ee...2cf myfile.tar.gz  # verify SHA256
+preflight hash --checksum-file SHASUMS256.txt app.tar.gz  # from checksum file
+```
+
+[All hash options](docs/usage.md#preflight-hash)
+
 ### Run checks from a file
 
 Create a `.preflight` file in your project to define all checks in one place:

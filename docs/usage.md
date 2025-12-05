@@ -334,6 +334,80 @@ healthcheck:
 
 ---
 
+## `preflight hash`
+
+Verifies file checksums for supply chain security. Replaces `sha256sum -c` and similar patterns in Dockerfiles.
+
+```sh
+preflight hash <file> [flags]
+```
+
+### Flags
+
+| Flag                   | Description                                |
+| ---------------------- | ------------------------------------------ |
+| `--sha256 <hash>`      | Expected SHA256 hash (64 hex characters)   |
+| `--sha512 <hash>`      | Expected SHA512 hash (128 hex characters)  |
+| `--md5 <hash>`         | Expected MD5 hash (32 hex characters)      |
+| `--checksum-file <path>` | Verify against checksum file (GNU or BSD format) |
+
+### Examples
+
+```sh
+# Verify SHA256 hash
+preflight hash --sha256 67574ee...2cf downloaded.tar.gz
+
+# Verify SHA512 hash
+preflight hash --sha512 abc123... binary.tar.gz
+
+# Verify MD5 (legacy, not recommended for security)
+preflight hash --md5 deadbeef... legacy.zip
+
+# Verify against checksum file (GNU format: hash  filename)
+preflight hash --checksum-file SHASUMS256.txt node-v20.tar.gz
+
+# Verify against checksum file (BSD format: SHA256 (filename) = hash)
+preflight hash --checksum-file checksums.txt myapp.tar.gz
+```
+
+### Checksum File Formats
+
+Preflight supports two common checksum file formats:
+
+**GNU format** (used by `sha256sum`, Node.js SHASUMS):
+```
+67574ee2f0d8e... myfile.tar.gz
+abc123def456... otherfile.tar.gz
+```
+
+**BSD format** (used by macOS `shasum`):
+```
+SHA256 (myfile.tar.gz) = 67574ee2f0d8e...
+SHA512 (otherfile.tar.gz) = abc123def456...
+```
+
+The algorithm is auto-detected from BSD format, or inferred from hash length in GNU format.
+
+### Use Cases
+
+**Dockerfile - verify downloaded binary:**
+
+```dockerfile
+RUN curl -fsSL https://example.com/app.tar.gz -o /tmp/app.tar.gz
+RUN preflight hash --sha256 $EXPECTED_HASH /tmp/app.tar.gz
+RUN tar -xzf /tmp/app.tar.gz -C /usr/local/bin
+```
+
+**Multi-stage build - verify with checksum file:**
+
+```dockerfile
+RUN curl -fsSL https://nodejs.org/dist/v20.0.0/SHASUMS256.txt -o /tmp/SHASUMS256.txt
+RUN curl -fsSL https://nodejs.org/dist/v20.0.0/node-v20.0.0.tar.gz -o /tmp/node.tar.gz
+RUN preflight hash --checksum-file /tmp/SHASUMS256.txt /tmp/node.tar.gz
+```
+
+---
+
 ## `preflight user`
 
 Checks that a user exists on the system and optionally validates uid, gid, and home directory. Useful for verifying non-root container configurations.

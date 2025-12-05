@@ -9,46 +9,11 @@ This roadmap documents planned enhancements based on analysis of real-world shel
 | `preflight cmd`  | Verify binary exists and runs, version constraints         |
 | `preflight env`  | Validate environment variables with pattern matching       |
 | `preflight file` | Check files/directories exist with permissions and content |
+| `preflight hash` | SHA256/SHA512/MD5 checksum verification                    |
 | `preflight http` | HTTP health checks with status, retry, headers             |
 | `preflight tcp`  | TCP port connectivity                                      |
 | `preflight user` | Verify user exists with uid/gid/home                       |
 | `preflight run`  | Run checks from `.preflight` file                          |
-
----
-
-## Priority 1: High Impact
-
-### `preflight hash`
-
-Supply chain security—official Docker images universally verify downloaded binaries.
-
-**Shell patterns replaced:**
-
-```bash
-# SHA256 checksum verification
-echo "67574ee...2cf myfile.tar.gz" | sha256sum -c
-
-# From checksum file
-sha256sum -c checksums.txt
-
-# Node.js official image pattern
-grep " node-v$VERSION.tar.gz\$" SHASUMS256.txt | sha256sum -c -
-```
-
-**Must-have flags:**
-
-| Flag              | Description                        |
-| ----------------- | ---------------------------------- |
-| `--sha256 <hash>` | Expected SHA256 hash               |
-| `--file <path>`   | File to verify (or positional arg) |
-
-**Optional flags:**
-
-| Flag                     | Description                  |
-| ------------------------ | ---------------------------- |
-| `--sha512 <hash>`        | SHA512 hash                  |
-| `--md5 <hash>`           | MD5 hash (legacy)            |
-| `--checksum-file <path>` | Verify against checksum file |
 
 ---
 
@@ -330,7 +295,6 @@ openssl x509 -checkend 86400 -noout -in /path/to/cert.pem
 
 | Priority | Command    | Impact                    |
 | -------- | ---------- | ------------------------- |
-| 1        | `hash`     | Supply chain security     |
 | 2        | `dns`      | Service discovery         |
 | 2        | `sys`      | Multi-arch containers     |
 | 2        | `resource` | CI environment validation |
