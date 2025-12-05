@@ -473,6 +473,78 @@ func TestCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusOK,
 		},
+
+		// Error path tests
+		{
+			name: "invalid mode string",
+			check: Check{
+				Path: "/file.txt",
+				Mode: "invalid",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "file.txt",
+							ModeValue: 0o644,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "invalid mode-exact string",
+			check: Check{
+				Path:      "/file.txt",
+				ModeExact: "notoctal",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "file.txt",
+							ModeValue: 0o644,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "read file error in content check",
+			check: Check{
+				Path:     "/unreadable.txt",
+				Contains: "test",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "unreadable.txt",
+							ModeValue: 0o644,
+						}, nil
+					},
+					ReadFileFunc: func(name string, limit int64) ([]byte, error) {
+						return nil, errors.New("permission denied")
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "invalid regex in match",
+			check: Check{
+				Path:  "/config.txt",
+				Match: "[invalid",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "config.txt",
+							ModeValue: 0o644,
+						}, nil
+					},
+					ReadFileFunc: func(name string, limit int64) ([]byte, error) {
+						return []byte("some content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
 	}
 
 	for _, tt := range tests {

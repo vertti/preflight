@@ -196,6 +196,72 @@ func TestCommandCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusFail,
 		},
+		{
+			name: "invalid regex pattern",
+			check: Check{
+				Name:         "node",
+				MatchPattern: `[invalid`,
+				Runner: &mockRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/node", nil
+					},
+					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+						return "v18.0.0", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "version parse fails",
+			check: Check{
+				Name:       "myapp",
+				MinVersion: &version.Version{Major: 1, Minor: 0, Patch: 0},
+				Runner: &mockRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+						return "no version info here", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "version from stderr when stdout empty",
+			check: Check{
+				Name: "java",
+				Runner: &mockRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/java", nil
+					},
+					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+						return "", "openjdk 17.0.1 2021-10-19", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "custom version args",
+			check: Check{
+				Name:        "ffmpeg",
+				VersionArgs: []string{"-version"},
+				Runner: &mockRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/ffmpeg", nil
+					},
+					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+						if len(args) == 1 && args[0] == "-version" {
+							return "ffmpeg version 5.1.2", "", nil
+						}
+						return "", "", errors.New("wrong args")
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
 	}
 
 	for _, tt := range tests {
