@@ -1,6 +1,9 @@
 package check
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 // Fail sets the result to failed status with a detail message.
 func (r *Result) Fail(detail string, err error) Result {
@@ -24,4 +27,13 @@ func (r *Result) AddDetail(detail string) *Result {
 // AddDetailf appends a formatted detail line to the result.
 func (r *Result) AddDetailf(format string, args ...interface{}) *Result {
 	return r.AddDetail(fmt.Sprintf(format, args...))
+}
+
+// CompileRegex compiles a regex pattern if non-empty, returning nil if pattern is empty.
+// This provides a consistent pattern for optional regex compilation across check packages.
+func CompileRegex(pattern string) (*regexp.Regexp, error) {
+	if pattern == "" {
+		return nil, nil
+	}
+	return regexp.Compile(pattern)
 }
