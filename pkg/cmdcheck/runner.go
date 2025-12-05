@@ -5,21 +5,17 @@ import (
 	"os/exec"
 )
 
-// Runner abstracts command execution for testability.
 type Runner interface {
 	LookPath(file string) (string, error)
 	RunCommand(name string, args ...string) (stdout, stderr string, err error)
 }
 
-// RealRunner implements Runner using actual OS commands.
 type RealRunner struct{}
 
-// LookPath searches for an executable in PATH.
 func (r *RealRunner) LookPath(file string) (string, error) {
 	return exec.LookPath(file)
 }
 
-// RunCommand executes a command and returns its output.
 func (r *RealRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
 	cmd := exec.Command(name, args...)
 	var outBuf, errBuf bytes.Buffer
@@ -27,20 +23,4 @@ func (r *RealRunner) RunCommand(name string, args ...string) (stdout, stderr str
 	cmd.Stderr = &errBuf
 	err = cmd.Run()
 	return outBuf.String(), errBuf.String(), err
-}
-
-// mockRunner is a test double for Runner.
-type mockRunner struct {
-	LookPathFunc   func(file string) (string, error)
-	RunCommandFunc func(name string, args ...string) (string, string, error)
-}
-
-// LookPath calls the mock function.
-func (m *mockRunner) LookPath(file string) (string, error) {
-	return m.LookPathFunc(file)
-}
-
-// RunCommand calls the mock function.
-func (m *mockRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
-	return m.RunCommandFunc(name, args...)
 }

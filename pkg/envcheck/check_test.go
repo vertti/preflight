@@ -6,6 +6,15 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
+type mockEnvGetter struct {
+	Vars map[string]string
+}
+
+func (m *mockEnvGetter) LookupEnv(key string) (string, bool) {
+	val, ok := m.Vars[key]
+	return val, ok
+}
+
 func TestEnvCheck_Run(t *testing.T) {
 	tests := []struct {
 		name       string
