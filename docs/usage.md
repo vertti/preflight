@@ -344,11 +344,11 @@ preflight hash <file> [flags]
 
 ### Flags
 
-| Flag                   | Description                                |
-| ---------------------- | ------------------------------------------ |
-| `--sha256 <hash>`      | Expected SHA256 hash (64 hex characters)   |
-| `--sha512 <hash>`      | Expected SHA512 hash (128 hex characters)  |
-| `--md5 <hash>`         | Expected MD5 hash (32 hex characters)      |
+| Flag                     | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| `--sha256 <hash>`        | Expected SHA256 hash (64 hex characters)         |
+| `--sha512 <hash>`        | Expected SHA512 hash (128 hex characters)        |
+| `--md5 <hash>`           | Expected MD5 hash (32 hex characters)            |
 | `--checksum-file <path>` | Verify against checksum file (GNU or BSD format) |
 
 ### Examples
@@ -375,12 +375,14 @@ preflight hash --checksum-file checksums.txt myapp.tar.gz
 Preflight supports two common checksum file formats:
 
 **GNU format** (used by `sha256sum`, Node.js SHASUMS):
+
 ```
 67574ee2f0d8e... myfile.tar.gz
 abc123def456... otherfile.tar.gz
 ```
 
 **BSD format** (used by macOS `shasum`):
+
 ```
 SHA256 (myfile.tar.gz) = 67574ee2f0d8e...
 SHA512 (otherfile.tar.gz) = abc123def456...
