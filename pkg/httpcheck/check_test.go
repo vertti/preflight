@@ -427,3 +427,88 @@ func TestHTTPCheckDefaults(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTPCheckRetryStatusMismatch(t *testing.T) {
+	t.Run("retry exhausted on status mismatch", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:            "http://localhost/health",
+			ExpectedStatus: 200,
+			Retry:          2,
+			RetryDelay:     1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return mockResponse(503), nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 3 { // 1 initial + 2 retries
+			t.Errorf("attempts = %d, want 3", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "3 attempts") {
+			t.Errorf("Details should mention 3 attempts: %v", result.Details)
+		}
+		if !strings.Contains(allDetails, "503") {
+			t.Errorf("Details should mention status 503: %v", result.Details)
+		}
+	})
+
+	t.Run("success message includes attempt info on retry", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/health",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					if attempts < 3 {
+						return mockResponse(503), nil
+					}
+					return mockResponse(200), nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusOK {
+			t.Errorf("Status = %v, want OK", result.Status)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "attempt 3 of 3") {
+			t.Errorf("Details should mention attempt 3 of 3: %v", result.Details)
+		}
+	})
+}
+
+func TestRealHTTPClient(t *testing.T) {
+	t.Run("creates client with timeout", func(t *testing.T) {
+		client := &RealHTTPClient{
+			Timeout:  10 * time.Second,
+			Insecure: false,
+		}
+		// Just verify the struct can be created - actual HTTP calls tested in integration
+		if client.Timeout != 10*time.Second {
+			t.Errorf("Timeout = %v, want 10s", client.Timeout)
+		}
+	})
+
+	t.Run("creates client with insecure flag", func(t *testing.T) {
+		client := &RealHTTPClient{
+			Timeout:  5 * time.Second,
+			Insecure: true,
+		}
+		if !client.Insecure {
+			t.Error("Insecure should be true")
+		}
+	})
+}
