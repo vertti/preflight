@@ -11,19 +11,20 @@ import (
 
 // Check verifies that a file or directory meets requirements.
 type Check struct {
-	Path       string     // path to check
-	ExpectDir  bool       // --dir: expect a directory
-	Writable   bool       // --writable: check write permission
-	Executable bool       // --executable: check execute permission
-	NotEmpty   bool       // --not-empty: file must have size > 0
-	MinSize    int64      // --min-size: minimum file size in bytes
-	MaxSize    int64      // --max-size: maximum file size in bytes (0 = no limit)
-	Match      string     // --match: regex pattern for content
-	Contains   string     // --contains: literal string to search
-	Head       int64      // --head: limit content read to first N bytes
-	Mode       string     // --mode: minimum permissions (octal, e.g., "0644")
-	ModeExact  string     // --mode-exact: exact permissions required
-	FS         FileSystem // injected for testing
+	Path         string     // path to check
+	ExpectDir    bool       // --dir: expect a directory
+	ExpectSocket bool       // --socket: expect a Unix socket
+	Writable     bool       // --writable: check write permission
+	Executable   bool       // --executable: check execute permission
+	NotEmpty     bool       // --not-empty: file must have size > 0
+	MinSize      int64      // --min-size: minimum file size in bytes
+	MaxSize      int64      // --max-size: maximum file size in bytes (0 = no limit)
+	Match        string     // --match: regex pattern for content
+	Contains     string     // --contains: literal string to search
+	Head         int64      // --head: limit content read to first N bytes
+	Mode         string     // --mode: minimum permissions (octal, e.g., "0644")
+	ModeExact    string     // --mode-exact: exact permissions required
+	FS           FileSystem // injected for testing
 }
 
 // Run executes the file check.
@@ -132,6 +133,18 @@ func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 }
 
 func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) error {
+	mode := info.Mode()
+
+	if c.ExpectSocket {
+		if !isSocket(mode) {
+			err := fmt.Errorf("expected socket, got file/directory")
+			result.Fail("expected socket, got file/directory", err)
+			return err
+		}
+		result.AddDetail("type: socket")
+		return nil
+	}
+
 	if c.ExpectDir {
 		if !info.IsDir() {
 			err := fmt.Errorf("expected directory, got file")
@@ -140,9 +153,12 @@ func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) erro
 		}
 		result.AddDetail("type: directory")
 	} else {
-		if info.IsDir() {
+		switch {
+		case isSocket(mode):
+			result.AddDetail("type: socket")
+		case info.IsDir():
 			result.AddDetail("type: directory")
-		} else {
+		default:
 			result.AddDetail("type: file")
 		}
 	}
@@ -227,4 +243,9 @@ func isWritable(mode fs.FileMode) bool {
 // isExecutable checks if the mode has any execute bit set (owner, group, or other)
 func isExecutable(mode fs.FileMode) bool {
 	return mode&0o111 != 0
+}
+
+// isSocket checks if the mode indicates a Unix socket
+func isSocket(mode fs.FileMode) bool {
+	return mode&fs.ModeSocket != 0
 }

@@ -123,6 +123,7 @@ preflight file <path> [flags]
 | Flag                   | Description                                          |
 | ---------------------- | ---------------------------------------------------- |
 | `--dir`                | Expect a directory (fail if it's a file)             |
+| `--socket`             | Expect a Unix socket (e.g., docker.sock)             |
 | `--writable`           | Check write permission                               |
 | `--executable`         | Check execute permission                             |
 | `--not-empty`          | File must have size > 0                              |
@@ -142,6 +143,10 @@ preflight file /etc/nginx/nginx.conf
 
 # Directory checks
 preflight file /var/log/app --dir --writable
+
+# Unix socket checks (Docker-in-Docker, containerd)
+preflight file /var/run/docker.sock --socket
+preflight file /run/containerd/containerd.sock --socket
 
 # Permission checks (minimum - file has at least these perms)
 preflight file /etc/ssl/private/key.pem --mode 0600
