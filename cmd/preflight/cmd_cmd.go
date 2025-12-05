@@ -41,7 +41,7 @@ func runCmdCheck(_ *cobra.Command, args []string) error {
 		Name:         commandName,
 		VersionArgs:  parseVersionArgs(versionCmd),
 		MatchPattern: matchPattern,
-		Runner:       &cmdcheck.RealRunner{},
+		Runner:       &cmdcheck.RealCmdRunner{},
 	}
 
 	var err error

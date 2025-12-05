@@ -27,7 +27,7 @@ import (
 func TestIntegration_Cmd(t *testing.T) {
 	c := cmdcheck.Check{
 		Name:   "bash", // bash --version is universally available
-		Runner: &cmdcheck.RealRunner{},
+		Runner: &cmdcheck.RealCmdRunner{},
 	}
 
 	result := c.Run()

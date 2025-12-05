@@ -5,18 +5,20 @@ import (
 	"os/exec"
 )
 
-type Runner interface {
+// CmdRunner abstracts command execution for testability.
+type CmdRunner interface {
 	LookPath(file string) (string, error)
 	RunCommand(name string, args ...string) (stdout, stderr string, err error)
 }
 
-type RealRunner struct{}
+// RealCmdRunner implements CmdRunner using actual os/exec.
+type RealCmdRunner struct{}
 
-func (r *RealRunner) LookPath(file string) (string, error) {
+func (r *RealCmdRunner) LookPath(file string) (string, error) {
 	return exec.LookPath(file)
 }
 
-func (r *RealRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
+func (r *RealCmdRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
 	cmd := exec.Command(name, args...)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf

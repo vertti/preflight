@@ -15,7 +15,7 @@ type Check struct {
 	MaxVersion   *version.Version // maximum version allowed (exclusive)
 	ExactVersion *version.Version // exact version required
 	MatchPattern string           // regex pattern to match against version output
-	Runner       Runner           // injected for testing
+	Runner       CmdRunner        // injected for testing
 }
 
 // Run executes the command check.
