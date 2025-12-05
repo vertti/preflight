@@ -225,6 +225,31 @@ healthcheck:
   test: ["CMD", "preflight", "tcp", "db:5432"]
 ```
 
+### Tools Replaced
+
+`preflight tcp` replaces several widely-used service waiting tools:
+
+| Tool                                                       | Stars  | What preflight replaces           |
+| ---------------------------------------------------------- | ------ | --------------------------------- |
+| [wait-for-it.sh](https://github.com/vishnubob/wait-for-it) | 9,700+ | `wait-for-it.sh host:port`        |
+| [dockerize](https://github.com/jwilder/dockerize)          | 4,800+ | `dockerize -wait tcp://host:port` |
+| netcat                                                     | -      | `nc -z host port`                 |
+| bash built-in                                              | -      | `echo > /dev/tcp/$HOST/$PORT`     |
+
+**Before (wait-for-it.sh):**
+
+```dockerfile
+COPY wait-for-it.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/wait-for-it.sh
+CMD ["wait-for-it.sh", "db:5432", "--", "./app"]
+```
+
+**After (preflight):**
+
+```dockerfile
+CMD ["sh", "-c", "preflight tcp db:5432 && ./app"]
+```
+
 ---
 
 ## `preflight http`
@@ -440,10 +465,40 @@ preflight sys --arch amd64
 preflight sys --os linux --arch arm64
 ```
 
-### Shell Pattern Replaced
+### Tools Replaced
+
+`preflight sys` replaces common architecture detection patterns critical for **multi-platform builds**:
+
+| Pattern                           | Use Case                     |
+| --------------------------------- | ---------------------------- |
+| `uname -m \| sed s/x86_64/amd64/` | Normalize arch names         |
+| `dpkg --print-architecture`       | Debian-based arch detection  |
+| `TARGETARCH` (BuildKit ARG)       | Multi-platform Docker builds |
+
+**Before (binary download scripts):**
 
 ```bash
-# Before - brittle shell script
+# Common pattern in official images downloading binaries
+arch="$(dpkg --print-architecture)"; case "$arch" in
+    amd64) GOSU_ARCH='amd64';;
+    arm64) GOSU_ARCH='arm64';;
+    *) echo "unsupported: $arch"; exit 1;;
+esac
+curl -L "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$GOSU_ARCH" -o /usr/local/bin/gosu
+```
+
+**After (preflight):**
+
+```dockerfile
+# Verify expected platform before downloading
+RUN preflight sys --arch amd64
+RUN curl -L "https://example.com/binary-amd64" -o /usr/local/bin/binary
+```
+
+**Runtime verification:**
+
+```bash
+# Before - brittle
 arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
 if [ "$arch" != "amd64" ]; then
     echo "Unsupported architecture: $arch"
@@ -519,6 +574,38 @@ USER appuser
 ```sh
 # Verify container runs as expected user
 preflight user nobody --uid 65534
+```
+
+### Tools Replaced
+
+`preflight user` replaces common shell patterns found in **virtually every official Docker image** for privilege management:
+
+**Before (PostgreSQL, MySQL, MongoDB official images):**
+
+```bash
+if [ "$1" = 'postgres' ] && [ "$(id -u)" = '0' ]; then
+    mkdir -p "$PGDATA"
+    chown -R postgres "$PGDATA"
+    chmod 700 "$PGDATA"
+    exec gosu postgres "$BASH_SOURCE" "$@"
+fi
+```
+
+**After (preflight):**
+
+```dockerfile
+# Verify user configuration at build time
+RUN preflight user postgres --uid 999 --gid 999
+```
+
+**Volume mount validation:**
+
+```bash
+# Before - common Docker run pattern
+docker run -u $(id -u):$(id -g) -v $(pwd):/workspace myimage
+
+# After - verify inside container
+preflight user appuser --uid 1000 --gid 1000
 ```
 
 ---
