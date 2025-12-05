@@ -638,6 +638,120 @@ RUN preflight sys --os linux --arch arm64
 
 ---
 
+## `preflight resource`
+
+Checks system resources meet minimum requirements. Critical for CI pipelines where runners have limited disk space, or containers with memory limits.
+
+```sh
+preflight resource [flags]
+```
+
+### Flags
+
+| Flag               | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| `--min-disk <size>` | Minimum free disk space (e.g., 10G, 500M)        |
+| `--min-memory <size>` | Minimum available memory (e.g., 2G, 512M)      |
+| `--min-cpus <n>`   | Minimum number of CPU cores                       |
+| `--path <path>`    | Path for disk space check (default: current dir)  |
+
+At least one of `--min-disk`, `--min-memory`, or `--min-cpus` is required.
+
+### Size Format
+
+Sizes support common units (case-insensitive):
+
+| Unit       | Example | Bytes          |
+| ---------- | ------- | -------------- |
+| B (bytes)  | `1024`  | 1,024          |
+| K/KB       | `500K`  | 512,000        |
+| M/MB       | `500M`  | 524,288,000    |
+| G/GB       | `10G`   | 10,737,418,240 |
+| T/TB       | `1T`    | 1,099,511,627,776 |
+
+Decimals are supported: `1.5G`, `2.5TB`
+
+### Examples
+
+```sh
+# Check disk space
+preflight resource --min-disk 10G
+
+# Check disk space at specific path
+preflight resource --min-disk 10G --path /var/lib/docker
+
+# Check available memory
+preflight resource --min-memory 2G
+
+# Check CPU cores
+preflight resource --min-cpus 4
+
+# Combined checks
+preflight resource --min-disk 10G --min-memory 2G --min-cpus 2
+```
+
+### Use Cases
+
+**GitHub Actions - prevent disk space failures:**
+
+```yaml
+- name: Check disk space before Docker build
+  run: preflight resource --min-disk 10G
+```
+
+**Docker build - verify container resources:**
+
+```dockerfile
+# Verify container has enough resources before heavy operations
+RUN preflight resource --min-memory 1G --min-cpus 2
+```
+
+**CI pipeline - verify runner capacity:**
+
+```sh
+# Before starting parallel tests
+preflight resource --min-cpus 4 --min-memory 4G
+```
+
+### Tools Replaced
+
+`preflight resource` replaces common shell patterns for checking system resources:
+
+**Before (disk space check):**
+
+```bash
+available=$(df -BG /var/lib/docker | tail -1 | awk '{print $4}' | tr -d 'G')
+if [ "$available" -lt 10 ]; then
+    echo "Not enough disk space"
+    exit 1
+fi
+```
+
+**After:**
+
+```sh
+preflight resource --min-disk 10G --path /var/lib/docker
+```
+
+**Before (memory check):**
+
+```bash
+mem_kb=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+mem_gb=$((mem_kb / 1024 / 1024))
+if [ "$mem_gb" -lt 2 ]; then
+    echo "Not enough memory"
+    exit 1
+fi
+```
+
+**After:**
+
+```sh
+preflight resource --min-memory 2G
+```
+
+---
+
 ## `preflight user`
 
 Checks that a user exists on the system and optionally validates uid, gid, and home directory. Useful for verifying non-root container configurations.

@@ -15,6 +15,7 @@ import (
 	"github.com/vertti/preflight/pkg/gitcheck"
 	"github.com/vertti/preflight/pkg/hashcheck"
 	"github.com/vertti/preflight/pkg/httpcheck"
+	"github.com/vertti/preflight/pkg/resourcecheck"
 	"github.com/vertti/preflight/pkg/syscheck"
 	"github.com/vertti/preflight/pkg/tcpcheck"
 	"github.com/vertti/preflight/pkg/usercheck"
@@ -222,6 +223,46 @@ func TestIntegration_Git(t *testing.T) {
 	}
 
 	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_Resource(t *testing.T) {
+	checker := &resourcecheck.RealResourceChecker{}
+
+	// Test disk space (should have at least 1MB free)
+	c := resourcecheck.Check{
+		MinDisk: 1 * 1024 * 1024, // 1MB
+		Checker: checker,
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test memory (should have at least 100MB)
+	c = resourcecheck.Check{
+		MinMemory: 100 * 1024 * 1024, // 100MB
+		Checker:   checker,
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test CPUs (should have at least 1)
+	c = resourcecheck.Check{
+		MinCPUs: 1,
+		Checker: checker,
+	}
+
+	result = c.Run()
 
 	if result.Status != check.StatusOK {
 		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
