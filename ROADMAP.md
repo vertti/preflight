@@ -16,6 +16,7 @@ These commands replace extremely common shell patterns found in virtually every 
 | `preflight file` | `test -f`, `test -d`, `test -r`, permission checks            | ⭐⭐⭐⭐⭐ |
 | `preflight http` | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
 | `preflight hash` | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
+| `preflight git`  | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
 
 ---
 
@@ -89,44 +90,6 @@ ulimit -n
 preflight resource --min-disk 10G --path /var/lib/docker
 preflight resource --min-memory 2G
 preflight resource --min-cpus 2
-```
-
----
-
-### `preflight git`
-
-Git state verification is **standard in CI pipelines** for Go projects (vendor checks, formatting) and any project with generated code.
-
-**Tools/patterns replaced:**
-
-```bash
-# From docker/docs Dockerfile - vendor verification
-hugo mod vendor
-if [ -n "$(git status --porcelain -- go.mod go.sum _vendor)" ]; then
-    echo 'ERROR: Vendor result differs'
-    exit 1
-fi
-
-# Universal formatting check pattern
-go fmt ./... && git diff --exit-code
-```
-
-**Proposed flags:**
-
-| Flag                    | Description                     |
-| ----------------------- | ------------------------------- |
-| `--clean`               | Working directory must be clean |
-| `--no-uncommitted`      | No uncommitted changes          |
-| `--no-untracked`        | No untracked files              |
-| `--branch <name>`       | Must be on branch               |
-| `--tag-match <pattern>` | HEAD must match tag pattern     |
-
-**Proposed syntax:**
-
-```sh
-preflight git --clean
-preflight git --no-uncommitted
-preflight git --branch main
 ```
 
 ---
@@ -387,7 +350,6 @@ setcap cap_ipc_lock=-ep $(readlink -f $(which vault))
 | -------- | ----------------- | ----------------------------------- |
 | 1        | `file --socket`   | Docker-in-Docker, containerd        |
 | 1        | `resource`        | CI disk/memory validation           |
-| 1        | `git`             | CI clean state verification         |
 | 1        | `json`            | Config validation, replaces jq      |
 | 2        | `file --owner`    | Bind mount permission fixes         |
 | 2        | `proc`            | Healthchecks, service orchestration |
