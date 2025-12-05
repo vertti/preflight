@@ -23,6 +23,28 @@ RUN preflight tcp postgres:5432
 - **CI pipelines** – validate environments, check connectivity, verify checksums
 - **Health checks** – HTTP and TCP checks without curl or netcat
 
+**Clear output, CI-friendly exit codes:**
+
+Every check tells you exactly what passed or failed—no more guessing why your build broke.
+
+```
+[OK] cmd: node
+     path: /usr/local/bin/node
+     version: 20.10.0
+
+[OK] file: /app/config.yaml
+     size: 1.2KB
+     mode: -rw-r--r--
+
+[FAIL] cmd: python
+       version 3.9.0 < minimum 3.11
+
+[FAIL] tcp: postgres:5432
+       connection refused
+```
+
+Exit code `0` on success, `1` on failure. Works with `set -e`, Docker `RUN`, and CI pipelines out of the box.
+
 ## Install
 
 **Dockerfiles** (recommended):
@@ -43,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 
 ### Check commands
 
-Like `which`, but verifies the binary actually runs (catches missing `.so` dependencies).
+Like `which`, but actually runs the binary to verify it works.
 
 ```sh
 preflight cmd node                            # exists and runs
@@ -116,19 +138,6 @@ preflight run --file /path/to/.preflight  # specify file explicitly
 ```
 
 [File format, discovery, and hashbang support](docs/usage.md#preflight-run)
-
-### Output
-
-```
-[OK] cmd: myapp
-     path: /usr/local/bin/myapp
-     version: 2.1.0
-
-[FAIL] env: MODEL_PATH
-       error: not set
-```
-
-Exit code `0` on success, `1` on failure.
 
 [Full usage guide](docs/usage.md)
 
