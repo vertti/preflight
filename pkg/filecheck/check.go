@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/vertti/preflight/pkg/check"
@@ -176,7 +175,7 @@ func (c *Check) checkContent(result *check.Result) error {
 
 	// --match: regex pattern
 	if c.Match != "" {
-		re, err := regexp.Compile(c.Match)
+		re, err := check.CompileRegex(c.Match)
 		if err != nil {
 			result.Failf("invalid regex pattern: %v", err)
 			return err

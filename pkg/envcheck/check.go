@@ -2,7 +2,6 @@ package envcheck
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -47,7 +46,7 @@ func (c *Check) Run() check.Result {
 
 	// --match: regex pattern
 	if c.Match != "" {
-		re, err := regexp.Compile(c.Match)
+		re, err := check.CompileRegex(c.Match)
 		if err != nil {
 			return result.Failf("invalid regex pattern: %v", err)
 		}

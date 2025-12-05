@@ -2,7 +2,6 @@ package cmdcheck
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
@@ -73,7 +72,7 @@ func (c *Check) Run() check.Result {
 }
 
 func (c *Check) checkMatchPattern(output string, result *check.Result) error {
-	re, err := regexp.Compile(c.MatchPattern)
+	re, err := check.CompileRegex(c.MatchPattern)
 	if err != nil {
 		result.Failf("invalid regex pattern: %v", err)
 		return err
