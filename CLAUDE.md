@@ -6,6 +6,8 @@
 2. **Small Steps**: Each commit should be focused and atomic
 3. **Commit Often**: Working code gets committed immediately
 4. **Always Lint/Format**: Run before every commit
+5. **Work in Branches**: Each new feature gets its own branch and PR
+6. **Never commit directly to main**: Always use PRs for code changes
 
 ## Before Committing
 
@@ -42,6 +44,19 @@ preflight/
 - Use table-driven tests where appropriate
 - Mock external dependencies (exec, filesystem, env)
 - Aim for high coverage on pkg/* code
+- For new commands: add full unit test coverage AND one integration test in `integration_test.go`
+
+## Adding New Commands
+
+When implementing a new preflight command:
+
+1. Create `pkg/<name>check/check.go` with interface for testability
+2. Create `pkg/<name>check/check_test.go` with comprehensive unit tests
+3. Create `cmd/preflight/cmd_<name>.go` for CLI wiring
+4. Add one integration test to `integration_test.go`
+5. Update `docs/usage.md` with examples
+6. Update `README.md` if the command is noteworthy
+7. If interesting, show the ugly shell script this feature replaces
 
 ## Pull Requests
 
