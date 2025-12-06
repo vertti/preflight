@@ -158,6 +158,7 @@ preflight file <path> [flags]
 | `--head <bytes>`       | Limit content read to first N bytes                  |
 | `--mode <perms>`       | Minimum permissions (e.g., `0644` passes for `0666`) |
 | `--mode-exact <perms>` | Exact permissions required                           |
+| `--owner <uid>`        | Expected owner UID                                   |
 
 ### Examples
 
@@ -177,6 +178,10 @@ preflight file /etc/ssl/private/key.pem --mode 0600
 
 # Permission checks (exact)
 preflight file /etc/ssl/private/key.pem --mode-exact 0600
+
+# Ownership checks (HashiCorp Consul/Vault pattern)
+preflight file /data --owner 1000
+preflight file /app/data --dir --owner 1000
 
 # Content checks (reads full file)
 preflight file /etc/nginx/nginx.conf --contains "worker_processes"

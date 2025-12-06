@@ -24,6 +24,7 @@ type Check struct {
 	Head         int64      // --head: limit content read to first N bytes
 	Mode         string     // --mode: minimum permissions (octal, e.g., "0644")
 	ModeExact    string     // --mode-exact: exact permissions required
+	Owner        int        // --owner: expected owner UID (-1 = don't check)
 	FS           FileSystem // injected for testing
 }
 
@@ -85,6 +86,13 @@ func (c *Check) Run() check.Result {
 	if c.Executable {
 		if !isExecutable(info.Mode()) {
 			return result.Fail("not executable", fmt.Errorf("file is not executable"))
+		}
+	}
+
+	// --owner: check file ownership
+	if c.Owner >= 0 {
+		if err := c.checkOwner(&result); err != nil {
+			return result
 		}
 	}
 
@@ -220,6 +228,24 @@ func (c *Check) checkContent(result *check.Result) error {
 			result.Fail(fmt.Sprintf("content does not match pattern %q", c.Match), err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Check) checkOwner(result *check.Result) error {
+	uid, _, err := c.FS.GetOwner(c.Path)
+	if err != nil {
+		result.Failf("failed to get owner: %v", err)
+		return err
+	}
+
+	result.AddDetailf("owner: %d", uid)
+
+	if int(uid) != c.Owner {
+		err := fmt.Errorf("owner %d != expected %d", uid, c.Owner)
+		result.Fail(fmt.Sprintf("owner %d != expected %d", uid, c.Owner), err)
+		return err
 	}
 
 	return nil

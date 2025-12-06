@@ -19,6 +19,7 @@ var (
 	fileHead       int64
 	fileMode       string
 	fileModeExact  string
+	fileOwner      int
 )
 
 var fileCmd = &cobra.Command{
@@ -41,6 +42,7 @@ func init() {
 	fileCmd.Flags().Int64Var(&fileHead, "head", 0, "limit content read to first N bytes")
 	fileCmd.Flags().StringVar(&fileMode, "mode", "", "minimum permissions (e.g., 0644)")
 	fileCmd.Flags().StringVar(&fileModeExact, "mode-exact", "", "exact permissions required")
+	fileCmd.Flags().IntVar(&fileOwner, "owner", -1, "expected owner UID")
 	rootCmd.AddCommand(fileCmd)
 }
 
@@ -61,6 +63,7 @@ func runFileCheck(_ *cobra.Command, args []string) error {
 		Head:         fileHead,
 		Mode:         fileMode,
 		ModeExact:    fileModeExact,
+		Owner:        fileOwner,
 		FS:           &filecheck.RealFileSystem{},
 	}
 

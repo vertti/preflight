@@ -9,6 +9,7 @@ import (
 type FileSystem interface {
 	Stat(name string) (fs.FileInfo, error)
 	ReadFile(name string, limit int64) ([]byte, error)
+	GetOwner(name string) (uid, gid uint32, err error)
 }
 
 type RealFileSystem struct{}
