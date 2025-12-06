@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/vertti/preflight/pkg/check"
 )
 
@@ -75,6 +77,7 @@ type Check struct {
 	BodyFile        string            // path to file containing request body
 	Contains        string            // response body must contain this string
 	FollowRedirects bool              // follow HTTP redirects (3xx)
+	JSONPath        string            // JSON path to check (format: "path=expectedValue" or just "path")
 	Client          HTTPClient        // injected for testing
 	FileReader      FileReader        // injected for testing
 }
@@ -168,9 +171,9 @@ func (c *Check) Run() check.Result {
 
 		statusCode := resp.StatusCode
 
-		// Read response body if needed for --contains check
+		// Read response body if needed for --contains or --json-path check
 		var respBody string
-		if c.Contains != "" {
+		if c.Contains != "" || c.JSONPath != "" {
 			bodyBytes, err := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 			if err != nil {
@@ -206,6 +209,34 @@ func (c *Check) Run() check.Result {
 			return result.Failf("response body does not contain %q", c.Contains)
 		}
 
+		// Check --json-path
+		if c.JSONPath != "" {
+			path, expectedValue, hasExpectedValue := parseJSONPath(c.JSONPath)
+			jsonResult := gjson.Get(respBody, path)
+			if !jsonResult.Exists() {
+				lastErr = fmt.Errorf("JSON path %q not found", path)
+				if attempt < maxAttempts {
+					time.Sleep(retryDelay)
+					continue
+				}
+				if maxAttempts > 1 {
+					return result.Failf("JSON path %q not found (after %d attempts)", path, maxAttempts)
+				}
+				return result.Failf("JSON path %q not found", path)
+			}
+			if hasExpectedValue && jsonResult.String() != expectedValue {
+				lastErr = fmt.Errorf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
+				if attempt < maxAttempts {
+					time.Sleep(retryDelay)
+					continue
+				}
+				if maxAttempts > 1 {
+					return result.Failf("JSON path %q: got %q, expected %q (after %d attempts)", path, jsonResult.String(), expectedValue, maxAttempts)
+				}
+				return result.Failf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
+			}
+		}
+
 		// Success
 		result.Status = check.StatusOK
 		result.AddDetailf("status %d", statusCode)
@@ -217,4 +248,12 @@ func (c *Check) Run() check.Result {
 
 	// Should not reach here, but handle edge case
 	return result.Failf("unexpected error: %v", lastErr)
+}
+
+// parseJSONPath parses "path=value" or "path" format.
+func parseJSONPath(jsonPath string) (path, expectedValue string, hasExpectedValue bool) {
+	if idx := strings.Index(jsonPath, "="); idx != -1 {
+		return jsonPath[:idx], jsonPath[idx+1:], true
+	}
+	return jsonPath, "", false
 }

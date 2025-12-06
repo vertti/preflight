@@ -298,6 +298,90 @@ func TestHTTPCheck(t *testing.T) {
 			wantDetailSub: "does not contain",
 		},
 
+		// --- JSON Path ---
+		{
+			name: "json-path exists check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.id",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "json-path exists check fails when path missing",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.missing",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "not found",
+		},
+		{
+			name: "json-path value check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "status=healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "json-path value check fails when value differs",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "status=healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "degraded"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "expected",
+		},
+		{
+			name: "json-path nested value check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.items.0.name=first",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"items": [{"name": "first"}, {"name": "second"}]}}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+
 		// --- Connection Errors ---
 		{
 			name: "connection refused",
