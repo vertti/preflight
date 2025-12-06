@@ -168,6 +168,111 @@ preflight file /var/log/app.log --max-size 10485760  # 10MB
 
 ---
 
+## `preflight json`
+
+Validates JSON files and checks key/value assertions. Useful for verifying configuration files are valid and contain required settings.
+
+```sh
+preflight json <file> [flags]
+```
+
+### Flags
+
+| Flag                | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `--has-key <path>`  | Check key exists (dot notation for nested keys)      |
+| `--key <path>`      | Key to check value of (dot notation for nested keys) |
+| `--exact <value>`   | Exact value required (requires `--key`)              |
+| `--match <pattern>` | Regex pattern for value (requires `--key`)           |
+
+### Examples
+
+```sh
+# Validate JSON syntax only
+preflight json config.json
+
+# Check key exists
+preflight json config.json --has-key database.host
+
+# Check nested key exists
+preflight json package.json --has-key dependencies.express
+
+# Check exact value
+preflight json config.json --key environment --exact production
+
+# Check value matches pattern
+preflight json package.json --key version --match "^1\."
+
+# Combined: validate and check required key
+preflight json config.json --has-key database.host
+```
+
+### Dot Notation
+
+Use dot notation to access nested keys:
+
+```json
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432
+  }
+}
+```
+
+```sh
+preflight json config.json --has-key database.host
+preflight json config.json --key database.port --exact 5432
+```
+
+### Non-String Values
+
+Non-string values are converted to strings for comparison:
+
+```sh
+# Numbers
+preflight json config.json --key port --exact 8080
+
+# Booleans
+preflight json config.json --key enabled --exact true
+
+# Null
+preflight json config.json --key optional --exact null
+```
+
+### Use Cases
+
+**CI - verify package.json:**
+
+```sh
+preflight json package.json --key version --match "^[0-9]+\.[0-9]+\.[0-9]+$"
+```
+
+**Docker - validate config before startup:**
+
+```dockerfile
+COPY config.json /app/
+RUN preflight json /app/config.json --has-key database.host
+```
+
+**Kubernetes - verify ConfigMap mounted correctly:**
+
+```yaml
+readinessProbe:
+  exec:
+    command: ["preflight", "json", "/etc/config/app.json", "--has-key", "api.endpoint"]
+```
+
+### What This Is Not
+
+`preflight json` is intentionally limited. For complex JSON queries, use `jq`:
+
+- **Not supported:** Array indexing (`items[0]`)
+- **Not supported:** JSONPath queries
+- **Not supported:** Data extraction/transformation
+
+---
+
 ## `preflight git`
 
 Verifies git repository state. Useful for CI pipelines that need to ensure a clean working directory or verify branch/tag state before builds or releases.

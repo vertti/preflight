@@ -15,6 +15,7 @@ import (
 	"github.com/vertti/preflight/pkg/gitcheck"
 	"github.com/vertti/preflight/pkg/hashcheck"
 	"github.com/vertti/preflight/pkg/httpcheck"
+	"github.com/vertti/preflight/pkg/jsoncheck"
 	"github.com/vertti/preflight/pkg/resourcecheck"
 	"github.com/vertti/preflight/pkg/syscheck"
 	"github.com/vertti/preflight/pkg/tcpcheck"
@@ -133,6 +134,98 @@ func TestIntegration_FileSocketFail(t *testing.T) {
 		Path:         tmpFile.Name(),
 		ExpectSocket: true,
 		FS:           &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_JSON(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "preflight-integration-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	_, err = tmpFile.WriteString(`{"name": "test", "version": "1.2.3", "db": {"host": "localhost"}}`)
+	if err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
+	_ = tmpFile.Close()
+
+	// Test basic validation
+	c := jsoncheck.Check{
+		File: tmpFile.Name(),
+		FS:   &jsoncheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test --has-key with nested path
+	c = jsoncheck.Check{
+		File:   tmpFile.Name(),
+		HasKey: "db.host",
+		FS:     &jsoncheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test --key with --exact
+	c = jsoncheck.Check{
+		File:  tmpFile.Name(),
+		Key:   "version",
+		Exact: "1.2.3",
+		FS:    &jsoncheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test --key with --match
+	c = jsoncheck.Check{
+		File:  tmpFile.Name(),
+		Key:   "version",
+		Match: `^1\.`,
+		FS:    &jsoncheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_JSONInvalid(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "preflight-invalid-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	_, err = tmpFile.WriteString(`{invalid json}`)
+	if err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
+	_ = tmpFile.Close()
+
+	c := jsoncheck.Check{
+		File: tmpFile.Name(),
+		FS:   &jsoncheck.RealFileSystem{},
 	}
 
 	result := c.Run()
