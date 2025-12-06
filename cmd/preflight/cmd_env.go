@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	envNotSet     bool
 	envAllowEmpty bool
 	envMatch      string
 	envExact      string
@@ -29,6 +30,7 @@ var envCmd = &cobra.Command{
 }
 
 func init() {
+	envCmd.Flags().BoolVar(&envNotSet, "not-set", false, "verify variable is NOT defined")
 	envCmd.Flags().BoolVar(&envAllowEmpty, "allow-empty", false, "pass if defined but empty")
 	envCmd.Flags().StringVar(&envMatch, "match", "", "regex pattern to match value")
 	envCmd.Flags().StringVar(&envExact, "exact", "", "exact value required")
@@ -49,6 +51,7 @@ func runEnvCheck(_ *cobra.Command, args []string) error {
 
 	c := &envcheck.Check{
 		Name:       varName,
+		NotSet:     envNotSet,
 		AllowEmpty: envAllowEmpty,
 		Match:      envMatch,
 		Exact:      envExact,

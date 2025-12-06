@@ -11,6 +11,7 @@ import (
 // Check verifies that an environment variable meets requirements.
 type Check struct {
 	Name       string    // env var name
+	NotSet     bool      // --not-set: verify variable is NOT defined
 	AllowEmpty bool      // --allow-empty: pass if defined but empty
 	Match      string    // --match: regex pattern
 	Exact      string    // --exact: exact value
@@ -33,6 +34,16 @@ func (c *Check) Run() check.Result {
 	}
 
 	value, exists := c.Getter.LookupEnv(c.Name)
+
+	// --not-set: verify variable is NOT defined
+	if c.NotSet {
+		if exists {
+			return result.Fail("variable is set (expected not set)", fmt.Errorf("environment variable %s is set", c.Name))
+		}
+		result.Status = check.StatusOK
+		result.AddDetail("not set (as expected)")
+		return result
+	}
 
 	if !exists {
 		return result.Fail("not set", fmt.Errorf("environment variable %s is not set", c.Name))

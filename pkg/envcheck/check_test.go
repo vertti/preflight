@@ -314,6 +314,38 @@ func TestEnvCheck_Run(t *testing.T) {
 			wantStatus: check.StatusFail,
 			wantDetail: "value length 12 > maximum 5",
 		},
+
+		// --not-set flag tests
+		{
+			name: "not-set passes when variable undefined",
+			check: Check{
+				Name:   "SHOULD_NOT_EXIST",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{}},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "not set (as expected)",
+		},
+		{
+			name: "not-set fails when variable is defined",
+			check: Check{
+				Name:   "EXISTS",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"EXISTS": "some-value"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "variable is set (expected not set)",
+		},
+		{
+			name: "not-set fails when variable is defined but empty",
+			check: Check{
+				Name:   "EMPTY",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"EMPTY": ""}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "variable is set (expected not set)",
+		},
 	}
 
 	for _, tt := range tests {
