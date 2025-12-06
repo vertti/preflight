@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,7 +63,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 		execCmd.Stdin = os.Stdin
 
 		if err := execCmd.Run(); err != nil {
-			if exitError, ok := err.(*exec.ExitError); ok {
+			var exitError *exec.ExitError
+			if errors.As(err, &exitError) {
 				os.Exit(exitError.ExitCode())
 			}
 			return fmt.Errorf("failed to execute command %q: %w", command, err)

@@ -2,6 +2,7 @@ package gitcheck
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"strings"
 )
@@ -30,8 +31,13 @@ func (r *RealGitRunner) IsGitRepo() (bool, error) {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	err := cmd.Run()
 	if err != nil {
-		// Exit code 128 = not a git repository
-		return false, nil
+		// ExitError means git ran but returned non-zero (not a git repo)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return false, nil
+		}
+		// Other errors (e.g., git not found) should be returned
+		return false, err
 	}
 	return true, nil
 }

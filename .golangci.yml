@@ -14,6 +14,15 @@ linters:
     - unconvert
     - gocritic
     - nolintlint
+    # Error handling
+    - errorlint      # proper error wrapping with errors.Is/As
+    - nilerr         # return nil when err != nil
+    # Safety
+    - bodyclose      # HTTP response body must be closed
+    - forcetypeassert # type assertions must be checked
+    # Code quality
+    - predeclared    # shadowing of predeclared identifiers
+    - dupword        # duplicate words in comments
   settings:
     gocritic:
       enabled-tags:

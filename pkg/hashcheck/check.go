@@ -216,7 +216,7 @@ func (c *Check) parseChecksumFile() (string, HashAlgorithm, error) {
 
 	f, err := opener.Open(c.ChecksumFile)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to open checksum file: %v", err)
+		return "", "", fmt.Errorf("failed to open checksum file: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
@@ -239,7 +239,7 @@ func (c *Check) parseChecksumFile() (string, HashAlgorithm, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", "", fmt.Errorf("error reading checksum file: %v", err)
+		return "", "", fmt.Errorf("error reading checksum file: %w", err)
 	}
 
 	return "", "", fmt.Errorf("file %q not found in checksum file", targetFile)
