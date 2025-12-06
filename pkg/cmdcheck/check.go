@@ -1,7 +1,9 @@
 package cmdcheck
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
@@ -15,6 +17,7 @@ type Check struct {
 	MaxVersion   *version.Version // maximum version allowed (exclusive)
 	ExactVersion *version.Version // exact version required
 	MatchPattern string           // regex pattern to match against version output
+	Timeout      time.Duration    // timeout for version command (default: 30s)
 	Runner       CmdRunner        // injected for testing
 }
 
@@ -36,8 +39,19 @@ func (c *Check) Run() check.Result {
 		args = []string{"--version"}
 	}
 
-	stdout, stderr, err := c.Runner.RunCommand(c.Name, args...)
+	// Set up timeout context
+	timeout := c.Timeout
+	if timeout == 0 {
+		timeout = DefaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	stdout, stderr, err := c.Runner.RunCommandContext(ctx, c.Name, args...)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return result.Failf("version command timed out after %s", timeout)
+		}
 		result.AddDetailf("version command failed: %v", err)
 		if stderr != "" {
 			result.AddDetailf("stderr: %s", stderr)

@@ -1,21 +1,22 @@
 package cmdcheck
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
 
 type mockCmdRunner struct {
-	LookPathFunc   func(file string) (string, error)
-	RunCommandFunc func(name string, args ...string) (string, string, error)
+	LookPathFunc          func(file string) (string, error)
+	RunCommandContextFunc func(ctx context.Context, name string, args ...string) (string, string, error)
 }
 
 func (m *mockCmdRunner) LookPath(file string) (string, error) {
 	return m.LookPathFunc(file)
 }
 
-func (m *mockCmdRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
-	return m.RunCommandFunc(name, args...)
+func (m *mockCmdRunner) RunCommandContext(ctx context.Context, name string, args ...string) (stdout, stderr string, err error) {
+	return m.RunCommandContextFunc(ctx, name, args...)
 }
 
 func TestMockCmdRunner_LookPath(t *testing.T) {
@@ -42,9 +43,9 @@ func TestMockCmdRunner_LookPath(t *testing.T) {
 	}
 }
 
-func TestMockCmdRunner_RunCommand(t *testing.T) {
+func TestMockCmdRunner_RunCommandContext(t *testing.T) {
 	mock := &mockCmdRunner{
-		RunCommandFunc: func(name string, args ...string) (string, string, error) {
+		RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 			if name == "node" && len(args) == 1 && args[0] == "--version" {
 				return "v18.17.0", "", nil
 			}
@@ -52,9 +53,10 @@ func TestMockCmdRunner_RunCommand(t *testing.T) {
 		},
 	}
 
-	stdout, stderr, err := mock.RunCommand("node", "--version")
+	ctx := context.Background()
+	stdout, stderr, err := mock.RunCommandContext(ctx, "node", "--version")
 	if err != nil {
-		t.Fatalf("RunCommand error = %v", err)
+		t.Fatalf("RunCommandContext error = %v", err)
 	}
 	if stdout != "v18.17.0" {
 		t.Errorf("stdout = %q, want %q", stdout, "v18.17.0")
@@ -63,9 +65,9 @@ func TestMockCmdRunner_RunCommand(t *testing.T) {
 		t.Errorf("stderr = %q, want empty", stderr)
 	}
 
-	_, stderr, err = mock.RunCommand("bad")
+	_, stderr, err = mock.RunCommandContext(ctx, "bad")
 	if err == nil {
-		t.Error("RunCommand(bad) error = nil, want error")
+		t.Error("RunCommandContext(bad) error = nil, want error")
 	}
 	if stderr != "command failed" {
 		t.Errorf("stderr = %q, want %q", stderr, "command failed")

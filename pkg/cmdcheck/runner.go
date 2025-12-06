@@ -2,13 +2,18 @@ package cmdcheck
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
+	"time"
 )
+
+// DefaultTimeout is the default timeout for version commands.
+const DefaultTimeout = 30 * time.Second
 
 // CmdRunner abstracts command execution for testability.
 type CmdRunner interface {
 	LookPath(file string) (string, error)
-	RunCommand(name string, args ...string) (stdout, stderr string, err error)
+	RunCommandContext(ctx context.Context, name string, args ...string) (stdout, stderr string, err error)
 }
 
 // RealCmdRunner implements CmdRunner using actual os/exec.
@@ -18,8 +23,8 @@ func (r *RealCmdRunner) LookPath(file string) (string, error) {
 	return exec.LookPath(file)
 }
 
-func (r *RealCmdRunner) RunCommand(name string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.Command(name, args...)
+func (r *RealCmdRunner) RunCommandContext(ctx context.Context, name string, args ...string) (stdout, stderr string, err error) {
+	cmd := exec.CommandContext(ctx, name, args...)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf

@@ -1,8 +1,10 @@
 package cmdcheck
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
@@ -37,7 +39,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/broken", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "", "error loading shared library", errors.New("exit 1")
 					},
 				},
@@ -52,7 +54,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.0", "", nil
 					},
 				},
@@ -71,7 +73,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.0", "", nil
 					},
 				},
@@ -87,7 +89,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v16.0.0", "", nil
 					},
 				},
@@ -105,7 +107,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.0", "", nil
 					},
 				},
@@ -121,7 +123,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v22.0.0", "", nil
 					},
 				},
@@ -139,7 +141,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.0", "", nil
 					},
 				},
@@ -155,7 +157,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.1", "", nil
 					},
 				},
@@ -173,7 +175,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.17.0", "", nil
 					},
 				},
@@ -189,7 +191,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v16.0.0", "", nil
 					},
 				},
@@ -205,7 +207,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/node", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "v18.0.0", "", nil
 					},
 				},
@@ -221,7 +223,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/myapp", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "no version info here", "", nil
 					},
 				},
@@ -236,7 +238,7 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/java", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						return "", "openjdk 17.0.1 2021-10-19", nil
 					},
 				},
@@ -252,11 +254,47 @@ func TestCommandCheck_Run(t *testing.T) {
 					LookPathFunc: func(file string) (string, error) {
 						return "/usr/bin/ffmpeg", nil
 					},
-					RunCommandFunc: func(name string, args ...string) (string, string, error) {
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
 						if len(args) == 1 && args[0] == "-version" {
 							return "ffmpeg version 5.1.2", "", nil
 						}
 						return "", "", errors.New("wrong args")
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+
+		// --timeout tests
+		{
+			name: "timeout triggers on slow command",
+			check: Check{
+				Name:    "slowcmd",
+				Timeout: 10 * time.Millisecond,
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/slowcmd", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						// Simulate slow command by waiting for context cancellation
+						<-ctx.Done()
+						return "", "", ctx.Err()
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "custom timeout passes when command is fast",
+			check: Check{
+				Name:    "fastcmd",
+				Timeout: 5 * time.Second,
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/fastcmd", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.0.0", "", nil
 					},
 				},
 			},

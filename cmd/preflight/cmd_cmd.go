@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -16,6 +17,7 @@ var (
 	exactVersion string
 	matchPattern string
 	versionCmd   string
+	cmdTimeout   time.Duration
 )
 
 var cmdCmd = &cobra.Command{
@@ -31,6 +33,7 @@ func init() {
 	cmdCmd.Flags().StringVar(&exactVersion, "exact", "", "exact version required")
 	cmdCmd.Flags().StringVar(&matchPattern, "match", "", "regex pattern to match against version output")
 	cmdCmd.Flags().StringVar(&versionCmd, "version-cmd", "--version", "command to get version")
+	cmdCmd.Flags().DurationVar(&cmdTimeout, "timeout", cmdcheck.DefaultTimeout, "timeout for version command")
 	rootCmd.AddCommand(cmdCmd)
 }
 
@@ -41,6 +44,7 @@ func runCmdCheck(_ *cobra.Command, args []string) error {
 		Name:         commandName,
 		VersionArgs:  parseVersionArgs(versionCmd),
 		MatchPattern: matchPattern,
+		Timeout:      cmdTimeout,
 		Runner:       &cmdcheck.RealCmdRunner{},
 	}
 

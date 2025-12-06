@@ -44,13 +44,14 @@ preflight cmd <command> [flags]
 
 ### Flags
 
-| Flag                  | Description                                   |
-| --------------------- | --------------------------------------------- |
-| `--min <version>`     | Minimum version required (inclusive)          |
-| `--max <version>`     | Maximum version allowed (exclusive)           |
-| `--exact <version>`   | Exact version required                        |
-| `--match <pattern>`   | Regex pattern to match against version output |
-| `--version-cmd <arg>` | Override the default `--version` argument     |
+| Flag                   | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| `--min <version>`      | Minimum version required (inclusive)          |
+| `--max <version>`      | Maximum version allowed (exclusive)           |
+| `--exact <version>`    | Exact version required                        |
+| `--match <pattern>`    | Regex pattern to match against version output |
+| `--version-cmd <arg>`  | Override the default `--version` argument     |
+| `--timeout <duration>` | Timeout for version command (default: 30s)    |
 
 ### Examples
 
@@ -69,6 +70,10 @@ preflight cmd myapp --match "^v2\."
 # Custom version command
 preflight cmd ffmpeg --version-cmd -version  # runs: ffmpeg -version
 preflight cmd java --version-cmd "-version"  # runs: java -version
+
+# Custom timeout (for slow commands)
+preflight cmd slow-binary --timeout 60s
+preflight cmd quick-check --timeout 5s
 ```
 
 ---
