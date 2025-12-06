@@ -1,11 +1,12 @@
 package envcheck
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/vertti/preflight/pkg/check"
 )
@@ -129,7 +130,7 @@ func (c *Check) Run() check.Result {
 
 	// --is-json: value must be valid JSON
 	if c.IsJSON {
-		if !json.Valid([]byte(value)) {
+		if !gjson.Valid(value) {
 			return result.Fail("value is not valid JSON", fmt.Errorf("invalid JSON"))
 		}
 	}

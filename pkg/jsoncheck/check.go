@@ -1,9 +1,9 @@
 package jsoncheck
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/vertti/preflight/pkg/check"
 )
@@ -30,17 +30,17 @@ func (c *Check) Run() check.Result {
 		return result.Failf("failed to read file: %v", err)
 	}
 
-	// Parse JSON
-	var data any
-	if err := json.Unmarshal(content, &data); err != nil {
-		return result.Fail("invalid JSON", err)
+	// Validate JSON syntax
+	jsonStr := string(content)
+	if !gjson.Valid(jsonStr) {
+		return result.Fail("invalid JSON", fmt.Errorf("invalid JSON syntax"))
 	}
 
 	result.AddDetail("syntax: valid")
 
 	// --has-key: check key exists
 	if c.HasKey != "" {
-		if _, found := getByDotPath(data, c.HasKey); !found {
+		if !gjson.Get(jsonStr, c.HasKey).Exists() {
 			return result.Failf("key %q not found", c.HasKey)
 		}
 		result.AddDetailf("has key: %s", c.HasKey)
@@ -48,12 +48,16 @@ func (c *Check) Run() check.Result {
 
 	// --key: check value
 	if c.Key != "" {
-		value, found := getByDotPath(data, c.Key)
-		if !found {
+		jsonResult := gjson.Get(jsonStr, c.Key)
+		if !jsonResult.Exists() {
 			return result.Failf("key %q not found", c.Key)
 		}
 
-		valueStr := toString(value)
+		// Use String() for most values, but handle null specially
+		valueStr := jsonResult.String()
+		if jsonResult.Type == gjson.Null {
+			valueStr = "null"
+		}
 
 		// --exact: exact value match
 		if c.Exact != "" && valueStr != c.Exact {
@@ -76,47 +80,4 @@ func (c *Check) Run() check.Result {
 
 	result.Status = check.StatusOK
 	return result
-}
-
-// getByDotPath traverses a nested structure using dot notation.
-// Returns the value and whether it was found.
-func getByDotPath(data any, path string) (any, bool) {
-	parts := strings.Split(path, ".")
-	current := data
-
-	for _, part := range parts {
-		m, ok := current.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		val, exists := m[part]
-		if !exists {
-			return nil, false
-		}
-		current = val
-	}
-
-	return current, true
-}
-
-// toString converts a value to its string representation.
-func toString(v any) string {
-	switch val := v.(type) {
-	case string:
-		return val
-	case float64:
-		// JSON numbers are float64
-		if val == float64(int64(val)) {
-			return fmt.Sprintf("%d", int64(val))
-		}
-		return fmt.Sprintf("%v", val)
-	case bool:
-		return fmt.Sprintf("%v", val)
-	case nil:
-		return "null"
-	default:
-		// For arrays/objects, use JSON representation
-		b, _ := json.Marshal(val)
-		return string(b)
-	}
 }
