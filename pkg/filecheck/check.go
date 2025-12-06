@@ -11,21 +11,23 @@ import (
 
 // Check verifies that a file or directory meets requirements.
 type Check struct {
-	Path         string     // path to check
-	ExpectDir    bool       // --dir: expect a directory
-	ExpectSocket bool       // --socket: expect a Unix socket
-	Writable     bool       // --writable: check write permission
-	Executable   bool       // --executable: check execute permission
-	NotEmpty     bool       // --not-empty: file must have size > 0
-	MinSize      int64      // --min-size: minimum file size in bytes
-	MaxSize      int64      // --max-size: maximum file size in bytes (0 = no limit)
-	Match        string     // --match: regex pattern for content
-	Contains     string     // --contains: literal string to search
-	Head         int64      // --head: limit content read to first N bytes
-	Mode         string     // --mode: minimum permissions (octal, e.g., "0644")
-	ModeExact    string     // --mode-exact: exact permissions required
-	Owner        int        // --owner: expected owner UID (-1 = don't check)
-	FS           FileSystem // injected for testing
+	Path          string     // path to check
+	ExpectDir     bool       // --dir: expect a directory
+	ExpectSocket  bool       // --socket: expect a Unix socket
+	ExpectSymlink bool       // --symlink: expect a symbolic link
+	SymlinkTarget string     // --symlink-target: expected symlink target
+	Writable      bool       // --writable: check write permission
+	Executable    bool       // --executable: check execute permission
+	NotEmpty      bool       // --not-empty: file must have size > 0
+	MinSize       int64      // --min-size: minimum file size in bytes
+	MaxSize       int64      // --max-size: maximum file size in bytes (0 = no limit)
+	Match         string     // --match: regex pattern for content
+	Contains      string     // --contains: literal string to search
+	Head          int64      // --head: limit content read to first N bytes
+	Mode          string     // --mode: minimum permissions (octal, e.g., "0644")
+	ModeExact     string     // --mode-exact: exact permissions required
+	Owner         int        // --owner: expected owner UID (-1 = don't check)
+	FS            FileSystem // injected for testing
 }
 
 // Run executes the file check.
@@ -34,7 +36,14 @@ func (c *Check) Run() check.Result {
 		Name: fmt.Sprintf("file: %s", c.Path),
 	}
 
-	info, err := c.FS.Stat(c.Path)
+	// Use Lstat for symlink checks (doesn't follow symlinks), Stat otherwise
+	var info fs.FileInfo
+	var err error
+	if c.ExpectSymlink {
+		info, err = c.FS.Lstat(c.Path)
+	} else {
+		info, err = c.FS.Stat(c.Path)
+	}
 	if err != nil {
 		switch {
 		case os.IsNotExist(err):
@@ -46,7 +55,7 @@ func (c *Check) Run() check.Result {
 		}
 	}
 
-	// Type check: --dir flag
+	// Type check: --dir, --socket, --symlink flags
 	if err := c.checkTypeConstraint(info, &result); err != nil {
 		return result
 	}
@@ -143,6 +152,20 @@ func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) error {
 	mode := info.Mode()
 
+	if c.ExpectSymlink {
+		if !isSymlink(mode) {
+			err := fmt.Errorf("expected symlink, got file/directory")
+			result.Fail("expected symlink, got file/directory", err)
+			return err
+		}
+		result.AddDetail("type: symlink")
+		// Check symlink target if specified
+		if c.SymlinkTarget != "" {
+			return c.checkSymlinkTarget(result)
+		}
+		return nil
+	}
+
 	if c.ExpectSocket {
 		if !isSocket(mode) {
 			err := fmt.Errorf("expected socket, got file/directory")
@@ -162,6 +185,8 @@ func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) erro
 		result.AddDetail("type: directory")
 	} else {
 		switch {
+		case isSymlink(mode):
+			result.AddDetail("type: symlink")
 		case isSocket(mode):
 			result.AddDetail("type: socket")
 		case info.IsDir():
@@ -274,4 +299,27 @@ func isExecutable(mode fs.FileMode) bool {
 // isSocket checks if the mode indicates a Unix socket
 func isSocket(mode fs.FileMode) bool {
 	return mode&fs.ModeSocket != 0
+}
+
+// isSymlink checks if the mode indicates a symbolic link
+func isSymlink(mode fs.FileMode) bool {
+	return mode&fs.ModeSymlink != 0
+}
+
+func (c *Check) checkSymlinkTarget(result *check.Result) error {
+	target, err := c.FS.Readlink(c.Path)
+	if err != nil {
+		result.Failf("failed to read symlink target: %v", err)
+		return err
+	}
+
+	result.AddDetailf("target: %s", target)
+
+	if target != c.SymlinkTarget {
+		err := fmt.Errorf("symlink target %s != expected %s", target, c.SymlinkTarget)
+		result.Fail(fmt.Sprintf("symlink target %s != expected %s", target, c.SymlinkTarget), err)
+		return err
+	}
+
+	return nil
 }

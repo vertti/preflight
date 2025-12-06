@@ -13,7 +13,7 @@ These commands replace extremely common shell patterns found in virtually every 
 | `preflight sys`      | `uname -m \| sed`, `dpkg --print-architecture`, TARGETARCH    | ⭐⭐⭐⭐⭐ |
 | `preflight cmd`      | `which`, `command -v`, version parsing scripts                | ⭐⭐⭐⭐⭐ |
 | `preflight env`      | `test -z "$VAR"`, parameter expansion checks                  | ⭐⭐⭐⭐⭐ |
-| `preflight file`     | `test -f`, `test -d`, `test -r`, `-S` socket, ownership       | ⭐⭐⭐⭐⭐ |
+| `preflight file`     | `test -f`, `-d`, `-r`, `-S` socket, `-L` symlink, ownership   | ⭐⭐⭐⭐⭐ |
 | `preflight http`     | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
 | `preflight hash`     | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
 | `preflight git`      | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
@@ -191,33 +191,12 @@ preflight dns host.docker.internal --timeout 5s
 
 ---
 
-### `preflight file` Extensions (Symlinks)
-
-Symlink resolution handles path complexity in capability management.
-
-**Tools/patterns replaced:**
-
-```bash
-# From HashiCorp Vault
-setcap cap_ipc_lock=-ep $(readlink -f $(which vault))
-```
-
-**Proposed new flags:**
-
-| Flag                      | Description                  |
-| ------------------------- | ---------------------------- |
-| `--symlink`               | Path must be a symlink       |
-| `--symlink-target <path>` | Symlink must point to target |
-
----
-
 ## Summary by Impact
 
-| Priority | Command           | Impact                              |
-| -------- | ----------------- | ----------------------------------- |
-| 1        | `proc`            | Healthchecks, service orchestration |
-| 1        | `pkg`             | Package verification                |
-| 1        | `cert`            | TLS validation                      |
-| 1        | `yaml`            | Kubernetes manifest validation      |
-| 2        | `dns`             | Service discovery                   |
-| 2        | `file` (symlinks) | Capability management               |
+| Priority | Command | Impact                              |
+| -------- | ------- | ----------------------------------- |
+| 1        | `proc`  | Healthchecks, service orchestration |
+| 1        | `pkg`   | Package verification                |
+| 1        | `cert`  | TLS validation                      |
+| 1        | `yaml`  | Kubernetes manifest validation      |
+| 2        | `dns`   | Service discovery                   |
