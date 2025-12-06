@@ -10,16 +10,17 @@ import (
 )
 
 var (
-	httpStatus     int
-	httpTimeout    time.Duration
-	httpMethod     string
-	httpHeaders    []string
-	httpInsecure   bool
-	httpRetry      int
-	httpRetryDelay time.Duration
-	httpBody       string
-	httpBodyFile   string
-	httpContains   string
+	httpStatus          int
+	httpTimeout         time.Duration
+	httpMethod          string
+	httpHeaders         []string
+	httpInsecure        bool
+	httpRetry           int
+	httpRetryDelay      time.Duration
+	httpBody            string
+	httpBodyFile        string
+	httpContains        string
+	httpFollowRedirects bool
 )
 
 var httpCmd = &cobra.Command{
@@ -43,6 +44,7 @@ func init() {
 	httpCmd.Flags().StringVar(&httpBody, "body", "", "request body string")
 	httpCmd.Flags().StringVar(&httpBodyFile, "body-file", "", "path to file containing request body")
 	httpCmd.Flags().StringVar(&httpContains, "contains", "", "response body must contain this string")
+	httpCmd.Flags().BoolVar(&httpFollowRedirects, "follow-redirects", false, "follow HTTP redirects (3xx)")
 
 	rootCmd.AddCommand(httpCmd)
 }
@@ -53,18 +55,19 @@ func runHTTPCheck(_ *cobra.Command, args []string) error {
 	headers := parseHeaders(httpHeaders)
 
 	c := &httpcheck.Check{
-		URL:            url,
-		ExpectedStatus: httpStatus,
-		Timeout:        httpTimeout,
-		Method:         httpMethod,
-		Headers:        headers,
-		Insecure:       httpInsecure,
-		Retry:          httpRetry,
-		RetryDelay:     httpRetryDelay,
-		Body:           httpBody,
-		BodyFile:       httpBodyFile,
-		Contains:       httpContains,
-		Client:         &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure},
+		URL:             url,
+		ExpectedStatus:  httpStatus,
+		Timeout:         httpTimeout,
+		Method:          httpMethod,
+		Headers:         headers,
+		Insecure:        httpInsecure,
+		Retry:           httpRetry,
+		RetryDelay:      httpRetryDelay,
+		Body:            httpBody,
+		BodyFile:        httpBodyFile,
+		Contains:        httpContains,
+		FollowRedirects: httpFollowRedirects,
+		Client:          &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure, FollowRedirects: httpFollowRedirects},
 	}
 
 	return runCheck(c)

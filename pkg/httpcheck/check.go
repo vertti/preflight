@@ -21,8 +21,9 @@ type HTTPClient interface {
 
 // RealHTTPClient uses the real net/http package.
 type RealHTTPClient struct {
-	Timeout  time.Duration
-	Insecure bool
+	Timeout         time.Duration
+	Insecure        bool
+	FollowRedirects bool
 }
 
 // Do executes an HTTP request.
@@ -35,10 +36,13 @@ func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	client := &http.Client{
 		Timeout:   c.Timeout,
 		Transport: transport,
-		// Disable automatic redirects - check actual response status
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	}
+
+	// Disable automatic redirects unless explicitly enabled
+	if !c.FollowRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
-		},
+		}
 	}
 
 	return client.Do(req)
@@ -59,19 +63,20 @@ func (r *RealFileReader) ReadFile(path string) ([]byte, error) {
 
 // Check verifies HTTP endpoint health.
 type Check struct {
-	URL            string            // target URL (required)
-	ExpectedStatus int               // expected HTTP status (default: 200)
-	Timeout        time.Duration     // request timeout (default: 5s)
-	Method         string            // HTTP method (default: GET)
-	Headers        map[string]string // custom headers
-	Insecure       bool              // skip TLS verification
-	Retry          int               // retry count on failure
-	RetryDelay     time.Duration     // delay between retries
-	Body           string            // request body string
-	BodyFile       string            // path to file containing request body
-	Contains       string            // response body must contain this string
-	Client         HTTPClient        // injected for testing
-	FileReader     FileReader        // injected for testing
+	URL             string            // target URL (required)
+	ExpectedStatus  int               // expected HTTP status (default: 200)
+	Timeout         time.Duration     // request timeout (default: 5s)
+	Method          string            // HTTP method (default: GET)
+	Headers         map[string]string // custom headers
+	Insecure        bool              // skip TLS verification
+	Retry           int               // retry count on failure
+	RetryDelay      time.Duration     // delay between retries
+	Body            string            // request body string
+	BodyFile        string            // path to file containing request body
+	Contains        string            // response body must contain this string
+	FollowRedirects bool              // follow HTTP redirects (3xx)
+	Client          HTTPClient        // injected for testing
+	FileReader      FileReader        // injected for testing
 }
 
 // Run executes the HTTP health check.
@@ -110,7 +115,7 @@ func (c *Check) Run() check.Result {
 	// Initialize client if not injected
 	client := c.Client
 	if client == nil {
-		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure}
+		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure, FollowRedirects: c.FollowRedirects}
 	}
 
 	// Resolve request body

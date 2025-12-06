@@ -616,4 +616,14 @@ func TestRealHTTPClient(t *testing.T) {
 			t.Error("Insecure should be true")
 		}
 	})
+
+	t.Run("creates client with follow-redirects flag", func(t *testing.T) {
+		client := &RealHTTPClient{
+			Timeout:         5 * time.Second,
+			FollowRedirects: true,
+		}
+		if !client.FollowRedirects {
+			t.Error("FollowRedirects should be true")
+		}
+	})
 }
