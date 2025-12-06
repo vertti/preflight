@@ -20,6 +20,22 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.DoFunc(req)
 }
 
+// mockFileReader implements FileReader for testing.
+type mockFileReader struct {
+	Files map[string][]byte
+	Err   error
+}
+
+func (m *mockFileReader) ReadFile(path string) ([]byte, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+	if content, ok := m.Files[path]; ok {
+		return content, nil
+	}
+	return nil, errors.New("file not found")
+}
+
 // mockResponse creates a mock HTTP response with the given status code.
 func mockResponse(statusCode int) *http.Response {
 	return &http.Response{
@@ -191,6 +207,60 @@ func TestHTTPCheck(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusOK,
+		},
+
+		// --- Request Body ---
+		{
+			name: "body string sent with POST",
+			check: Check{
+				URL:    "http://localhost/api",
+				Method: "POST",
+				Body:   `{"key": "value"}`,
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						body, _ := io.ReadAll(req.Body)
+						if string(body) != `{"key": "value"}` {
+							t.Errorf("body = %q, want %q", string(body), `{"key": "value"}`)
+						}
+						return mockResponse(200), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "body-file sent with POST",
+			check: Check{
+				URL:      "http://localhost/api",
+				Method:   "POST",
+				BodyFile: "/tmp/request.json",
+				FileReader: &mockFileReader{
+					Files: map[string][]byte{"/tmp/request.json": []byte(`{"from": "file"}`)},
+				},
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						body, _ := io.ReadAll(req.Body)
+						if string(body) != `{"from": "file"}` {
+							t.Errorf("body = %q, want %q", string(body), `{"from": "file"}`)
+						}
+						return mockResponse(200), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "body-file not found fails",
+			check: Check{
+				URL:      "http://localhost/api",
+				Method:   "POST",
+				BodyFile: "/nonexistent/file.json",
+				FileReader: &mockFileReader{
+					Files: map[string][]byte{},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "failed to read body file",
 		},
 
 		// --- Connection Errors ---

@@ -1,10 +1,13 @@
 package httpcheck
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/vertti/preflight/pkg/check"
@@ -40,6 +43,19 @@ func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return client.Do(req)
 }
 
+// FileReader abstracts file reading for testability.
+type FileReader interface {
+	ReadFile(path string) ([]byte, error)
+}
+
+// RealFileReader uses the real os package.
+type RealFileReader struct{}
+
+// ReadFile reads a file from the filesystem.
+func (r *RealFileReader) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
 // Check verifies HTTP endpoint health.
 type Check struct {
 	URL            string            // target URL (required)
@@ -50,7 +66,10 @@ type Check struct {
 	Insecure       bool              // skip TLS verification
 	Retry          int               // retry count on failure
 	RetryDelay     time.Duration     // delay between retries
+	Body           string            // request body string
+	BodyFile       string            // path to file containing request body
 	Client         HTTPClient        // injected for testing
+	FileReader     FileReader        // injected for testing
 }
 
 // Run executes the HTTP health check.
@@ -92,12 +111,32 @@ func (c *Check) Run() check.Result {
 		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure}
 	}
 
+	// Resolve request body
+	var bodyBytes []byte
+	if c.BodyFile != "" {
+		reader := c.FileReader
+		if reader == nil {
+			reader = &RealFileReader{}
+		}
+		var err error
+		bodyBytes, err = reader.ReadFile(c.BodyFile)
+		if err != nil {
+			return result.Failf("failed to read body file: %v", err)
+		}
+	} else if c.Body != "" {
+		bodyBytes = []byte(c.Body)
+	}
+
 	// Retry loop
 	maxAttempts := c.Retry + 1
 	var lastErr error
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		req, err := http.NewRequest(method, c.URL, http.NoBody)
+		var bodyReader io.Reader = http.NoBody
+		if len(bodyBytes) > 0 {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+		req, err := http.NewRequest(method, c.URL, bodyReader)
 		if err != nil {
 			return result.Failf("failed to create request: %v", err)
 		}

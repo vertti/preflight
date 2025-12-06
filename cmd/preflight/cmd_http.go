@@ -17,6 +17,8 @@ var (
 	httpInsecure   bool
 	httpRetry      int
 	httpRetryDelay time.Duration
+	httpBody       string
+	httpBodyFile   string
 )
 
 var httpCmd = &cobra.Command{
@@ -34,9 +36,11 @@ func init() {
 	// Optional flags
 	httpCmd.Flags().IntVar(&httpRetry, "retry", 0, "retry count on failure")
 	httpCmd.Flags().DurationVar(&httpRetryDelay, "retry-delay", 1*time.Second, "delay between retries")
-	httpCmd.Flags().StringVar(&httpMethod, "method", "GET", "HTTP method (GET or HEAD)")
+	httpCmd.Flags().StringVar(&httpMethod, "method", "GET", "HTTP method (GET, POST, PUT, etc.)")
 	httpCmd.Flags().StringSliceVar(&httpHeaders, "header", nil, "custom header (key:value), can be repeated")
 	httpCmd.Flags().BoolVar(&httpInsecure, "insecure", false, "skip TLS certificate verification")
+	httpCmd.Flags().StringVar(&httpBody, "body", "", "request body string")
+	httpCmd.Flags().StringVar(&httpBodyFile, "body-file", "", "path to file containing request body")
 
 	rootCmd.AddCommand(httpCmd)
 }
@@ -55,6 +59,8 @@ func runHTTPCheck(_ *cobra.Command, args []string) error {
 		Insecure:       httpInsecure,
 		Retry:          httpRetry,
 		RetryDelay:     httpRetryDelay,
+		Body:           httpBody,
+		BodyFile:       httpBodyFile,
 		Client:         &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure},
 	}
 
