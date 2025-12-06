@@ -12,12 +12,13 @@ import (
 )
 
 var (
-	minVersion   string
-	maxVersion   string
-	exactVersion string
-	matchPattern string
-	versionCmd   string
-	cmdTimeout   time.Duration
+	minVersion     string
+	maxVersion     string
+	exactVersion   string
+	matchPattern   string
+	versionCmd     string
+	cmdTimeout     time.Duration
+	versionPattern string
 )
 
 var cmdCmd = &cobra.Command{
@@ -32,6 +33,7 @@ func init() {
 	cmdCmd.Flags().StringVar(&maxVersion, "max", "", "maximum version allowed (exclusive)")
 	cmdCmd.Flags().StringVar(&exactVersion, "exact", "", "exact version required")
 	cmdCmd.Flags().StringVar(&matchPattern, "match", "", "regex pattern to match against version output")
+	cmdCmd.Flags().StringVar(&versionPattern, "version-regex", "", "regex with capture group to extract version")
 	cmdCmd.Flags().StringVar(&versionCmd, "version-cmd", "--version", "command to get version")
 	cmdCmd.Flags().DurationVar(&cmdTimeout, "timeout", cmdcheck.DefaultTimeout, "timeout for version command")
 	rootCmd.AddCommand(cmdCmd)
@@ -41,11 +43,12 @@ func runCmdCheck(_ *cobra.Command, args []string) error {
 	commandName := args[0]
 
 	c := &cmdcheck.Check{
-		Name:         commandName,
-		VersionArgs:  parseVersionArgs(versionCmd),
-		MatchPattern: matchPattern,
-		Timeout:      cmdTimeout,
-		Runner:       &cmdcheck.RealCmdRunner{},
+		Name:           commandName,
+		VersionArgs:    parseVersionArgs(versionCmd),
+		MatchPattern:   matchPattern,
+		VersionPattern: versionPattern,
+		Timeout:        cmdTimeout,
+		Runner:         &cmdcheck.RealCmdRunner{},
 	}
 
 	var err error

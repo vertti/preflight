@@ -11,14 +11,15 @@ import (
 
 // Check verifies that a command exists and can run.
 type Check struct {
-	Name         string           // command name to check
-	VersionArgs  []string         // args to get version (default: --version)
-	MinVersion   *version.Version // minimum version required (inclusive)
-	MaxVersion   *version.Version // maximum version allowed (exclusive)
-	ExactVersion *version.Version // exact version required
-	MatchPattern string           // regex pattern to match against version output
-	Timeout      time.Duration    // timeout for version command (default: 30s)
-	Runner       CmdRunner        // injected for testing
+	Name           string           // command name to check
+	VersionArgs    []string         // args to get version (default: --version)
+	MinVersion     *version.Version // minimum version required (inclusive)
+	MaxVersion     *version.Version // maximum version allowed (exclusive)
+	ExactVersion   *version.Version // exact version required
+	MatchPattern   string           // regex pattern to match against version output
+	VersionPattern string           // regex pattern with capture group to extract version
+	Timeout        time.Duration    // timeout for version command (default: 30s)
+	Runner         CmdRunner        // injected for testing
 }
 
 // Run executes the command check.
@@ -71,7 +72,7 @@ func (c *Check) Run() check.Result {
 		if err := c.checkMatchPattern(versionOutput, &result); err != nil {
 			return result
 		}
-	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil:
+	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil || c.VersionPattern != "":
 		if err := c.checkVersionConstraints(versionOutput, &result); err != nil {
 			return result
 		}
@@ -101,7 +102,36 @@ func (c *Check) checkMatchPattern(output string, result *check.Result) error {
 }
 
 func (c *Check) checkVersionConstraints(output string, result *check.Result) error {
-	parsedVersion, err := version.Extract(output)
+	var parsedVersion version.Version
+	var err error
+
+	if c.VersionPattern != "" {
+		// Use custom regex to extract version
+		re, regexErr := check.CompileRegex(c.VersionPattern)
+		if regexErr != nil {
+			result.Failf("invalid version regex: %v", regexErr)
+			return regexErr
+		}
+		matches := re.FindStringSubmatch(output)
+		if matches == nil {
+			err := fmt.Errorf("version pattern %q did not match output", c.VersionPattern)
+			result.Fail("version pattern did not match output", err)
+			return err
+		}
+		// Use first capture group if present, otherwise full match
+		versionStr := matches[0]
+		if len(matches) > 1 && matches[1] != "" {
+			versionStr = matches[1]
+		}
+		parsedVersion, err = version.Parse(versionStr)
+		if err != nil {
+			// If Parse fails, try Extract for more flexible parsing
+			parsedVersion, err = version.Extract(versionStr)
+		}
+	} else {
+		parsedVersion, err = version.Extract(output)
+	}
+
 	if err != nil {
 		result.Failf("could not parse version from output: %v", err)
 		return err

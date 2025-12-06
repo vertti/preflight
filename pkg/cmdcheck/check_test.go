@@ -300,6 +300,109 @@ func TestCommandCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusOK,
 		},
+
+		// --version-regex tests
+		{
+			name: "version-regex extracts version with capture group",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `version[:\s]+(\d+\.\d+\.\d+)`,
+				MinVersion:     &version.Version{Major: 2, Minor: 0, Patch: 0},
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "myapp version: 2.5.3 (built 2024-01-01)", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "version-regex extraction fails min version",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `version[:\s]+(\d+\.\d+\.\d+)`,
+				MinVersion:     &version.Version{Major: 3, Minor: 0, Patch: 0},
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "myapp version: 2.5.3", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "version-regex pattern does not match",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `version[:\s]+(\d+\.\d+\.\d+)`,
+				MinVersion:     &version.Version{Major: 1, Minor: 0, Patch: 0},
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "myapp v2.5.3", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "version-regex without capture group uses full match",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `\d+\.\d+\.\d+`,
+				MinVersion:     &version.Version{Major: 2, Minor: 0, Patch: 0},
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "version 2.5.3 ready", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "version-regex extracts and displays version without constraints",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `v(\d+\.\d+\.\d+)`,
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "myapp v18.17.0-beta", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "version-regex invalid regex",
+			check: Check{
+				Name:           "myapp",
+				VersionPattern: `[invalid`,
+				MinVersion:     &version.Version{Major: 1, Minor: 0, Patch: 0},
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.0.0", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
 	}
 
 	for _, tt := range tests {
