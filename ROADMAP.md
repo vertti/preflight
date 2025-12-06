@@ -6,158 +6,25 @@ This roadmap is organized by **real-world frequency** based on analysis of ~500 
 
 These commands replace extremely common shell patterns found in virtually every production setup.
 
-| Command          | Tools/Patterns Replaced                                       | Frequency  |
-| ---------------- | ------------------------------------------------------------- | ---------- |
-| `preflight tcp`  | wait-for-it.sh (9.7k stars), dockerize (4.8k stars), `nc -z`  | ⭐⭐⭐⭐⭐ |
-| `preflight user` | `id -u` checks, gosu privilege dropping, every official image | ⭐⭐⭐⭐⭐ |
-| `preflight sys`  | `uname -m \| sed`, `dpkg --print-architecture`, TARGETARCH    | ⭐⭐⭐⭐⭐ |
-| `preflight cmd`  | `which`, `command -v`, version parsing scripts                | ⭐⭐⭐⭐⭐ |
-| `preflight env`  | `test -z "$VAR"`, parameter expansion checks                  | ⭐⭐⭐⭐⭐ |
-| `preflight file` | `test -f`, `test -d`, `test -r`, permission checks            | ⭐⭐⭐⭐⭐ |
-| `preflight http` | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
-| `preflight hash` | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
-| `preflight git`  | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
+| Command              | Tools/Patterns Replaced                                       | Frequency  |
+| -------------------- | ------------------------------------------------------------- | ---------- |
+| `preflight tcp`      | wait-for-it.sh (9.7k stars), dockerize (4.8k stars), `nc -z`  | ⭐⭐⭐⭐⭐ |
+| `preflight user`     | `id -u` checks, gosu privilege dropping, every official image | ⭐⭐⭐⭐⭐ |
+| `preflight sys`      | `uname -m \| sed`, `dpkg --print-architecture`, TARGETARCH    | ⭐⭐⭐⭐⭐ |
+| `preflight cmd`      | `which`, `command -v`, version parsing scripts                | ⭐⭐⭐⭐⭐ |
+| `preflight env`      | `test -z "$VAR"`, parameter expansion checks                  | ⭐⭐⭐⭐⭐ |
+| `preflight file`     | `test -f`, `test -d`, `test -r`, `-S` socket, ownership       | ⭐⭐⭐⭐⭐ |
+| `preflight http`     | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
+| `preflight hash`     | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
+| `preflight git`      | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
+| `preflight resource` | `df`, cgroup memory limits, `nproc`                           | ⭐⭐⭐⭐   |
+| `preflight json`     | `jq empty`, JSON validation, key extraction                   | ⭐⭐⭐⭐   |
 
 ---
 
-## Priority 1: Very Common (Tier 1)
-
-These patterns appear in thousands of repositories and are standard practice.
-
-### `preflight file --socket`
-
-Unix socket checks are **critical for Docker-in-Docker** and service orchestration.
-
-**Tools/patterns replaced:**
-
-```bash
-# From docker-library/docker - nearly all DinD implementations
-if [ -z "${DOCKER_HOST:-}" ] && [ -S /var/run/docker.sock ]; then
-    export DOCKER_HOST=unix:///var/run/docker.sock
-fi
-
-# Wait for containerd socket
-while [ ! -S "/run/containerd/containerd.sock" ]; do
-    sleep .25
-done
-```
-
-**Proposed syntax:**
-
-```sh
-preflight file /var/run/docker.sock --socket
-preflight file /run/containerd/containerd.sock --socket
-```
-
----
-
-### `preflight resource`
-
-Disk space is **CI's biggest pain point**. GitHub-hosted runners have only 25-29 GB free, which large Docker builds exceed. Multiple GitHub Actions exist solely to address this.
-
-**Tools/patterns replaced:**
-
-- [jlumbroso/free-disk-space](https://github.com/jlumbroso/free-disk-space) - thousands of stars
-- [easimon/maximize-build-space](https://github.com/easimon/maximize-build-space) - thousands of stars
-
-```bash
-# Disk space
-df -h /var/lib/docker
-
-# Memory (container-aware via cgroups)
-cat /sys/fs/cgroup/memory/memory.limit_in_bytes  # cgroup v1
-cat /sys/fs/cgroup/memory.max                     # cgroup v2
-
-# CPU cores (container-aware)
-nproc
-
-# File descriptor limits
-ulimit -n
-```
-
-**Proposed flags:**
-
-| Flag                  | Description                   |
-| --------------------- | ----------------------------- |
-| `--min-disk <size>`   | Minimum free disk (e.g., 10G) |
-| `--min-memory <size>` | Minimum memory (e.g., 2G)     |
-| `--min-cpus <n>`      | Minimum CPU cores             |
-| `--path <path>`       | Check disk space at path      |
-
-**Proposed syntax:**
-
-```sh
-preflight resource --min-disk 10G --path /var/lib/docker
-preflight resource --min-memory 2G
-preflight resource --min-cpus 2
-```
-
----
-
-### `preflight json`
-
-The `jq` tool has become the **de facto standard** for JSON processing in shell scripts and CI. Validation patterns are ubiquitous.
-
-**Tools/patterns replaced:**
-
-- [CICDToolbox/json-lint](https://github.com/CICDToolbox/json-lint)
-- `jq` validation patterns
-
-```bash
-# Validation pattern
-if echo "$json_data" | jq empty > /dev/null 2>&1; then
-    echo "Valid JSON"
-fi
-
-# Docker output parsing
-docker inspect container | jq '.[0].State.Health.Status'
-```
-
-**Proposed flags:**
-
-| Flag                | Description                  |
-| ------------------- | ---------------------------- |
-| `--file <path>`     | JSON file to validate        |
-| `--query <jq-expr>` | Extract value with jq syntax |
-| `--contains <key>`  | JSON must contain key        |
-| `--type <type>`     | Root must be object or array |
-
-**Proposed syntax:**
-
-```sh
-preflight json --file config.json
-preflight json --file config.json --contains "database.host"
-preflight json --file package.json --query ".version"
-```
-
----
-
-## Priority 2: Common (Tier 2)
+## Priority 1: Common (Next Up)
 
 These patterns appear frequently in specific contexts like multi-stage builds, security hardening, or service orchestration.
-
-### `preflight file --owner`
-
-File ownership verification is **standard in HashiCorp images** for detecting bind-mounted volumes with incorrect ownership.
-
-**Tools/patterns replaced:**
-
-```bash
-# From Consul and Vault official images
-if [ "$(stat -c %u "$CONSUL_DATA_DIR")" != "$(id -u consul)" ]; then
-    chown consul:consul "$CONSUL_DATA_DIR"
-fi
-```
-
-**Proposed syntax:**
-
-```sh
-preflight file /data --owner 1000
-preflight file /data --owner consul
-preflight file /data --group 1000
-```
-
----
 
 ### `preflight proc`
 
@@ -288,7 +155,7 @@ preflight yaml --file config.yaml --contains "spec.replicas"
 
 ---
 
-## Priority 3: Occasional (Tier 3)
+## Priority 2: Occasional
 
 These patterns address specialized use cases.
 
@@ -348,13 +215,9 @@ setcap cap_ipc_lock=-ep $(readlink -f $(which vault))
 
 | Priority | Command           | Impact                              |
 | -------- | ----------------- | ----------------------------------- |
-| 1        | `file --socket`   | Docker-in-Docker, containerd        |
-| 1        | `resource`        | CI disk/memory validation           |
-| 1        | `json`            | Config validation, replaces jq      |
-| 2        | `file --owner`    | Bind mount permission fixes         |
-| 2        | `proc`            | Healthchecks, service orchestration |
-| 2        | `pkg`             | Package verification                |
-| 2        | `cert`            | TLS validation                      |
-| 2        | `yaml`            | Kubernetes manifest validation      |
-| 3        | `dns`             | Service discovery                   |
-| 3        | `file` (symlinks) | Capability management               |
+| 1        | `proc`            | Healthchecks, service orchestration |
+| 1        | `pkg`             | Package verification                |
+| 1        | `cert`            | TLS validation                      |
+| 1        | `yaml`            | Kubernetes manifest validation      |
+| 2        | `dns`             | Service discovery                   |
+| 2        | `file` (symlinks) | Capability management               |
