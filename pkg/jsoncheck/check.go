@@ -1,7 +1,7 @@
 package jsoncheck
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/tidwall/gjson"
 
@@ -21,7 +21,7 @@ type Check struct {
 // Run executes the JSON check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("json: %s", c.File),
+		Name: "json: " + c.File,
 	}
 
 	// Read file
@@ -33,7 +33,7 @@ func (c *Check) Run() check.Result {
 	// Validate JSON syntax
 	jsonStr := string(content)
 	if !gjson.Valid(jsonStr) {
-		return result.Fail("invalid JSON", fmt.Errorf("invalid JSON syntax"))
+		return result.Fail("invalid JSON", errors.New("invalid JSON syntax"))
 	}
 
 	result.AddDetail("syntax: valid")

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -59,7 +60,7 @@ func (m *mockFileInfo) Name() string       { return m.NameValue }
 func (m *mockFileInfo) Size() int64        { return m.SizeValue }
 func (m *mockFileInfo) Mode() fs.FileMode  { return m.ModeValue }
 func (m *mockFileInfo) IsDir() bool        { return m.IsDirValue }
-func (m *mockFileInfo) Sys() interface{}   { return nil }
+func (m *mockFileInfo) Sys() any           { return nil }
 func (m *mockFileInfo) ModTime() time.Time { return time.Unix(m.ModTimeValue, 0) }
 
 func TestCheck_Run(t *testing.T) {
@@ -854,13 +855,7 @@ func TestCheck_Run(t *testing.T) {
 			}
 
 			if tt.wantDetail != "" {
-				found := false
-				for _, d := range result.Details {
-					if d == tt.wantDetail {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result.Details, tt.wantDetail)
 				if !found {
 					t.Errorf("expected detail %q not found in %v", tt.wantDetail, result.Details)
 				}

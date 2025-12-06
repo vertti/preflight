@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,10 +40,8 @@ func transformArgsForHashbang(args []string, checkFile fileChecker) (newArgs []s
 	}
 
 	// Skip if it's a known subcommand
-	for _, subcmd := range knownSubcommands {
-		if firstArg == subcmd {
-			return args, ""
-		}
+	if slices.Contains(knownSubcommands, firstArg) {
+		return args, ""
 	}
 
 	// Check if it's a file - if so, treat as hashbang invocation

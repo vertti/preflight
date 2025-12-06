@@ -1,7 +1,6 @@
 package tcpcheck
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -31,7 +30,7 @@ type Check struct {
 // Run executes the TCP connectivity check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("tcp: %s", c.Address),
+		Name: "tcp: " + c.Address,
 	}
 
 	timeout := c.Timeout

@@ -1,6 +1,7 @@
 package filecheck
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -33,7 +34,7 @@ type Check struct {
 // Run executes the file check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("file: %s", c.Path),
+		Name: "file: " + c.Path,
 	}
 
 	// Use Lstat for symlink checks (doesn't follow symlinks), Stat otherwise
@@ -87,14 +88,14 @@ func (c *Check) Run() check.Result {
 	// --writable
 	if c.Writable {
 		if !isWritable(info.Mode()) {
-			return result.Fail("not writable", fmt.Errorf("file is not writable"))
+			return result.Fail("not writable", errors.New("file is not writable"))
 		}
 	}
 
 	// --executable
 	if c.Executable {
 		if !isExecutable(info.Mode()) {
-			return result.Fail("not executable", fmt.Errorf("file is not executable"))
+			return result.Fail("not executable", errors.New("file is not executable"))
 		}
 	}
 
@@ -154,7 +155,7 @@ func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) erro
 
 	if c.ExpectSymlink {
 		if !isSymlink(mode) {
-			err := fmt.Errorf("expected symlink, got file/directory")
+			err := errors.New("expected symlink, got file/directory")
 			result.Fail("expected symlink, got file/directory", err)
 			return err
 		}
@@ -168,7 +169,7 @@ func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) erro
 
 	if c.ExpectSocket {
 		if !isSocket(mode) {
-			err := fmt.Errorf("expected socket, got file/directory")
+			err := errors.New("expected socket, got file/directory")
 			result.Fail("expected socket, got file/directory", err)
 			return err
 		}
@@ -178,7 +179,7 @@ func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) erro
 
 	if c.ExpectDir {
 		if !info.IsDir() {
-			err := fmt.Errorf("expected directory, got file")
+			err := errors.New("expected directory, got file")
 			result.Fail("expected directory, got file", err)
 			return err
 		}
@@ -203,7 +204,7 @@ func (c *Check) checkSizeConstraints(info fs.FileInfo, result *check.Result) err
 
 	// --not-empty
 	if c.NotEmpty && info.Size() == 0 {
-		err := fmt.Errorf("file is empty")
+		err := errors.New("file is empty")
 		result.Fail("file is empty", err)
 		return err
 	}

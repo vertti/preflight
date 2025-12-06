@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -48,6 +49,8 @@ const (
 
 func (a HashAlgorithm) NewHasher() hash.Hash {
 	switch a {
+	case AlgorithmSHA256:
+		return sha256.New()
 	case AlgorithmSHA384:
 		return sha512.New384()
 	case AlgorithmSHA512:
@@ -68,16 +71,18 @@ func (a HashAlgorithm) NewHasher() hash.Hash {
 
 func (a HashAlgorithm) ExpectedHexLength() int {
 	switch a {
-	case AlgorithmSHA512:
-		return 128
+	case AlgorithmSHA256, AlgorithmBLAKE2b, AlgorithmBLAKE3:
+		return 64
 	case AlgorithmSHA384:
 		return 96
+	case AlgorithmSHA512:
+		return 128
 	case AlgorithmSHA1:
 		return 40
 	case AlgorithmMD5:
 		return 32
 	default:
-		return 64 // SHA256, BLAKE2b-256, BLAKE3
+		return 64
 	}
 }
 
@@ -112,7 +117,7 @@ func DetectAlgorithm(hashStr string) HashAlgorithm {
 
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("hash: %s", c.File),
+		Name: "hash: " + c.File,
 	}
 
 	if c.File == "" {
@@ -187,7 +192,7 @@ func (c *Check) Run() check.Result {
 
 func (c *Check) validateHash(hashStr string, algorithm HashAlgorithm) error {
 	if _, err := hex.DecodeString(hashStr); err != nil {
-		return fmt.Errorf("not valid hexadecimal")
+		return errors.New("not valid hexadecimal")
 	}
 
 	expectedLen := algorithm.ExpectedHexLength()

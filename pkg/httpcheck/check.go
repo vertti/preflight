@@ -85,7 +85,7 @@ type Check struct {
 // Run executes the HTTP health check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("http: %s", c.URL),
+		Name: "http: " + c.URL,
 	}
 
 	// Validate URL

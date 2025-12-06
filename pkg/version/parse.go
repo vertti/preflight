@@ -1,6 +1,7 @@
 package version
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -26,7 +27,7 @@ var versionRegex = regexp.MustCompile(`v?(\d+)(?:\.(\d+))?(?:\.(\d+))?`)
 func Parse(s string) (Version, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return Version{}, fmt.Errorf("empty version string")
+		return Version{}, errors.New("empty version string")
 	}
 
 	matches := versionRegex.FindStringSubmatch(s)

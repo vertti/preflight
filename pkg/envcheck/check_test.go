@@ -3,6 +3,7 @@ package envcheck
 import (
 	"errors"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func (m *mockFileInfo) Size() int64        { return 0 }
 func (m *mockFileInfo) Mode() os.FileMode  { return 0 }
 func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
 func (m *mockFileInfo) IsDir() bool        { return m.isDir }
-func (m *mockFileInfo) Sys() interface{}   { return nil }
+func (m *mockFileInfo) Sys() any           { return nil }
 
 // mockFileStater mocks file system stat operations.
 type mockFileStater struct {
@@ -724,13 +725,7 @@ func TestEnvCheck_Run(t *testing.T) {
 			}
 
 			if tt.wantDetail != "" {
-				found := false
-				for _, d := range result.Details {
-					if d == tt.wantDetail {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result.Details, tt.wantDetail)
 				if !found {
 					t.Errorf("expected detail %q not found in %v", tt.wantDetail, result.Details)
 				}

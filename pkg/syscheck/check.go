@@ -56,13 +56,13 @@ func (c *Check) Run() check.Result {
 	result.AddDetailf("arch: %s", actualArch)
 
 	if c.ExpectedOS != "" {
-		result.Name = fmt.Sprintf("sys: os=%s", c.ExpectedOS)
+		result.Name = "sys: os=" + c.ExpectedOS
 	}
 	if c.ExpectedArch != "" {
 		if c.ExpectedOS != "" {
 			result.Name = fmt.Sprintf("sys: os=%s arch=%s", c.ExpectedOS, c.ExpectedArch)
 		} else {
-			result.Name = fmt.Sprintf("sys: arch=%s", c.ExpectedArch)
+			result.Name = "sys: arch=" + c.ExpectedArch
 		}
 	}
 

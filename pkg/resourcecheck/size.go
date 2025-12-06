@@ -1,6 +1,7 @@
 package resourcecheck
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -21,7 +22,7 @@ const (
 func ParseSize(s string) (uint64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return 0, fmt.Errorf("empty size string")
+		return 0, errors.New("empty size string")
 	}
 
 	// Match number (with optional decimal) and optional unit

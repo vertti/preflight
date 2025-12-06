@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -35,7 +35,7 @@ func runJSONCheck(_ *cobra.Command, args []string) error {
 
 	// Validate flag combinations
 	if (jsonExact != "" || jsonMatch != "") && jsonKey == "" {
-		return fmt.Errorf("--exact and --match require --key to be set")
+		return errors.New("--exact and --match require --key to be set")
 	}
 
 	c := &jsoncheck.Check{
