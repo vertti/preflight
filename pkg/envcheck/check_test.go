@@ -1,10 +1,17 @@
 package envcheck
 
 import (
+	"errors"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/vertti/preflight/pkg/check"
 )
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
 
 type mockEnvGetter struct {
 	Vars map[string]string
@@ -13,6 +20,30 @@ type mockEnvGetter struct {
 func (m *mockEnvGetter) LookupEnv(key string) (string, bool) {
 	val, ok := m.Vars[key]
 	return val, ok
+}
+
+// mockFileInfo implements os.FileInfo for testing.
+type mockFileInfo struct {
+	isDir bool
+}
+
+func (m *mockFileInfo) Name() string       { return "mock" }
+func (m *mockFileInfo) Size() int64        { return 0 }
+func (m *mockFileInfo) Mode() os.FileMode  { return 0 }
+func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
+func (m *mockFileInfo) IsDir() bool        { return m.isDir }
+func (m *mockFileInfo) Sys() interface{}   { return nil }
+
+// mockFileStater mocks file system stat operations.
+type mockFileStater struct {
+	Files map[string]*mockFileInfo // path -> file info (nil = doesn't exist)
+}
+
+func (m *mockFileStater) Stat(path string) (os.FileInfo, error) {
+	if info, ok := m.Files[path]; ok && info != nil {
+		return info, nil
+	}
+	return nil, errors.New("file not found")
 }
 
 func TestEnvCheck_Run(t *testing.T) {
@@ -313,6 +344,374 @@ func TestEnvCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "value length 12 > maximum 5",
+		},
+
+		// --not-set flag tests
+		{
+			name: "not-set passes when variable undefined",
+			check: Check{
+				Name:   "SHOULD_NOT_EXIST",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{}},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "not set (as expected)",
+		},
+		{
+			name: "not-set fails when variable is defined",
+			check: Check{
+				Name:   "EXISTS",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"EXISTS": "some-value"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "variable is set (expected not set)",
+		},
+		{
+			name: "not-set fails when variable is defined but empty",
+			check: Check{
+				Name:   "EMPTY",
+				NotSet: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"EMPTY": ""}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "variable is set (expected not set)",
+		},
+
+		// --is-port flag tests
+		{
+			name: "is-port passes with valid port",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port passes with port 1",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "1"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port passes with port 65535",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "65535"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port fails with port 0",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "0"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+		{
+			name: "is-port fails with port 65536",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "65536"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+		{
+			name: "is-port fails with non-numeric",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "http"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+
+		// --is-url flag tests
+		{
+			name: "is-url passes with valid URL",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "https://example.com/path"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-url fails with missing scheme",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "example.com"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid URL",
+		},
+		{
+			name: "is-url fails with path only",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "/path/to/file"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid URL",
+		},
+
+		// --is-json flag tests
+		{
+			name: "is-json passes with valid JSON object",
+			check: Check{
+				Name:   "CONFIG",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG": `{"key": "value"}`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json passes with valid JSON array",
+			check: Check{
+				Name:   "LIST",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"LIST": `[1, 2, 3]`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json passes with JSON string",
+			check: Check{
+				Name:   "STR",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"STR": `"hello"`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json fails with invalid JSON",
+			check: Check{
+				Name:   "BAD",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"BAD": `{key: value}`}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not valid JSON",
+		},
+
+		// --is-bool flag tests
+		{
+			name: "is-bool passes with true",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "true"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with false",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "false"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with 1",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "1"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with yes",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "yes"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with on (case insensitive)",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "ON"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool fails with invalid value",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "maybe"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid boolean (true/false/1/0/yes/no/on/off)",
+		},
+
+		// --min-value flag tests
+		{
+			name: "min-value passes",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "15"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "min-value passes at boundary",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "10"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "min-value fails below minimum",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "5"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value 5 < minimum 10",
+		},
+		{
+			name: "min-value fails with non-numeric",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "abc"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not numeric (required for --min-value)",
+		},
+
+		// --max-value flag tests
+		{
+			name: "max-value passes",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "50"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "max-value passes at boundary",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "100"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "max-value fails above maximum",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "150"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value 150 > maximum 100",
+		},
+
+		// combined min-value and max-value
+		{
+			name: "min-value and max-value passes in range",
+			check: Check{
+				Name:     "PORT",
+				MinValue: float64Ptr(1024),
+				MaxValue: float64Ptr(65535),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+
+		// --is-file tests
+		{
+			name: "is-file passes for existing file",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/etc/config.yaml"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/etc/config.yaml": {isDir: false}}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-file fails for non-existent path",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/nonexistent/file"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path does not exist",
+		},
+		{
+			name: "is-file fails for directory",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/etc"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/etc": {isDir: true}}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path is a directory, not a file",
+		},
+
+		// --is-dir tests
+		{
+			name: "is-dir passes for existing directory",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/var/data"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/var/data": {isDir: true}}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-dir fails for non-existent path",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/nonexistent/dir"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path does not exist",
+		},
+		{
+			name: "is-dir fails for file",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/var/data.txt"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/var/data.txt": {isDir: false}}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path is a file, not a directory",
 		},
 	}
 
