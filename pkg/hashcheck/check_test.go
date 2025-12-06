@@ -48,6 +48,10 @@ const (
 	testContentSHA1 = "1eebdf4fdc9fc7bf283031b93f9aef3338de9052"
 	// MD5 of "test content"
 	testContentMD5 = "9473fdd0d880a43c21b7778d34872157"
+	// BLAKE2b-256 of "test content"
+	testContentBLAKE2b = "8d3bd9bfd005f4179699b9212273284c6de851ae910eee2fd1bb0d96ede65a3d"
+	// BLAKE3 of "test content"
+	testContentBLAKE3 = "ead3df8af4aece7792496936f83b6b6d191a7f256585ce6b6028db161278017e"
 )
 
 func TestHashCheck(t *testing.T) {
@@ -122,6 +126,34 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentSHA1,
 				Algorithm:    AlgorithmSHA1,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "BLAKE2b-256 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentBLAKE2b,
+				Algorithm:    AlgorithmBLAKE2b,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "BLAKE3 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentBLAKE3,
+				Algorithm:    AlgorithmBLAKE3,
 				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil
@@ -402,6 +434,20 @@ func TestChecksumFileParsing(t *testing.T) {
 			targetFile:      "test.txt",
 			wantHash:        testContentMD5,
 			wantAlgorithm:   AlgorithmMD5,
+		},
+		{
+			name:            "BSD format - BLAKE2B256",
+			checksumContent: "BLAKE2B256 (test.txt) = " + testContentBLAKE2b + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentBLAKE2b,
+			wantAlgorithm:   AlgorithmBLAKE2b,
+		},
+		{
+			name:            "BSD format - BLAKE3",
+			checksumContent: "BLAKE3 (test.txt) = " + testContentBLAKE3 + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentBLAKE3,
+			wantAlgorithm:   AlgorithmBLAKE3,
 		},
 		{
 			name: "multiple entries - finds correct one",
