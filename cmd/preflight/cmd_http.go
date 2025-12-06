@@ -19,6 +19,7 @@ var (
 	httpRetryDelay time.Duration
 	httpBody       string
 	httpBodyFile   string
+	httpContains   string
 )
 
 var httpCmd = &cobra.Command{
@@ -41,6 +42,7 @@ func init() {
 	httpCmd.Flags().BoolVar(&httpInsecure, "insecure", false, "skip TLS certificate verification")
 	httpCmd.Flags().StringVar(&httpBody, "body", "", "request body string")
 	httpCmd.Flags().StringVar(&httpBodyFile, "body-file", "", "path to file containing request body")
+	httpCmd.Flags().StringVar(&httpContains, "contains", "", "response body must contain this string")
 
 	rootCmd.AddCommand(httpCmd)
 }
@@ -61,6 +63,7 @@ func runHTTPCheck(_ *cobra.Command, args []string) error {
 		RetryDelay:     httpRetryDelay,
 		Body:           httpBody,
 		BodyFile:       httpBodyFile,
+		Contains:       httpContains,
 		Client:         &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure},
 	}
 

@@ -263,6 +263,41 @@ func TestHTTPCheck(t *testing.T) {
 			wantDetailSub: "failed to read body file",
 		},
 
+		// --- Response Body Contains ---
+		{
+			name: "contains passes when string found",
+			check: Check{
+				URL:      "http://localhost/health",
+				Contains: "healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "contains fails when string not found",
+			check: Check{
+				URL:      "http://localhost/health",
+				Contains: "ready",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "waiting"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "does not contain",
+		},
+
 		// --- Connection Errors ---
 		{
 			name: "connection refused",

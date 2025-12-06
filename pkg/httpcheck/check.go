@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/vertti/preflight/pkg/check"
@@ -68,6 +69,7 @@ type Check struct {
 	RetryDelay     time.Duration     // delay between retries
 	Body           string            // request body string
 	BodyFile       string            // path to file containing request body
+	Contains       string            // response body must contain this string
 	Client         HTTPClient        // injected for testing
 	FileReader     FileReader        // injected for testing
 }
@@ -160,7 +162,19 @@ func (c *Check) Run() check.Result {
 		}
 
 		statusCode := resp.StatusCode
-		_ = resp.Body.Close()
+
+		// Read response body if needed for --contains check
+		var respBody string
+		if c.Contains != "" {
+			bodyBytes, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				return result.Failf("failed to read response body: %v", err)
+			}
+			respBody = string(bodyBytes)
+		} else {
+			_ = resp.Body.Close()
+		}
 
 		if statusCode != expectedStatus {
 			lastErr = fmt.Errorf("status %d, expected %d", statusCode, expectedStatus)
@@ -172,6 +186,19 @@ func (c *Check) Run() check.Result {
 				return result.Failf("status %d, expected %d (after %d attempts)", statusCode, expectedStatus, maxAttempts)
 			}
 			return result.Failf("status %d, expected %d", statusCode, expectedStatus)
+		}
+
+		// Check --contains
+		if c.Contains != "" && !strings.Contains(respBody, c.Contains) {
+			lastErr = fmt.Errorf("response body does not contain %q", c.Contains)
+			if attempt < maxAttempts {
+				time.Sleep(retryDelay)
+				continue
+			}
+			if maxAttempts > 1 {
+				return result.Failf("response body does not contain %q (after %d attempts)", c.Contains, maxAttempts)
+			}
+			return result.Failf("response body does not contain %q", c.Contains)
 		}
 
 		// Success
