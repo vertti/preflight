@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -148,13 +149,7 @@ func TestIntegration_FileSocket(t *testing.T) {
 	}
 
 	// Verify we see the socket type in details
-	foundSocketType := false
-	for _, detail := range result.Details {
-		if detail == "type: socket" {
-			foundSocketType = true
-			break
-		}
-	}
+	foundSocketType := slices.Contains(result.Details, "type: socket")
 	if !foundSocketType {
 		t.Errorf("Details = %v, want to contain 'type: socket'", result.Details)
 	}
@@ -214,13 +209,7 @@ func TestIntegration_FileSymlink(t *testing.T) {
 	}
 
 	// Verify we see the symlink type in details
-	foundSymlinkType := false
-	for _, detail := range result.Details {
-		if detail == "type: symlink" {
-			foundSymlinkType = true
-			break
-		}
-	}
+	foundSymlinkType := slices.Contains(result.Details, "type: symlink")
 	if !foundSymlinkType {
 		t.Errorf("Details = %v, want to contain 'type: symlink'", result.Details)
 	}

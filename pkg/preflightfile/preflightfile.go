@@ -1,6 +1,7 @@
 package preflightfile
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,7 +49,7 @@ func FindFile(startDir, explicitPath string) (string, error) {
 		currentDir = parentDir
 	}
 
-	return "", fmt.Errorf(".preflight file not found")
+	return "", errors.New(".preflight file not found")
 }
 
 func ParseFile(path string) ([]string, error) {

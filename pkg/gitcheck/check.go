@@ -1,7 +1,7 @@
 package gitcheck
 
 import (
-	"fmt"
+	"errors"
 	"path"
 	"strings"
 
@@ -99,7 +99,7 @@ func (c *Check) checkStatus(noUncommitted, noUntracked bool, result *check.Resul
 			result.AddDetailf("  %s", f)
 		}
 		result.Failf("found %d uncommitted file(s)", len(uncommitted))
-		return fmt.Errorf("uncommitted files")
+		return errors.New("uncommitted files")
 	}
 
 	if noUntracked && len(untracked) > 0 {
@@ -108,7 +108,7 @@ func (c *Check) checkStatus(noUncommitted, noUntracked bool, result *check.Resul
 			result.AddDetailf("  %s", f)
 		}
 		result.Failf("found %d untracked file(s)", len(untracked))
-		return fmt.Errorf("untracked files")
+		return errors.New("untracked files")
 	}
 
 	result.AddDetail("working directory clean")
@@ -126,7 +126,7 @@ func (c *Check) checkBranch(result *check.Result) error {
 
 	if branch != c.Branch {
 		result.Failf("on branch %q, expected %q", branch, c.Branch)
-		return fmt.Errorf("wrong branch")
+		return errors.New("wrong branch")
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func (c *Check) checkTagMatch(result *check.Result) error {
 
 	if len(tags) == 0 {
 		result.Failf("no tags at HEAD, expected match for %q", c.TagMatch)
-		return fmt.Errorf("no tags")
+		return errors.New("no tags")
 	}
 
 	// Check if any tag matches the glob pattern
@@ -159,5 +159,5 @@ func (c *Check) checkTagMatch(result *check.Result) error {
 
 	result.AddDetailf("tags at HEAD: %s", strings.Join(tags, ", "))
 	result.Failf("no tag matches pattern %q", c.TagMatch)
-	return fmt.Errorf("no matching tag")
+	return errors.New("no matching tag")
 }

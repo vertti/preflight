@@ -1,8 +1,10 @@
 package envcheck
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,7 +44,7 @@ type Check struct {
 // Run executes the environment variable check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
-		Name: fmt.Sprintf("env: %s", c.Name),
+		Name: "env: " + c.Name,
 	}
 
 	value, exists := c.Getter.LookupEnv(c.Name)
@@ -108,7 +110,7 @@ func (c *Check) Run() check.Result {
 	// --is-numeric: value must be a valid number
 	if c.IsNumeric {
 		if _, err := strconv.ParseFloat(value, 64); err != nil {
-			return result.Fail("value is not numeric", fmt.Errorf("value is not numeric"))
+			return result.Fail("value is not numeric", errors.New("value is not numeric"))
 		}
 	}
 
@@ -131,7 +133,7 @@ func (c *Check) Run() check.Result {
 	// --is-json: value must be valid JSON
 	if c.IsJSON {
 		if !gjson.Valid(value) {
-			return result.Fail("value is not valid JSON", fmt.Errorf("invalid JSON"))
+			return result.Fail("value is not valid JSON", errors.New("invalid JSON"))
 		}
 	}
 
@@ -168,7 +170,7 @@ func (c *Check) Run() check.Result {
 	if c.MinValue != nil {
 		num, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return result.Fail("value is not numeric (required for --min-value)", fmt.Errorf("not numeric"))
+			return result.Fail("value is not numeric (required for --min-value)", errors.New("not numeric"))
 		}
 		if num < *c.MinValue {
 			return result.Failf("value %v < minimum %v", num, *c.MinValue)
@@ -179,7 +181,7 @@ func (c *Check) Run() check.Result {
 	if c.MaxValue != nil {
 		num, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return result.Fail("value is not numeric (required for --max-value)", fmt.Errorf("not numeric"))
+			return result.Fail("value is not numeric (required for --max-value)", errors.New("not numeric"))
 		}
 		if num > *c.MaxValue {
 			return result.Failf("value %v > maximum %v", num, *c.MaxValue)
@@ -219,10 +221,8 @@ func maskValue(value string) string {
 }
 
 func (c *Check) validateOneOf(value string, result *check.Result) error {
-	for _, allowed := range c.OneOf {
-		if value == allowed {
-			return nil
-		}
+	if slices.Contains(c.OneOf, value) {
+		return nil
 	}
 	err := fmt.Errorf("value not in allowed list %v", c.OneOf)
 	result.Fail(fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf), err)

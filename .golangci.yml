@@ -23,6 +23,12 @@ linters:
     # Code quality
     - predeclared    # shadowing of predeclared identifiers
     - dupword        # duplicate words in comments
+    # Modern Go idioms (Go 1.21+)
+    - modernize      # use modern Go idioms (any, slices.Contains, etc.)
+    - perfsprint     # faster alternatives to fmt.Sprintf/Errorf
+    - exhaustive     # check exhaustiveness of enum switch statements
+    - intrange       # use Go 1.22 range-over-integers
+    - copyloopvar    # detect issues with loop variable copying
   settings:
     gocritic:
       enabled-tags:

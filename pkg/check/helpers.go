@@ -14,7 +14,7 @@ func (r *Result) Fail(detail string, err error) Result {
 }
 
 // Failf sets the result to failed status with a formatted detail message.
-func (r *Result) Failf(format string, args ...interface{}) Result {
+func (r *Result) Failf(format string, args ...any) Result {
 	return r.Fail(fmt.Sprintf(format, args...), fmt.Errorf(format, args...))
 }
 
@@ -25,7 +25,7 @@ func (r *Result) AddDetail(detail string) *Result {
 }
 
 // AddDetailf appends a formatted detail line to the result.
-func (r *Result) AddDetailf(format string, args ...interface{}) *Result {
+func (r *Result) AddDetailf(format string, args ...any) *Result {
 	return r.AddDetail(fmt.Sprintf(format, args...))
 }
 
