@@ -40,10 +40,18 @@ func newMockReader(content string) io.ReadCloser {
 const (
 	// SHA256 of "test content"
 	testContentSHA256 = "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+	// SHA384 of "test content"
+	testContentSHA384 = "f1c14ae665be79e55b00eedc970704557d72a3021ab3b88ccfdc1b83d1d66c479091e23cfb6021f43b7a1273a6f4a318"
 	// SHA512 of "test content"
 	testContentSHA512 = "0cbf4caef38047bba9a24e621a961484e5d2a92176a859e7eb27df343dd34eb98d538a6c5f4da1ce302ec250b821cc001e46cc97a704988297185a4df7e99602"
+	// SHA1 of "test content"
+	testContentSHA1 = "1eebdf4fdc9fc7bf283031b93f9aef3338de9052"
 	// MD5 of "test content"
 	testContentMD5 = "9473fdd0d880a43c21b7778d34872157"
+	// BLAKE2b-256 of "test content"
+	testContentBLAKE2b = "8d3bd9bfd005f4179699b9212273284c6de851ae910eee2fd1bb0d96ede65a3d"
+	// BLAKE3 of "test content"
+	testContentBLAKE3 = "ead3df8af4aece7792496936f83b6b6d191a7f256585ce6b6028db161278017e"
 )
 
 func TestHashCheck(t *testing.T) {
@@ -99,6 +107,62 @@ func TestHashCheck(t *testing.T) {
 			wantStatus: check.StatusOK,
 		},
 		{
+			name: "SHA384 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA384,
+				Algorithm:    AlgorithmSHA384,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "SHA1 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA1,
+				Algorithm:    AlgorithmSHA1,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "BLAKE2b-256 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentBLAKE2b,
+				Algorithm:    AlgorithmBLAKE2b,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "BLAKE3 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentBLAKE3,
+				Algorithm:    AlgorithmBLAKE3,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
 			name: "default algorithm is SHA256",
 			check: Check{
 				File:         "test.txt",
@@ -111,6 +175,93 @@ func TestHashCheck(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusOK,
+		},
+
+		// --- Auto-detect Tests ---
+		{
+			name: "auto-detect SHA256 by length (64 chars)",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA256,
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "auto-detect SHA512 by length (128 chars)",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA512,
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "auto-detect SHA384 by length (96 chars)",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA384,
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "auto-detect SHA1 by length (40 chars)",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA1,
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "auto-detect MD5 by length (32 chars)",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentMD5,
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "auto-detect fails for unrecognized length",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: "abcd1234abcd", // 12 chars - not a valid length
+				AutoDetect:   true,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "cannot auto-detect algorithm",
 		},
 		{
 			name: "hash comparison is case insensitive",
@@ -372,6 +523,20 @@ func TestChecksumFileParsing(t *testing.T) {
 			wantAlgorithm:   AlgorithmMD5,
 		},
 		{
+			name:            "BSD format - BLAKE2B256",
+			checksumContent: "BLAKE2B256 (test.txt) = " + testContentBLAKE2b + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentBLAKE2b,
+			wantAlgorithm:   AlgorithmBLAKE2b,
+		},
+		{
+			name:            "BSD format - BLAKE3",
+			checksumContent: "BLAKE3 (test.txt) = " + testContentBLAKE3 + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentBLAKE3,
+			wantAlgorithm:   AlgorithmBLAKE3,
+		},
+		{
 			name: "multiple entries - finds correct one",
 			checksumContent: `abc123  other.txt
 ` + testContentSHA256 + `  test.txt
@@ -520,4 +685,30 @@ func TestRealHashFileOpener(t *testing.T) {
 			t.Error("read 0 bytes")
 		}
 	})
+}
+
+func TestDetectAlgorithm(t *testing.T) {
+	tests := []struct {
+		name     string
+		hashStr  string
+		wantAlgo HashAlgorithm
+	}{
+		{"MD5 (32 chars)", strings.Repeat("a", 32), AlgorithmMD5},
+		{"SHA1 (40 chars)", strings.Repeat("b", 40), AlgorithmSHA1},
+		{"SHA256 (64 chars)", strings.Repeat("c", 64), AlgorithmSHA256},
+		{"SHA384 (96 chars)", strings.Repeat("d", 96), AlgorithmSHA384},
+		{"SHA512 (128 chars)", strings.Repeat("e", 128), AlgorithmSHA512},
+		{"unknown (48 chars)", strings.Repeat("f", 48), ""},
+		{"unknown (100 chars)", strings.Repeat("0", 100), ""},
+		{"empty string", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectAlgorithm(tt.hashStr)
+			if got != tt.wantAlgo {
+				t.Errorf("DetectAlgorithm(%d chars) = %q, want %q", len(tt.hashStr), got, tt.wantAlgo)
+			}
+		})
+	}
 }
