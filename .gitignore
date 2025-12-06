@@ -35,6 +35,9 @@ go.work.sum
 PLAN_PREFLIGHT.md
 *plan*.md
 
+# Research folder
+research/
+
 # Build output
 bin/
 
