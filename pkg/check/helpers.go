@@ -33,7 +33,7 @@ func (r *Result) AddDetailf(format string, args ...any) *Result {
 // This provides a consistent pattern for optional regex compilation across check packages.
 func CompileRegex(pattern string) (*regexp.Regexp, error) {
 	if pattern == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // intentional: empty pattern means "no regex"
 	}
 	return regexp.Compile(pattern)
 }

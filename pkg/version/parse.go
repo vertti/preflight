@@ -47,7 +47,7 @@ func Parse(s string) (Version, error) {
 func ParseOptional(s string) (*Version, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // intentional: empty string means "no version constraint"
 	}
 	v, err := Parse(s)
 	if err != nil {

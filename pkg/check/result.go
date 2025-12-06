@@ -17,6 +17,6 @@ type Result struct {
 }
 
 // OK returns true if the check passed.
-func (r Result) OK() bool {
+func (r *Result) OK() bool {
 	return r.Status == StatusOK
 }

@@ -29,6 +29,9 @@ linters:
     - exhaustive     # check exhaustiveness of enum switch statements
     - intrange       # use Go 1.22 range-over-integers
     - copyloopvar    # detect issues with loop variable copying
+    # Consistency
+    - recvcheck      # check receiver type consistency
+    - nilnil         # check for nil,nil returns (excluding intentional cases)
   settings:
     gocritic:
       enabled-tags:
