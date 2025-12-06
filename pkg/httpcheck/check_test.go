@@ -711,3 +711,171 @@ func TestRealHTTPClient(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTPCheckContainsRetry(t *testing.T) {
+	t.Run("contains retry succeeds on second attempt", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/health",
+			Contains:   "healthy",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					if attempts < 2 {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusOK {
+			t.Errorf("Status = %v, want OK", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+	})
+
+	t.Run("contains retry exhausted", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/health",
+			Contains:   "healthy",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 3 {
+			t.Errorf("attempts = %d, want 3", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "3 attempts") {
+			t.Errorf("Details should mention 3 attempts: %v", result.Details)
+		}
+	})
+}
+
+func TestHTTPCheckJSONPathRetry(t *testing.T) {
+	t.Run("json-path retry succeeds on second attempt", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "status=ready",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					if attempts < 2 {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "ready"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusOK {
+			t.Errorf("Status = %v, want OK", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+	})
+
+	t.Run("json-path retry exhausted on value mismatch", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "status=ready",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 3 {
+			t.Errorf("attempts = %d, want 3", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "3 attempts") {
+			t.Errorf("Details should mention 3 attempts: %v", result.Details)
+		}
+	})
+
+	t.Run("json-path retry exhausted on path not found", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "data.missing",
+			Retry:      1,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "2 attempts") {
+			t.Errorf("Details should mention 2 attempts: %v", result.Details)
+		}
+	})
+}
