@@ -44,15 +44,16 @@ preflight cmd <command> [flags]
 
 ### Flags
 
-| Flag                    | Description                                   |
-| ----------------------- | --------------------------------------------- |
-| `--min <version>`       | Minimum version required (inclusive)          |
-| `--max <version>`       | Maximum version allowed (exclusive)           |
-| `--exact <version>`     | Exact version required                        |
-| `--match <pattern>`     | Regex pattern to match against version output |
-| `--version-regex <pat>` | Regex with capture group to extract version   |
-| `--version-cmd <arg>`   | Override the default `--version` argument     |
-| `--timeout <duration>`  | Timeout for version command (default: 30s)    |
+| Flag                    | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `--min <version>`       | Minimum version required (inclusive)            |
+| `--max <version>`       | Maximum version allowed (exclusive)             |
+| `--exact <version>`     | Exact version required                          |
+| `--range <constraint>`  | Semver constraint (e.g., `>=1.0, <2.0`, `^1.5`) |
+| `--match <pattern>`     | Regex pattern to match against version output   |
+| `--version-regex <pat>` | Regex with capture group to extract version     |
+| `--version-cmd <arg>`   | Override the default `--version` argument       |
+| `--timeout <duration>`  | Timeout for version command (default: 30s)      |
 
 ### Examples
 
@@ -79,6 +80,11 @@ preflight cmd quick-check --timeout 5s
 # Extract version from messy output using regex capture group
 # For output like "myapp version: 2.5.3 (built 2024-01-01)"
 preflight cmd myapp --version-regex "version[:\s]+(\d+\.\d+\.\d+)" --min 2.0
+
+# Semver range constraints
+preflight cmd terraform --range ">=1.0, <2.0"   # Between 1.x and 2.0
+preflight cmd node --range "^18.0.0"             # Compatible with 18.x
+preflight cmd python3 --range "~3.11.0"          # Patch releases of 3.11
 ```
 
 ---

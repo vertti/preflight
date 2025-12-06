@@ -403,6 +403,120 @@ func TestCommandCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusFail,
 		},
+
+		// --range semver constraint tests
+		{
+			name: "range constraint >= passes",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: ">=2.0.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v2.5.3", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "range constraint >= fails",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: ">=3.0.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v2.5.3", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "range constraint with multiple conditions",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: ">=2.0.0, <3.0.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v2.5.3", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "range constraint with caret",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: "^1.5.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.9.0", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "range constraint with tilde",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: "~1.5.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.5.9", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "range constraint tilde fails major bump",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: "~1.5.0",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.6.0", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
+		{
+			name: "range constraint invalid syntax",
+			check: Check{
+				Name:         "myapp",
+				VersionRange: "invalid constraint",
+				Runner: &mockCmdRunner{
+					LookPathFunc: func(file string) (string, error) {
+						return "/usr/bin/myapp", nil
+					},
+					RunCommandContextFunc: func(ctx context.Context, name string, args ...string) (string, string, error) {
+						return "v1.0.0", "", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+		},
 	}
 
 	for _, tt := range tests {

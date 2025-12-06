@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	semver "github.com/Masterminds/semver/v3"
+
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
 )
@@ -16,6 +18,7 @@ type Check struct {
 	MinVersion     *version.Version // minimum version required (inclusive)
 	MaxVersion     *version.Version // maximum version allowed (exclusive)
 	ExactVersion   *version.Version // exact version required
+	VersionRange   string           // semver constraint (e.g., ">=1.0, <2.0", "~>1.5", "^1.0.0")
 	MatchPattern   string           // regex pattern to match against version output
 	VersionPattern string           // regex pattern with capture group to extract version
 	Timeout        time.Duration    // timeout for version command (default: 30s)
@@ -72,7 +75,7 @@ func (c *Check) Run() check.Result {
 		if err := c.checkMatchPattern(versionOutput, &result); err != nil {
 			return result
 		}
-	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil || c.VersionPattern != "":
+	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil || c.VersionPattern != "" || c.VersionRange != "":
 		if err := c.checkVersionConstraints(versionOutput, &result); err != nil {
 			return result
 		}
@@ -158,6 +161,27 @@ func (c *Check) checkVersionConstraints(output string, result *check.Result) err
 		err := fmt.Errorf("version %s at or above maximum %s", parsedVersion, c.MaxVersion)
 		result.Fail(fmt.Sprintf("version %s >= maximum %s", parsedVersion, c.MaxVersion), err)
 		return err
+	}
+
+	// Check semver constraint range
+	if c.VersionRange != "" {
+		constraint, constraintErr := semver.NewConstraint(c.VersionRange)
+		if constraintErr != nil {
+			result.Failf("invalid version range %q: %v", c.VersionRange, constraintErr)
+			return constraintErr
+		}
+		// Convert our version to semver.Version
+		semverStr := fmt.Sprintf("%d.%d.%d", parsedVersion.Major, parsedVersion.Minor, parsedVersion.Patch)
+		sv, svErr := semver.NewVersion(semverStr)
+		if svErr != nil {
+			result.Failf("could not convert version to semver: %v", svErr)
+			return svErr
+		}
+		if !constraint.Check(sv) {
+			err := fmt.Errorf("version %s does not satisfy constraint %q", parsedVersion, c.VersionRange)
+			result.Fail(fmt.Sprintf("version %s does not satisfy %q", parsedVersion, c.VersionRange), err)
+			return err
+		}
 	}
 
 	return nil
