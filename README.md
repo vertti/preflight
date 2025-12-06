@@ -63,6 +63,8 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 
 ## Usage
 
+See the **[full usage guide](docs/usage.md)** for all commands and options.
+
 ### Check commands
 
 Like `which`, but actually runs the binary to verify it works.
