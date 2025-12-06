@@ -12,7 +12,9 @@ import (
 
 type mockFileSystem struct {
 	StatFunc     func(name string) (fs.FileInfo, error)
+	LstatFunc    func(name string) (fs.FileInfo, error)
 	ReadFileFunc func(name string, limit int64) ([]byte, error)
+	ReadlinkFunc func(name string) (string, error)
 	GetOwnerFunc func(name string) (uid, gid uint32, err error)
 }
 
@@ -20,8 +22,22 @@ func (m *mockFileSystem) Stat(name string) (fs.FileInfo, error) {
 	return m.StatFunc(name)
 }
 
+func (m *mockFileSystem) Lstat(name string) (fs.FileInfo, error) {
+	if m.LstatFunc != nil {
+		return m.LstatFunc(name)
+	}
+	return m.StatFunc(name)
+}
+
 func (m *mockFileSystem) ReadFile(name string, limit int64) ([]byte, error) {
 	return m.ReadFileFunc(name, limit)
+}
+
+func (m *mockFileSystem) Readlink(name string) (string, error) {
+	if m.ReadlinkFunc != nil {
+		return m.ReadlinkFunc(name)
+	}
+	return "", nil
 }
 
 func (m *mockFileSystem) GetOwner(name string) (uid, gid uint32, err error) {
@@ -651,6 +667,103 @@ func TestCheck_Run(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusFail,
+		},
+
+		// Symlink tests
+		{
+			name: "symlink exists and is symlink",
+			check: Check{
+				Path:          "/usr/bin/python",
+				ExpectSymlink: true,
+				FS: &mockFileSystem{
+					LstatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: 0o777 | fs.ModeSymlink,
+						}, nil
+					},
+					ReadlinkFunc: func(name string) (string, error) {
+						return "/usr/bin/python3", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "type: symlink",
+		},
+		{
+			name: "expected symlink but got file",
+			check: Check{
+				Path:          "/usr/bin/python",
+				ExpectSymlink: true,
+				FS: &mockFileSystem{
+					LstatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: 0o755,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "expected symlink, got file/directory",
+		},
+		{
+			name: "symlink target matches",
+			check: Check{
+				Path:          "/usr/bin/python",
+				ExpectSymlink: true,
+				SymlinkTarget: "/usr/bin/python3",
+				FS: &mockFileSystem{
+					LstatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: 0o777 | fs.ModeSymlink,
+						}, nil
+					},
+					ReadlinkFunc: func(name string) (string, error) {
+						return "/usr/bin/python3", nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "target: /usr/bin/python3",
+		},
+		{
+			name: "symlink target mismatch",
+			check: Check{
+				Path:          "/usr/bin/python",
+				ExpectSymlink: true,
+				SymlinkTarget: "/usr/bin/python3.11",
+				FS: &mockFileSystem{
+					LstatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: 0o777 | fs.ModeSymlink,
+						}, nil
+					},
+					ReadlinkFunc: func(name string) (string, error) {
+						return "/usr/bin/python3.10", nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "symlink target /usr/bin/python3.10 != expected /usr/bin/python3.11",
+		},
+		{
+			name: "symlink without --symlink flag shows type",
+			check: Check{
+				Path: "/usr/bin/python",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: 0o755,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "type: file",
 		},
 
 		// Owner tests

@@ -7,19 +7,21 @@ import (
 )
 
 var (
-	fileDir        bool
-	fileSocket     bool
-	fileWritable   bool
-	fileExecutable bool
-	fileNotEmpty   bool
-	fileMinSize    int64
-	fileMaxSize    int64
-	fileMatch      string
-	fileContains   string
-	fileHead       int64
-	fileMode       string
-	fileModeExact  string
-	fileOwner      int
+	fileDir           bool
+	fileSocket        bool
+	fileSymlink       bool
+	fileSymlinkTarget string
+	fileWritable      bool
+	fileExecutable    bool
+	fileNotEmpty      bool
+	fileMinSize       int64
+	fileMaxSize       int64
+	fileMatch         string
+	fileContains      string
+	fileHead          int64
+	fileMode          string
+	fileModeExact     string
+	fileOwner         int
 )
 
 var fileCmd = &cobra.Command{
@@ -32,6 +34,8 @@ var fileCmd = &cobra.Command{
 func init() {
 	fileCmd.Flags().BoolVar(&fileDir, "dir", false, "expect a directory")
 	fileCmd.Flags().BoolVar(&fileSocket, "socket", false, "expect a Unix socket")
+	fileCmd.Flags().BoolVar(&fileSymlink, "symlink", false, "expect a symbolic link")
+	fileCmd.Flags().StringVar(&fileSymlinkTarget, "symlink-target", "", "expected symlink target path")
 	fileCmd.Flags().BoolVar(&fileWritable, "writable", false, "check write permission")
 	fileCmd.Flags().BoolVar(&fileExecutable, "executable", false, "check execute permission")
 	fileCmd.Flags().BoolVar(&fileNotEmpty, "not-empty", false, "file must have size > 0")
@@ -50,21 +54,23 @@ func runFileCheck(_ *cobra.Command, args []string) error {
 	path := args[0]
 
 	c := &filecheck.Check{
-		Path:         path,
-		ExpectDir:    fileDir,
-		ExpectSocket: fileSocket,
-		Writable:     fileWritable,
-		Executable:   fileExecutable,
-		NotEmpty:     fileNotEmpty,
-		MinSize:      fileMinSize,
-		MaxSize:      fileMaxSize,
-		Match:        fileMatch,
-		Contains:     fileContains,
-		Head:         fileHead,
-		Mode:         fileMode,
-		ModeExact:    fileModeExact,
-		Owner:        fileOwner,
-		FS:           &filecheck.RealFileSystem{},
+		Path:          path,
+		ExpectDir:     fileDir,
+		ExpectSocket:  fileSocket,
+		ExpectSymlink: fileSymlink,
+		SymlinkTarget: fileSymlinkTarget,
+		Writable:      fileWritable,
+		Executable:    fileExecutable,
+		NotEmpty:      fileNotEmpty,
+		MinSize:       fileMinSize,
+		MaxSize:       fileMaxSize,
+		Match:         fileMatch,
+		Contains:      fileContains,
+		Head:          fileHead,
+		Mode:          fileMode,
+		ModeExact:     fileModeExact,
+		Owner:         fileOwner,
+		FS:            &filecheck.RealFileSystem{},
 	}
 
 	return runCheck(c)

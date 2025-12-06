@@ -144,21 +144,23 @@ preflight file <path> [flags]
 
 ### Flags
 
-| Flag                   | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `--dir`                | Expect a directory (fail if it's a file)             |
-| `--socket`             | Expect a Unix socket (e.g., docker.sock)             |
-| `--writable`           | Check write permission                               |
-| `--executable`         | Check execute permission                             |
-| `--not-empty`          | File must have size > 0                              |
-| `--min-size <bytes>`   | Minimum file size                                    |
-| `--max-size <bytes>`   | Maximum file size                                    |
-| `--match <pattern>`    | Regex pattern to match against content               |
-| `--contains <string>`  | Literal string to search in content                  |
-| `--head <bytes>`       | Limit content read to first N bytes                  |
-| `--mode <perms>`       | Minimum permissions (e.g., `0644` passes for `0666`) |
-| `--mode-exact <perms>` | Exact permissions required                           |
-| `--owner <uid>`        | Expected owner UID                                   |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--dir`                   | Expect a directory (fail if it's a file)             |
+| `--socket`                | Expect a Unix socket (e.g., docker.sock)             |
+| `--symlink`               | Expect a symbolic link                               |
+| `--symlink-target <path>` | Expected symlink target path                         |
+| `--writable`              | Check write permission                               |
+| `--executable`            | Check execute permission                             |
+| `--not-empty`             | File must have size > 0                              |
+| `--min-size <bytes>`      | Minimum file size                                    |
+| `--max-size <bytes>`      | Maximum file size                                    |
+| `--match <pattern>`       | Regex pattern to match against content               |
+| `--contains <string>`     | Literal string to search in content                  |
+| `--head <bytes>`          | Limit content read to first N bytes                  |
+| `--mode <perms>`          | Minimum permissions (e.g., `0644` passes for `0666`) |
+| `--mode-exact <perms>`    | Exact permissions required                           |
+| `--owner <uid>`           | Expected owner UID                                   |
 
 ### Examples
 
@@ -182,6 +184,10 @@ preflight file /etc/ssl/private/key.pem --mode-exact 0600
 # Ownership checks (HashiCorp Consul/Vault pattern)
 preflight file /data --owner 1000
 preflight file /app/data --dir --owner 1000
+
+# Symlink checks (capability management, alternative binaries)
+preflight file /usr/bin/python --symlink
+preflight file /usr/bin/python --symlink --symlink-target /usr/bin/python3
 
 # Content checks (reads full file)
 preflight file /etc/nginx/nginx.conf --contains "worker_processes"

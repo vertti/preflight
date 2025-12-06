@@ -184,6 +184,78 @@ func TestIntegration_FileSocketFail(t *testing.T) {
 	}
 }
 
+func TestIntegration_FileSymlink(t *testing.T) {
+	// Create a temp file and a symlink to it
+	tmpFile, err := os.CreateTemp("", "preflight-symlink-target-*.txt")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
+
+	symlinkPath := tmpFile.Name() + ".link"
+	if err := os.Symlink(tmpFile.Name(), symlinkPath); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+	defer func() { _ = os.Remove(symlinkPath) }()
+
+	// Test that --symlink flag works
+	c := filecheck.Check{
+		Path:          symlinkPath,
+		ExpectSymlink: true,
+		Owner:         -1,
+		FS:            &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Verify we see the symlink type in details
+	foundSymlinkType := false
+	for _, detail := range result.Details {
+		if detail == "type: symlink" {
+			foundSymlinkType = true
+			break
+		}
+	}
+	if !foundSymlinkType {
+		t.Errorf("Details = %v, want to contain 'type: symlink'", result.Details)
+	}
+
+	// Test --symlink-target
+	c = filecheck.Check{
+		Path:          symlinkPath,
+		ExpectSymlink: true,
+		SymlinkTarget: tmpFile.Name(),
+		Owner:         -1,
+		FS:            &filecheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test wrong target fails
+	c = filecheck.Check{
+		Path:          symlinkPath,
+		ExpectSymlink: true,
+		SymlinkTarget: "/nonexistent",
+		Owner:         -1,
+		FS:            &filecheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail (details: %v)", result.Status, result.Details)
+	}
+}
+
 func TestIntegration_JSON(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "preflight-integration-*.json")
 	if err != nil {
