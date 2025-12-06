@@ -40,8 +40,12 @@ func newMockReader(content string) io.ReadCloser {
 const (
 	// SHA256 of "test content"
 	testContentSHA256 = "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+	// SHA384 of "test content"
+	testContentSHA384 = "f1c14ae665be79e55b00eedc970704557d72a3021ab3b88ccfdc1b83d1d66c479091e23cfb6021f43b7a1273a6f4a318"
 	// SHA512 of "test content"
 	testContentSHA512 = "0cbf4caef38047bba9a24e621a961484e5d2a92176a859e7eb27df343dd34eb98d538a6c5f4da1ce302ec250b821cc001e46cc97a704988297185a4df7e99602"
+	// SHA1 of "test content"
+	testContentSHA1 = "1eebdf4fdc9fc7bf283031b93f9aef3338de9052"
 	// MD5 of "test content"
 	testContentMD5 = "9473fdd0d880a43c21b7778d34872157"
 )
@@ -90,6 +94,34 @@ func TestHashCheck(t *testing.T) {
 				File:         "test.txt",
 				ExpectedHash: testContentMD5,
 				Algorithm:    AlgorithmMD5,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "SHA384 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA384,
+				Algorithm:    AlgorithmSHA384,
+				Opener: &mockHashFileOpener{
+					OpenFunc: func(name string) (io.ReadCloser, error) {
+						return newMockReader("test content"), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "SHA1 hash matches",
+			check: Check{
+				File:         "test.txt",
+				ExpectedHash: testContentSHA1,
+				Algorithm:    AlgorithmSHA1,
 				Opener: &mockHashFileOpener{
 					OpenFunc: func(name string) (io.ReadCloser, error) {
 						return newMockReader("test content"), nil

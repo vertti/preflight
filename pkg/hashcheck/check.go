@@ -2,7 +2,8 @@ package hashcheck
 
 import (
 	"bufio"
-	"crypto/md5" //nolint:gosec // MD5 support is intentional for legacy use
+	"crypto/md5"  //nolint:gosec // MD5 support is intentional for legacy use
+	"crypto/sha1" //nolint:gosec // SHA1 support is intentional for legacy use
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -34,14 +35,20 @@ type HashAlgorithm string
 
 const (
 	AlgorithmSHA256 HashAlgorithm = "sha256"
+	AlgorithmSHA384 HashAlgorithm = "sha384"
 	AlgorithmSHA512 HashAlgorithm = "sha512"
+	AlgorithmSHA1   HashAlgorithm = "sha1"
 	AlgorithmMD5    HashAlgorithm = "md5"
 )
 
 func (a HashAlgorithm) NewHasher() hash.Hash {
 	switch a {
+	case AlgorithmSHA384:
+		return sha512.New384()
 	case AlgorithmSHA512:
 		return sha512.New()
+	case AlgorithmSHA1:
+		return sha1.New() //nolint:gosec // SHA1 support is intentional for legacy use
 	case AlgorithmMD5:
 		return md5.New() //nolint:gosec // MD5 support is intentional for legacy use
 	default:
@@ -53,6 +60,10 @@ func (a HashAlgorithm) ExpectedHexLength() int {
 	switch a {
 	case AlgorithmSHA512:
 		return 128
+	case AlgorithmSHA384:
+		return 96
+	case AlgorithmSHA1:
+		return 40
 	case AlgorithmMD5:
 		return 32
 	default:
@@ -93,7 +104,7 @@ func (c *Check) Run() check.Result {
 	}
 
 	if expectedHash == "" {
-		return result.Failf("expected hash is required (use --sha256, --sha512, --md5, or --checksum-file)")
+		return result.Failf("expected hash is required (use --sha256, --sha384, --sha512, --sha1, --md5, or --checksum-file)")
 	}
 
 	expectedHash = strings.ToLower(expectedHash)
@@ -155,7 +166,7 @@ func (c *Check) computeHash(r io.Reader, algorithm HashAlgorithm) (string, error
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-var bsdFormatRegex = regexp.MustCompile(`^(SHA256|SHA512|MD5)\s+\((.+)\)\s*=\s*([a-fA-F0-9]+)$`)
+var bsdFormatRegex = regexp.MustCompile(`^(SHA256|SHA384|SHA512|SHA1|MD5)\s+\((.+)\)\s*=\s*([a-fA-F0-9]+)$`)
 
 func (c *Check) parseChecksumFile() (string, HashAlgorithm, error) {
 	opener := c.Opener
@@ -207,8 +218,12 @@ func parseBSDLine(line, targetFile, fullPath string) (hashStr string, algo HashA
 
 	algo = AlgorithmSHA256
 	switch algoStr {
+	case "SHA384":
+		algo = AlgorithmSHA384
 	case "SHA512":
 		algo = AlgorithmSHA512
+	case "SHA1":
+		algo = AlgorithmSHA1
 	case "MD5":
 		algo = AlgorithmMD5
 	}
@@ -233,6 +248,10 @@ func parseGNULine(line, targetFile, fullPath string) (hashStr string, algo HashA
 	switch len(hashValue) {
 	case 128:
 		algo = AlgorithmSHA512
+	case 96:
+		algo = AlgorithmSHA384
+	case 40:
+		algo = AlgorithmSHA1
 	case 32:
 		algo = AlgorithmMD5
 	}

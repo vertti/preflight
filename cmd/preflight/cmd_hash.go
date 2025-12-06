@@ -8,7 +8,9 @@ import (
 
 var (
 	hashSHA256       string
+	hashSHA384       string
 	hashSHA512       string
+	hashSHA1         string
 	hashMD5          string
 	hashChecksumFile string
 )
@@ -16,11 +18,14 @@ var (
 var hashCmd = &cobra.Command{
 	Use:   "hash <file>",
 	Short: "Verify file checksum",
-	Long: `Verify a file's checksum against expected SHA256, SHA512, or MD5 hash.
+	Long: `Verify a file's checksum against expected hash.
+
+Supported algorithms: SHA256, SHA384, SHA512, SHA1, MD5
 
 Examples:
   preflight hash --sha256 67574ee...2cf myfile.tar.gz
   preflight hash --sha512 abc123... /path/to/file
+  preflight hash --sha1 da39a3e...b3e /path/to/file   # legacy, use with caution
   preflight hash --checksum-file SHASUMS256.txt node-v20.tar.gz`,
 	Args: cobra.ExactArgs(1),
 	RunE: runHashCheck,
@@ -28,8 +33,10 @@ Examples:
 
 func init() {
 	hashCmd.Flags().StringVar(&hashSHA256, "sha256", "", "expected SHA256 hash")
+	hashCmd.Flags().StringVar(&hashSHA384, "sha384", "", "expected SHA384 hash")
 	hashCmd.Flags().StringVar(&hashSHA512, "sha512", "", "expected SHA512 hash")
-	hashCmd.Flags().StringVar(&hashMD5, "md5", "", "expected MD5 hash (legacy)")
+	hashCmd.Flags().StringVar(&hashSHA1, "sha1", "", "expected SHA1 hash (legacy, weak)")
+	hashCmd.Flags().StringVar(&hashMD5, "md5", "", "expected MD5 hash (legacy, weak)")
 	hashCmd.Flags().StringVar(&hashChecksumFile, "checksum-file", "", "verify against checksum file (GNU or BSD format)")
 
 	rootCmd.AddCommand(hashCmd)
@@ -41,7 +48,9 @@ func runHashCheck(_ *cobra.Command, args []string) error {
 	// Validate exactly one hash flag is set
 	if err := requireExactlyOne(
 		flagValue{"--sha256", hashSHA256},
+		flagValue{"--sha384", hashSHA384},
 		flagValue{"--sha512", hashSHA512},
+		flagValue{"--sha1", hashSHA1},
 		flagValue{"--md5", hashMD5},
 		flagValue{"--checksum-file", hashChecksumFile},
 	); err != nil {
@@ -55,9 +64,15 @@ func runHashCheck(_ *cobra.Command, args []string) error {
 	case hashSHA256 != "":
 		algorithm = hashcheck.AlgorithmSHA256
 		expectedHash = hashSHA256
+	case hashSHA384 != "":
+		algorithm = hashcheck.AlgorithmSHA384
+		expectedHash = hashSHA384
 	case hashSHA512 != "":
 		algorithm = hashcheck.AlgorithmSHA512
 		expectedHash = hashSHA512
+	case hashSHA1 != "":
+		algorithm = hashcheck.AlgorithmSHA1
+		expectedHash = hashSHA1
 	case hashMD5 != "":
 		algorithm = hashcheck.AlgorithmMD5
 		expectedHash = hashMD5
