@@ -17,7 +17,7 @@ func TestResult_Fail(t *testing.T) {
 	if len(result.Details) != 1 || result.Details[0] != "something failed" {
 		t.Errorf("Details = %v, want [something failed]", result.Details)
 	}
-	if result.Err != err {
+	if !errors.Is(result.Err, err) {
 		t.Errorf("Err = %v, want %v", result.Err, err)
 	}
 }

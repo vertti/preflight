@@ -678,7 +678,7 @@ func TestRealHashFileOpener(t *testing.T) {
 		// Read a bit to verify it works
 		buf := make([]byte, 10)
 		n, err := f.Read(buf)
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			t.Errorf("failed to read: %v", err)
 		}
 		if n == 0 {
