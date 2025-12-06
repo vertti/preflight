@@ -12,27 +12,30 @@ import (
 
 // Check verifies that an environment variable meets requirements.
 type Check struct {
-	Name       string    // env var name
-	NotSet     bool      // --not-set: verify variable is NOT defined
-	AllowEmpty bool      // --allow-empty: pass if defined but empty
-	Match      string    // --match: regex pattern
-	Exact      string    // --exact: exact value
-	OneOf      []string  // --one-of: value must be one of these
-	HideValue  bool      // --hide-value: don't show value in output
-	MaskValue  bool      // --mask-value: show first/last 3 chars
-	StartsWith string    // --starts-with: value must start with this
-	EndsWith   string    // --ends-with: value must end with this
-	Contains   string    // --contains: value must contain this
-	IsNumeric  bool      // --is-numeric: value must be a valid number
-	IsPort     bool      // --is-port: value must be valid TCP port (1-65535)
-	IsURL      bool      // --is-url: value must be valid URL
-	IsJSON     bool      // --is-json: value must be valid JSON
-	IsBool     bool      // --is-bool: value must be boolean (true/false/1/0/yes/no/on/off)
-	MinLen     int       // --min-len: minimum string length (0 = no check)
-	MaxLen     int       // --max-len: maximum string length (0 = no check)
-	MinValue   *float64  // --min-value: minimum numeric value
-	MaxValue   *float64  // --max-value: maximum numeric value
-	Getter     EnvGetter // injected for testing
+	Name       string     // env var name
+	NotSet     bool       // --not-set: verify variable is NOT defined
+	AllowEmpty bool       // --allow-empty: pass if defined but empty
+	Match      string     // --match: regex pattern
+	Exact      string     // --exact: exact value
+	OneOf      []string   // --one-of: value must be one of these
+	HideValue  bool       // --hide-value: don't show value in output
+	MaskValue  bool       // --mask-value: show first/last 3 chars
+	StartsWith string     // --starts-with: value must start with this
+	EndsWith   string     // --ends-with: value must end with this
+	Contains   string     // --contains: value must contain this
+	IsNumeric  bool       // --is-numeric: value must be a valid number
+	IsPort     bool       // --is-port: value must be valid TCP port (1-65535)
+	IsURL      bool       // --is-url: value must be valid URL
+	IsJSON     bool       // --is-json: value must be valid JSON
+	IsBool     bool       // --is-bool: value must be boolean (true/false/1/0/yes/no/on/off)
+	IsFile     bool       // --is-file: value must be path to existing file
+	IsDir      bool       // --is-dir: value must be path to existing directory
+	MinLen     int        // --min-len: minimum string length (0 = no check)
+	MaxLen     int        // --max-len: maximum string length (0 = no check)
+	MinValue   *float64   // --min-value: minimum numeric value
+	MaxValue   *float64   // --max-value: maximum numeric value
+	Getter     EnvGetter  // injected for testing
+	Stater     FileStater // injected for testing
 }
 
 // Run executes the environment variable check.
@@ -135,6 +138,28 @@ func (c *Check) Run() check.Result {
 	if c.IsBool {
 		if !isValidBool(value) {
 			return result.Fail("value is not a valid boolean (true/false/1/0/yes/no/on/off)", fmt.Errorf("invalid boolean: %s", value))
+		}
+	}
+
+	// --is-file: value must be path to existing file
+	if c.IsFile {
+		info, err := c.Stater.Stat(value)
+		if err != nil {
+			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", value))
+		}
+		if info.IsDir() {
+			return result.Fail("path is a directory, not a file", fmt.Errorf("path is a directory: %s", value))
+		}
+	}
+
+	// --is-dir: value must be path to existing directory
+	if c.IsDir {
+		info, err := c.Stater.Stat(value)
+		if err != nil {
+			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", value))
+		}
+		if !info.IsDir() {
+			return result.Fail("path is a file, not a directory", fmt.Errorf("path is not a directory: %s", value))
 		}
 	}
 

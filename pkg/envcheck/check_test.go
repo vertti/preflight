@@ -1,7 +1,10 @@
 package envcheck
 
 import (
+	"errors"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/vertti/preflight/pkg/check"
 )
@@ -17,6 +20,30 @@ type mockEnvGetter struct {
 func (m *mockEnvGetter) LookupEnv(key string) (string, bool) {
 	val, ok := m.Vars[key]
 	return val, ok
+}
+
+// mockFileInfo implements os.FileInfo for testing.
+type mockFileInfo struct {
+	isDir bool
+}
+
+func (m *mockFileInfo) Name() string       { return "mock" }
+func (m *mockFileInfo) Size() int64        { return 0 }
+func (m *mockFileInfo) Mode() os.FileMode  { return 0 }
+func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
+func (m *mockFileInfo) IsDir() bool        { return m.isDir }
+func (m *mockFileInfo) Sys() interface{}   { return nil }
+
+// mockFileStater mocks file system stat operations.
+type mockFileStater struct {
+	Files map[string]*mockFileInfo // path -> file info (nil = doesn't exist)
+}
+
+func (m *mockFileStater) Stat(path string) (os.FileInfo, error) {
+	if info, ok := m.Files[path]; ok && info != nil {
+		return info, nil
+	}
+	return nil, errors.New("file not found")
 }
 
 func TestEnvCheck_Run(t *testing.T) {
@@ -617,6 +644,74 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter:   &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
 			},
 			wantStatus: check.StatusOK,
+		},
+
+		// --is-file tests
+		{
+			name: "is-file passes for existing file",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/etc/config.yaml"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/etc/config.yaml": {isDir: false}}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-file fails for non-existent path",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/nonexistent/file"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path does not exist",
+		},
+		{
+			name: "is-file fails for directory",
+			check: Check{
+				Name:   "CONFIG_PATH",
+				IsFile: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG_PATH": "/etc"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/etc": {isDir: true}}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path is a directory, not a file",
+		},
+
+		// --is-dir tests
+		{
+			name: "is-dir passes for existing directory",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/var/data"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/var/data": {isDir: true}}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-dir fails for non-existent path",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/nonexistent/dir"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path does not exist",
+		},
+		{
+			name: "is-dir fails for file",
+			check: Check{
+				Name:   "DATA_DIR",
+				IsDir:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"DATA_DIR": "/var/data.txt"}},
+				Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/var/data.txt": {isDir: false}}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "path is a file, not a directory",
 		},
 	}
 
