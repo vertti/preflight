@@ -45,14 +45,14 @@ preflight/
 │   ├── root.go             # Cobra root command setup
 │   ├── run.go              # runCheck() helper, shared by all commands
 │   ├── validation.go       # Flag validation helpers
-│   └── cmd_*.go            # One file per command (10 commands)
+│   └── cmd_*.go            # One file per command (11 commands)
 │
 ├── pkg/                    # Core packages (~6,500 lines)
 │   ├── check/              # Shared types: Result, Status, Checker interface
 │   ├── output/             # Terminal output formatting with colors
 │   ├── version/            # Semantic version parsing & comparison
 │   ├── preflightfile/      # .preflight file discovery & parsing
-│   └── *check/             # 10 check implementations (see below)
+│   └── *check/             # 11 check implementations (see below)
 │
 ├── integration_test.go     # Real system integration tests
 └── docs/usage.md           # Command documentation
@@ -159,6 +159,35 @@ requireExactlyOne(flagValue...)  // Mutually exclusive flags
 requireAtLeastOne(flagSet...)    // At least one required
 ```
 
+### Pattern 6: Platform-Specific Code
+
+When code requires platform-specific implementations (syscalls, OS APIs):
+
+1. **Common file** (no build tag): Interface + struct + cross-platform methods
+2. **Platform files** (`*_unix.go`, `*_windows.go`): Platform-specific method implementations
+
+```
+pkg/filecheck/
+├── fs.go           # Interface + struct + Stat() + ReadFile()
+├── fs_unix.go      # //go:build unix   → GetOwner() using syscall.Stat_t
+└── fs_windows.go   # //go:build windows → GetOwner() returns error
+
+pkg/resourcecheck/
+├── resource_common.go   # Interface + struct + NumCPUs()
+├── resource_unix.go     # //go:build unix → FreeDiskSpace(), AvailableMemory()
+├── resource_darwin.go   # //go:build darwin → getSystemMemory() for macOS
+├── resource_linux.go    # //go:build linux → getSystemMemory() for Linux
+└── resource_windows.go  # //go:build windows → stub methods returning errors
+```
+
+Key rules:
+
+- Interface is defined **once** in the common file (never duplicated)
+- Use `//go:build unix` for code shared by darwin/linux/bsd
+- Use `//go:build darwin` or `//go:build linux` for OS-specific helpers
+- Unsupported features return `errors.New("X not supported on Windows")`, not panic
+- Always test builds: `GOOS=windows go build ./...`
+
 ## Check Packages Reference
 
 | Package           | Interface         | Key Fields                                           | Purpose                    |
@@ -169,6 +198,7 @@ requireAtLeastOne(flagSet...)    // At least one required
 | **gitcheck**      | `GitRunner`       | Clean, NoUncommitted, Branch, TagMatch               | Git repo state             |
 | **hashcheck**     | `HashFileOpener`  | File, Algorithm, ExpectedHash, ChecksumFile          | Checksum verification      |
 | **httpcheck**     | `HTTPClient`      | URL, ExpectedStatus, Timeout, Retry                  | HTTP health checks         |
+| **jsoncheck**     | `FileSystem`      | File, HasKey, Key, Exact, Match                      | JSON validation            |
 | **resourcecheck** | `ResourceChecker` | MinDisk, MinMemory, MinCPUs, Path                    | System resources           |
 | **syscheck**      | `SysInfo`         | OSType, DistroMatch                                  | OS/distro detection        |
 | **tcpcheck**      | `TCPDialer`       | Address, Timeout                                     | TCP connectivity           |
@@ -294,6 +324,7 @@ func TestIntegration_Cmd(t *testing.T) {
 | `git`      | `preflight git --branch main --clean`         | Git repo state          |
 | `hash`     | `preflight hash app.tar.gz --sha256 abc...`   | Verify checksums        |
 | `http`     | `preflight http :8080/health --retry 3`       | HTTP health check       |
+| `json`     | `preflight json config.json --has-key db`     | JSON validation         |
 | `resource` | `preflight resource --min-disk 10G`           | System resources        |
 | `sys`      | `preflight sys --os linux`                    | OS/distro check         |
 | `tcp`      | `preflight tcp postgres:5432`                 | TCP connectivity        |

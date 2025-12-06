@@ -13,6 +13,7 @@ import (
 type mockFileSystem struct {
 	StatFunc     func(name string) (fs.FileInfo, error)
 	ReadFileFunc func(name string, limit int64) ([]byte, error)
+	GetOwnerFunc func(name string) (uid, gid uint32, err error)
 }
 
 func (m *mockFileSystem) Stat(name string) (fs.FileInfo, error) {
@@ -21,6 +22,13 @@ func (m *mockFileSystem) Stat(name string) (fs.FileInfo, error) {
 
 func (m *mockFileSystem) ReadFile(name string, limit int64) ([]byte, error) {
 	return m.ReadFileFunc(name, limit)
+}
+
+func (m *mockFileSystem) GetOwner(name string) (uid, gid uint32, err error) {
+	if m.GetOwnerFunc != nil {
+		return m.GetOwnerFunc(name)
+	}
+	return 0, 0, nil
 }
 
 type mockFileInfo struct {
@@ -643,6 +651,84 @@ func TestCheck_Run(t *testing.T) {
 				},
 			},
 			wantStatus: check.StatusFail,
+		},
+
+		// Owner tests
+		{
+			name: "owner matches",
+			check: Check{
+				Path:  "/data",
+				Owner: 1000,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "data",
+							ModeValue: 0o644,
+						}, nil
+					},
+					GetOwnerFunc: func(name string) (uid, gid uint32, err error) {
+						return 1000, 1000, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "owner: 1000",
+		},
+		{
+			name: "owner mismatch",
+			check: Check{
+				Path:  "/data",
+				Owner: 1000,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "data",
+							ModeValue: 0o644,
+						}, nil
+					},
+					GetOwnerFunc: func(name string) (uid, gid uint32, err error) {
+						return 0, 0, nil
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "owner 0 != expected 1000",
+		},
+		{
+			name: "owner root (uid 0)",
+			check: Check{
+				Path:  "/data",
+				Owner: 0,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "data",
+							ModeValue: 0o644,
+						}, nil
+					},
+					GetOwnerFunc: func(name string) (uid, gid uint32, err error) {
+						return 0, 0, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+			wantDetail: "owner: 0",
+		},
+		{
+			name: "owner not checked when -1",
+			check: Check{
+				Path:  "/data",
+				Owner: -1,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "data",
+							ModeValue: 0o644,
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
 		},
 	}
 

@@ -69,6 +69,7 @@ func TestIntegration_File(t *testing.T) {
 	c := filecheck.Check{
 		Path:     tmpFile.Name(),
 		NotEmpty: true,
+		Owner:    -1, // Don't check owner
 		FS:       &filecheck.RealFileSystem{},
 	}
 
@@ -76,6 +77,44 @@ func TestIntegration_File(t *testing.T) {
 
 	if result.Status != check.StatusOK {
 		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_FileOwner(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "preflight-owner-*.txt")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
+
+	// Get current user's UID
+	uid := os.Getuid()
+
+	// Test that owner matches current user
+	c := filecheck.Check{
+		Path:  tmpFile.Name(),
+		Owner: uid,
+		FS:    &filecheck.RealFileSystem{},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusOK {
+		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+
+	// Test owner mismatch (use impossible UID)
+	c = filecheck.Check{
+		Path:  tmpFile.Name(),
+		Owner: 99999,
+		FS:    &filecheck.RealFileSystem{},
+	}
+
+	result = c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail (details: %v)", result.Status, result.Details)
 	}
 }
 
@@ -98,6 +137,7 @@ func TestIntegration_FileSocket(t *testing.T) {
 	c := filecheck.Check{
 		Path:         socketPath,
 		ExpectSocket: true,
+		Owner:        -1, // Don't check owner
 		FS:           &filecheck.RealFileSystem{},
 	}
 
@@ -133,6 +173,7 @@ func TestIntegration_FileSocketFail(t *testing.T) {
 	c := filecheck.Check{
 		Path:         tmpFile.Name(),
 		ExpectSocket: true,
+		Owner:        -1, // Don't check owner
 		FS:           &filecheck.RealFileSystem{},
 	}
 
