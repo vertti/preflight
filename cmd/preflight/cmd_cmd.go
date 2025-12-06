@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -11,11 +12,14 @@ import (
 )
 
 var (
-	minVersion   string
-	maxVersion   string
-	exactVersion string
-	matchPattern string
-	versionCmd   string
+	minVersion     string
+	maxVersion     string
+	exactVersion   string
+	versionRange   string
+	matchPattern   string
+	versionCmd     string
+	cmdTimeout     time.Duration
+	versionPattern string
 )
 
 var cmdCmd = &cobra.Command{
@@ -29,8 +33,11 @@ func init() {
 	cmdCmd.Flags().StringVar(&minVersion, "min", "", "minimum version required (inclusive)")
 	cmdCmd.Flags().StringVar(&maxVersion, "max", "", "maximum version allowed (exclusive)")
 	cmdCmd.Flags().StringVar(&exactVersion, "exact", "", "exact version required")
+	cmdCmd.Flags().StringVar(&versionRange, "range", "", "semver constraint (e.g., \">=1.0, <2.0\", \"^1.5\", \"~1.5\")")
 	cmdCmd.Flags().StringVar(&matchPattern, "match", "", "regex pattern to match against version output")
+	cmdCmd.Flags().StringVar(&versionPattern, "version-regex", "", "regex with capture group to extract version")
 	cmdCmd.Flags().StringVar(&versionCmd, "version-cmd", "--version", "command to get version")
+	cmdCmd.Flags().DurationVar(&cmdTimeout, "timeout", cmdcheck.DefaultTimeout, "timeout for version command")
 	rootCmd.AddCommand(cmdCmd)
 }
 
@@ -38,10 +45,13 @@ func runCmdCheck(_ *cobra.Command, args []string) error {
 	commandName := args[0]
 
 	c := &cmdcheck.Check{
-		Name:         commandName,
-		VersionArgs:  parseVersionArgs(versionCmd),
-		MatchPattern: matchPattern,
-		Runner:       &cmdcheck.RealCmdRunner{},
+		Name:           commandName,
+		VersionArgs:    parseVersionArgs(versionCmd),
+		VersionRange:   versionRange,
+		MatchPattern:   matchPattern,
+		VersionPattern: versionPattern,
+		Timeout:        cmdTimeout,
+		Runner:         &cmdcheck.RealCmdRunner{},
 	}
 
 	var err error

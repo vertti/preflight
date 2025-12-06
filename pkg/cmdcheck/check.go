@@ -1,7 +1,11 @@
 package cmdcheck
 
 import (
+	"context"
 	"fmt"
+	"time"
+
+	semver "github.com/Masterminds/semver/v3"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/version"
@@ -9,13 +13,16 @@ import (
 
 // Check verifies that a command exists and can run.
 type Check struct {
-	Name         string           // command name to check
-	VersionArgs  []string         // args to get version (default: --version)
-	MinVersion   *version.Version // minimum version required (inclusive)
-	MaxVersion   *version.Version // maximum version allowed (exclusive)
-	ExactVersion *version.Version // exact version required
-	MatchPattern string           // regex pattern to match against version output
-	Runner       CmdRunner        // injected for testing
+	Name           string           // command name to check
+	VersionArgs    []string         // args to get version (default: --version)
+	MinVersion     *version.Version // minimum version required (inclusive)
+	MaxVersion     *version.Version // maximum version allowed (exclusive)
+	ExactVersion   *version.Version // exact version required
+	VersionRange   string           // semver constraint (e.g., ">=1.0, <2.0", "~>1.5", "^1.0.0")
+	MatchPattern   string           // regex pattern to match against version output
+	VersionPattern string           // regex pattern with capture group to extract version
+	Timeout        time.Duration    // timeout for version command (default: 30s)
+	Runner         CmdRunner        // injected for testing
 }
 
 // Run executes the command check.
@@ -36,8 +43,19 @@ func (c *Check) Run() check.Result {
 		args = []string{"--version"}
 	}
 
-	stdout, stderr, err := c.Runner.RunCommand(c.Name, args...)
+	// Set up timeout context
+	timeout := c.Timeout
+	if timeout == 0 {
+		timeout = DefaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	stdout, stderr, err := c.Runner.RunCommandContext(ctx, c.Name, args...)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return result.Failf("version command timed out after %s", timeout)
+		}
 		result.AddDetailf("version command failed: %v", err)
 		if stderr != "" {
 			result.AddDetailf("stderr: %s", stderr)
@@ -57,7 +75,7 @@ func (c *Check) Run() check.Result {
 		if err := c.checkMatchPattern(versionOutput, &result); err != nil {
 			return result
 		}
-	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil:
+	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil || c.VersionPattern != "" || c.VersionRange != "":
 		if err := c.checkVersionConstraints(versionOutput, &result); err != nil {
 			return result
 		}
@@ -87,7 +105,36 @@ func (c *Check) checkMatchPattern(output string, result *check.Result) error {
 }
 
 func (c *Check) checkVersionConstraints(output string, result *check.Result) error {
-	parsedVersion, err := version.Extract(output)
+	var parsedVersion version.Version
+	var err error
+
+	if c.VersionPattern != "" {
+		// Use custom regex to extract version
+		re, regexErr := check.CompileRegex(c.VersionPattern)
+		if regexErr != nil {
+			result.Failf("invalid version regex: %v", regexErr)
+			return regexErr
+		}
+		matches := re.FindStringSubmatch(output)
+		if matches == nil {
+			err := fmt.Errorf("version pattern %q did not match output", c.VersionPattern)
+			result.Fail("version pattern did not match output", err)
+			return err
+		}
+		// Use first capture group if present, otherwise full match
+		versionStr := matches[0]
+		if len(matches) > 1 && matches[1] != "" {
+			versionStr = matches[1]
+		}
+		parsedVersion, err = version.Parse(versionStr)
+		if err != nil {
+			// If Parse fails, try Extract for more flexible parsing
+			parsedVersion, err = version.Extract(versionStr)
+		}
+	} else {
+		parsedVersion, err = version.Extract(output)
+	}
+
 	if err != nil {
 		result.Failf("could not parse version from output: %v", err)
 		return err
@@ -114,6 +161,27 @@ func (c *Check) checkVersionConstraints(output string, result *check.Result) err
 		err := fmt.Errorf("version %s at or above maximum %s", parsedVersion, c.MaxVersion)
 		result.Fail(fmt.Sprintf("version %s >= maximum %s", parsedVersion, c.MaxVersion), err)
 		return err
+	}
+
+	// Check semver constraint range
+	if c.VersionRange != "" {
+		constraint, constraintErr := semver.NewConstraint(c.VersionRange)
+		if constraintErr != nil {
+			result.Failf("invalid version range %q: %v", c.VersionRange, constraintErr)
+			return constraintErr
+		}
+		// Convert our version to semver.Version
+		semverStr := fmt.Sprintf("%d.%d.%d", parsedVersion.Major, parsedVersion.Minor, parsedVersion.Patch)
+		sv, svErr := semver.NewVersion(semverStr)
+		if svErr != nil {
+			result.Failf("could not convert version to semver: %v", svErr)
+			return svErr
+		}
+		if !constraint.Check(sv) {
+			err := fmt.Errorf("version %s does not satisfy constraint %q", parsedVersion, c.VersionRange)
+			result.Fail(fmt.Sprintf("version %s does not satisfy %q", parsedVersion, c.VersionRange), err)
+			return err
+		}
 	}
 
 	return nil
