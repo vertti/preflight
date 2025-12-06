@@ -3,6 +3,7 @@ amends "package://github.com/jdx/hk/releases/download/v1.25.0/hk@1.25.0#/Config.
 local linters = new Mapping<String, Step> {
     ["gofmt"] {
         glob = List("*.go")
+        stage = "*.go"
         check = "gofmt -l {{files}}"
         fix = "gofmt -w {{files}}"
     }
@@ -12,6 +13,7 @@ local linters = new Mapping<String, Step> {
     }
     ["dprint"] {
         glob = List("*.md")
+        stage = "*.md"
         check = "dprint check"
         fix = "dprint fmt"
     }
