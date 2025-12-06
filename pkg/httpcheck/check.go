@@ -1,11 +1,17 @@
 package httpcheck
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/vertti/preflight/pkg/check"
 )
@@ -17,8 +23,9 @@ type HTTPClient interface {
 
 // RealHTTPClient uses the real net/http package.
 type RealHTTPClient struct {
-	Timeout  time.Duration
-	Insecure bool
+	Timeout         time.Duration
+	Insecure        bool
+	FollowRedirects bool
 }
 
 // Do executes an HTTP request.
@@ -31,26 +38,48 @@ func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	client := &http.Client{
 		Timeout:   c.Timeout,
 		Transport: transport,
-		// Disable automatic redirects - check actual response status
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	}
+
+	// Disable automatic redirects unless explicitly enabled
+	if !c.FollowRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
-		},
+		}
 	}
 
 	return client.Do(req)
 }
 
+// FileReader abstracts file reading for testability.
+type FileReader interface {
+	ReadFile(path string) ([]byte, error)
+}
+
+// RealFileReader uses the real os package.
+type RealFileReader struct{}
+
+// ReadFile reads a file from the filesystem.
+func (r *RealFileReader) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
 // Check verifies HTTP endpoint health.
 type Check struct {
-	URL            string            // target URL (required)
-	ExpectedStatus int               // expected HTTP status (default: 200)
-	Timeout        time.Duration     // request timeout (default: 5s)
-	Method         string            // HTTP method (default: GET)
-	Headers        map[string]string // custom headers
-	Insecure       bool              // skip TLS verification
-	Retry          int               // retry count on failure
-	RetryDelay     time.Duration     // delay between retries
-	Client         HTTPClient        // injected for testing
+	URL             string            // target URL (required)
+	ExpectedStatus  int               // expected HTTP status (default: 200)
+	Timeout         time.Duration     // request timeout (default: 5s)
+	Method          string            // HTTP method (default: GET)
+	Headers         map[string]string // custom headers
+	Insecure        bool              // skip TLS verification
+	Retry           int               // retry count on failure
+	RetryDelay      time.Duration     // delay between retries
+	Body            string            // request body string
+	BodyFile        string            // path to file containing request body
+	Contains        string            // response body must contain this string
+	FollowRedirects bool              // follow HTTP redirects (3xx)
+	JSONPath        string            // JSON path to check (format: "path=expectedValue" or just "path")
+	Client          HTTPClient        // injected for testing
+	FileReader      FileReader        // injected for testing
 }
 
 // Run executes the HTTP health check.
@@ -89,7 +118,23 @@ func (c *Check) Run() check.Result {
 	// Initialize client if not injected
 	client := c.Client
 	if client == nil {
-		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure}
+		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure, FollowRedirects: c.FollowRedirects}
+	}
+
+	// Resolve request body
+	var bodyBytes []byte
+	if c.BodyFile != "" {
+		reader := c.FileReader
+		if reader == nil {
+			reader = &RealFileReader{}
+		}
+		var err error
+		bodyBytes, err = reader.ReadFile(c.BodyFile)
+		if err != nil {
+			return result.Failf("failed to read body file: %v", err)
+		}
+	} else if c.Body != "" {
+		bodyBytes = []byte(c.Body)
 	}
 
 	// Retry loop
@@ -97,7 +142,11 @@ func (c *Check) Run() check.Result {
 	var lastErr error
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		req, err := http.NewRequest(method, c.URL, http.NoBody)
+		var bodyReader io.Reader = http.NoBody
+		if len(bodyBytes) > 0 {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+		req, err := http.NewRequest(method, c.URL, bodyReader)
 		if err != nil {
 			return result.Failf("failed to create request: %v", err)
 		}
@@ -121,7 +170,19 @@ func (c *Check) Run() check.Result {
 		}
 
 		statusCode := resp.StatusCode
-		_ = resp.Body.Close()
+
+		// Read response body if needed for --contains or --json-path check
+		var respBody string
+		if c.Contains != "" || c.JSONPath != "" {
+			bodyBytes, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				return result.Failf("failed to read response body: %v", err)
+			}
+			respBody = string(bodyBytes)
+		} else {
+			_ = resp.Body.Close()
+		}
 
 		if statusCode != expectedStatus {
 			lastErr = fmt.Errorf("status %d, expected %d", statusCode, expectedStatus)
@@ -135,6 +196,47 @@ func (c *Check) Run() check.Result {
 			return result.Failf("status %d, expected %d", statusCode, expectedStatus)
 		}
 
+		// Check --contains
+		if c.Contains != "" && !strings.Contains(respBody, c.Contains) {
+			lastErr = fmt.Errorf("response body does not contain %q", c.Contains)
+			if attempt < maxAttempts {
+				time.Sleep(retryDelay)
+				continue
+			}
+			if maxAttempts > 1 {
+				return result.Failf("response body does not contain %q (after %d attempts)", c.Contains, maxAttempts)
+			}
+			return result.Failf("response body does not contain %q", c.Contains)
+		}
+
+		// Check --json-path
+		if c.JSONPath != "" {
+			path, expectedValue, hasExpectedValue := parseJSONPath(c.JSONPath)
+			jsonResult := gjson.Get(respBody, path)
+			if !jsonResult.Exists() {
+				lastErr = fmt.Errorf("JSON path %q not found", path)
+				if attempt < maxAttempts {
+					time.Sleep(retryDelay)
+					continue
+				}
+				if maxAttempts > 1 {
+					return result.Failf("JSON path %q not found (after %d attempts)", path, maxAttempts)
+				}
+				return result.Failf("JSON path %q not found", path)
+			}
+			if hasExpectedValue && jsonResult.String() != expectedValue {
+				lastErr = fmt.Errorf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
+				if attempt < maxAttempts {
+					time.Sleep(retryDelay)
+					continue
+				}
+				if maxAttempts > 1 {
+					return result.Failf("JSON path %q: got %q, expected %q (after %d attempts)", path, jsonResult.String(), expectedValue, maxAttempts)
+				}
+				return result.Failf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
+			}
+		}
+
 		// Success
 		result.Status = check.StatusOK
 		result.AddDetailf("status %d", statusCode)
@@ -146,4 +248,12 @@ func (c *Check) Run() check.Result {
 
 	// Should not reach here, but handle edge case
 	return result.Failf("unexpected error: %v", lastErr)
+}
+
+// parseJSONPath parses "path=value" or "path" format.
+func parseJSONPath(jsonPath string) (path, expectedValue string, hasExpectedValue bool) {
+	if idx := strings.Index(jsonPath, "="); idx != -1 {
+		return jsonPath[:idx], jsonPath[idx+1:], true
+	}
+	return jsonPath, "", false
 }

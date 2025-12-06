@@ -20,6 +20,22 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.DoFunc(req)
 }
 
+// mockFileReader implements FileReader for testing.
+type mockFileReader struct {
+	Files map[string][]byte
+	Err   error
+}
+
+func (m *mockFileReader) ReadFile(path string) ([]byte, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+	if content, ok := m.Files[path]; ok {
+		return content, nil
+	}
+	return nil, errors.New("file not found")
+}
+
 // mockResponse creates a mock HTTP response with the given status code.
 func mockResponse(statusCode int) *http.Response {
 	return &http.Response{
@@ -187,6 +203,179 @@ func TestHTTPCheck(t *testing.T) {
 							t.Errorf("missing Content-Type header")
 						}
 						return mockResponse(200), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+
+		// --- Request Body ---
+		{
+			name: "body string sent with POST",
+			check: Check{
+				URL:    "http://localhost/api",
+				Method: "POST",
+				Body:   `{"key": "value"}`,
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						body, _ := io.ReadAll(req.Body)
+						if string(body) != `{"key": "value"}` {
+							t.Errorf("body = %q, want %q", string(body), `{"key": "value"}`)
+						}
+						return mockResponse(200), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "body-file sent with POST",
+			check: Check{
+				URL:      "http://localhost/api",
+				Method:   "POST",
+				BodyFile: "/tmp/request.json",
+				FileReader: &mockFileReader{
+					Files: map[string][]byte{"/tmp/request.json": []byte(`{"from": "file"}`)},
+				},
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						body, _ := io.ReadAll(req.Body)
+						if string(body) != `{"from": "file"}` {
+							t.Errorf("body = %q, want %q", string(body), `{"from": "file"}`)
+						}
+						return mockResponse(200), nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "body-file not found fails",
+			check: Check{
+				URL:      "http://localhost/api",
+				Method:   "POST",
+				BodyFile: "/nonexistent/file.json",
+				FileReader: &mockFileReader{
+					Files: map[string][]byte{},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "failed to read body file",
+		},
+
+		// --- Response Body Contains ---
+		{
+			name: "contains passes when string found",
+			check: Check{
+				URL:      "http://localhost/health",
+				Contains: "healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "contains fails when string not found",
+			check: Check{
+				URL:      "http://localhost/health",
+				Contains: "ready",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "waiting"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "does not contain",
+		},
+
+		// --- JSON Path ---
+		{
+			name: "json-path exists check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.id",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "json-path exists check fails when path missing",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.missing",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "not found",
+		},
+		{
+			name: "json-path value check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "status=healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "json-path value check fails when value differs",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "status=healthy",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "degraded"}`)),
+						}, nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "expected",
+		},
+		{
+			name: "json-path nested value check passes",
+			check: Check{
+				URL:      "http://localhost/api",
+				JSONPath: "data.items.0.name=first",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"data": {"items": [{"name": "first"}, {"name": "second"}]}}`)),
+						}, nil
 					},
 				},
 			},
@@ -509,6 +698,184 @@ func TestRealHTTPClient(t *testing.T) {
 		}
 		if !client.Insecure {
 			t.Error("Insecure should be true")
+		}
+	})
+
+	t.Run("creates client with follow-redirects flag", func(t *testing.T) {
+		client := &RealHTTPClient{
+			Timeout:         5 * time.Second,
+			FollowRedirects: true,
+		}
+		if !client.FollowRedirects {
+			t.Error("FollowRedirects should be true")
+		}
+	})
+}
+
+func TestHTTPCheckContainsRetry(t *testing.T) {
+	t.Run("contains retry succeeds on second attempt", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/health",
+			Contains:   "healthy",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					if attempts < 2 {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "healthy"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusOK {
+			t.Errorf("Status = %v, want OK", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+	})
+
+	t.Run("contains retry exhausted", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/health",
+			Contains:   "healthy",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 3 {
+			t.Errorf("attempts = %d, want 3", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "3 attempts") {
+			t.Errorf("Details should mention 3 attempts: %v", result.Details)
+		}
+	})
+}
+
+func TestHTTPCheckJSONPathRetry(t *testing.T) {
+	t.Run("json-path retry succeeds on second attempt", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "status=ready",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					if attempts < 2 {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+						}, nil
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "ready"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusOK {
+			t.Errorf("Status = %v, want OK", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+	})
+
+	t.Run("json-path retry exhausted on value mismatch", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "status=ready",
+			Retry:      2,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"status": "starting"}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 3 {
+			t.Errorf("attempts = %d, want 3", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "3 attempts") {
+			t.Errorf("Details should mention 3 attempts: %v", result.Details)
+		}
+	})
+
+	t.Run("json-path retry exhausted on path not found", func(t *testing.T) {
+		attempts := 0
+		c := Check{
+			URL:        "http://localhost/api",
+			JSONPath:   "data.missing",
+			Retry:      1,
+			RetryDelay: 1 * time.Millisecond,
+			Client: &mockHTTPClient{
+				DoFunc: func(req *http.Request) (*http.Response, error) {
+					attempts++
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(strings.NewReader(`{"data": {"id": 123}}`)),
+					}, nil
+				},
+			},
+		}
+
+		result := c.Run()
+
+		if result.Status != check.StatusFail {
+			t.Errorf("Status = %v, want FAIL", result.Status)
+		}
+		if attempts != 2 {
+			t.Errorf("attempts = %d, want 2", attempts)
+		}
+		allDetails := strings.Join(result.Details, " ")
+		if !strings.Contains(allDetails, "2 attempts") {
+			t.Errorf("Details should mention 2 attempts: %v", result.Details)
 		}
 	})
 }
