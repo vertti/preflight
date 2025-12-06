@@ -1,30 +1,13 @@
-//go:build !windows
+//go:build unix
 
 package resourcecheck
 
 import (
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 )
-
-// ResourceChecker abstracts system resource detection for testability.
-type ResourceChecker interface {
-	// FreeDiskSpace returns free disk space in bytes at the given path.
-	FreeDiskSpace(path string) (uint64, error)
-
-	// AvailableMemory returns available memory in bytes.
-	// In containers, this respects cgroup limits.
-	AvailableMemory() (uint64, error)
-
-	// NumCPUs returns the number of available CPUs.
-	NumCPUs() int
-}
-
-// RealResourceChecker implements ResourceChecker using actual system calls.
-type RealResourceChecker struct{}
 
 // FreeDiskSpace returns free disk space in bytes.
 func (r *RealResourceChecker) FreeDiskSpace(path string) (uint64, error) {
@@ -51,12 +34,6 @@ func (r *RealResourceChecker) AvailableMemory() (uint64, error) {
 
 	// Fall back to system memory
 	return getSystemMemory()
-}
-
-// NumCPUs returns the number of available CPUs.
-// Go's runtime.NumCPU() already respects container CPU limits.
-func (r *RealResourceChecker) NumCPUs() int {
-	return runtime.NumCPU()
 }
 
 // readCgroupMemoryLimit reads memory limit from a cgroup file.
