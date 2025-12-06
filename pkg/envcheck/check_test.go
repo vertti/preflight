@@ -6,6 +6,10 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
 type mockEnvGetter struct {
 	Vars map[string]string
 }
@@ -345,6 +349,274 @@ func TestEnvCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusFail,
 			wantDetail: "variable is set (expected not set)",
+		},
+
+		// --is-port flag tests
+		{
+			name: "is-port passes with valid port",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port passes with port 1",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "1"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port passes with port 65535",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "65535"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-port fails with port 0",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "0"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+		{
+			name: "is-port fails with port 65536",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "65536"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+		{
+			name: "is-port fails with non-numeric",
+			check: Check{
+				Name:   "PORT",
+				IsPort: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"PORT": "http"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid port (1-65535)",
+		},
+
+		// --is-url flag tests
+		{
+			name: "is-url passes with valid URL",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "https://example.com/path"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-url fails with missing scheme",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "example.com"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid URL",
+		},
+		{
+			name: "is-url fails with path only",
+			check: Check{
+				Name:   "URL",
+				IsURL:  true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"URL": "/path/to/file"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid URL",
+		},
+
+		// --is-json flag tests
+		{
+			name: "is-json passes with valid JSON object",
+			check: Check{
+				Name:   "CONFIG",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"CONFIG": `{"key": "value"}`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json passes with valid JSON array",
+			check: Check{
+				Name:   "LIST",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"LIST": `[1, 2, 3]`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json passes with JSON string",
+			check: Check{
+				Name:   "STR",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"STR": `"hello"`}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-json fails with invalid JSON",
+			check: Check{
+				Name:   "BAD",
+				IsJSON: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"BAD": `{key: value}`}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not valid JSON",
+		},
+
+		// --is-bool flag tests
+		{
+			name: "is-bool passes with true",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "true"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with false",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "false"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with 1",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "1"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with yes",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "yes"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool passes with on (case insensitive)",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "ON"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "is-bool fails with invalid value",
+			check: Check{
+				Name:   "FLAG",
+				IsBool: true,
+				Getter: &mockEnvGetter{Vars: map[string]string{"FLAG": "maybe"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not a valid boolean (true/false/1/0/yes/no/on/off)",
+		},
+
+		// --min-value flag tests
+		{
+			name: "min-value passes",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "15"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "min-value passes at boundary",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "10"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "min-value fails below minimum",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "5"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value 5 < minimum 10",
+		},
+		{
+			name: "min-value fails with non-numeric",
+			check: Check{
+				Name:     "COUNT",
+				MinValue: float64Ptr(10),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "abc"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value is not numeric (required for --min-value)",
+		},
+
+		// --max-value flag tests
+		{
+			name: "max-value passes",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "50"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "max-value passes at boundary",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "100"}},
+			},
+			wantStatus: check.StatusOK,
+		},
+		{
+			name: "max-value fails above maximum",
+			check: Check{
+				Name:     "COUNT",
+				MaxValue: float64Ptr(100),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"COUNT": "150"}},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "value 150 > maximum 100",
+		},
+
+		// combined min-value and max-value
+		{
+			name: "min-value and max-value passes in range",
+			check: Check{
+				Name:     "PORT",
+				MinValue: float64Ptr(1024),
+				MaxValue: float64Ptr(65535),
+				Getter:   &mockEnvGetter{Vars: map[string]string{"PORT": "8080"}},
+			},
+			wantStatus: check.StatusOK,
 		},
 	}
 

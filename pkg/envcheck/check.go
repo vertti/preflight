@@ -1,7 +1,9 @@
 package envcheck
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -22,8 +24,14 @@ type Check struct {
 	EndsWith   string    // --ends-with: value must end with this
 	Contains   string    // --contains: value must contain this
 	IsNumeric  bool      // --is-numeric: value must be a valid number
+	IsPort     bool      // --is-port: value must be valid TCP port (1-65535)
+	IsURL      bool      // --is-url: value must be valid URL
+	IsJSON     bool      // --is-json: value must be valid JSON
+	IsBool     bool      // --is-bool: value must be boolean (true/false/1/0/yes/no/on/off)
 	MinLen     int       // --min-len: minimum string length (0 = no check)
 	MaxLen     int       // --max-len: maximum string length (0 = no check)
+	MinValue   *float64  // --min-value: minimum numeric value
+	MaxValue   *float64  // --max-value: maximum numeric value
 	Getter     EnvGetter // injected for testing
 }
 
@@ -100,6 +108,58 @@ func (c *Check) Run() check.Result {
 		}
 	}
 
+	// --is-port: value must be valid TCP port (1-65535)
+	if c.IsPort {
+		port, err := strconv.Atoi(value)
+		if err != nil || port < 1 || port > 65535 {
+			return result.Fail("value is not a valid port (1-65535)", fmt.Errorf("invalid port: %s", value))
+		}
+	}
+
+	// --is-url: value must be valid URL
+	if c.IsURL {
+		u, err := url.Parse(value)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return result.Fail("value is not a valid URL", fmt.Errorf("invalid URL: %s", value))
+		}
+	}
+
+	// --is-json: value must be valid JSON
+	if c.IsJSON {
+		if !json.Valid([]byte(value)) {
+			return result.Fail("value is not valid JSON", fmt.Errorf("invalid JSON"))
+		}
+	}
+
+	// --is-bool: value must be boolean truthy value
+	if c.IsBool {
+		if !isValidBool(value) {
+			return result.Fail("value is not a valid boolean (true/false/1/0/yes/no/on/off)", fmt.Errorf("invalid boolean: %s", value))
+		}
+	}
+
+	// --min-value: minimum numeric value
+	if c.MinValue != nil {
+		num, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return result.Fail("value is not numeric (required for --min-value)", fmt.Errorf("not numeric"))
+		}
+		if num < *c.MinValue {
+			return result.Failf("value %v < minimum %v", num, *c.MinValue)
+		}
+	}
+
+	// --max-value: maximum numeric value
+	if c.MaxValue != nil {
+		num, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return result.Fail("value is not numeric (required for --max-value)", fmt.Errorf("not numeric"))
+		}
+		if num > *c.MaxValue {
+			return result.Failf("value %v > maximum %v", num, *c.MaxValue)
+		}
+	}
+
 	// --min-len: minimum string length
 	if c.MinLen > 0 && len(value) < c.MinLen {
 		return result.Failf("value length %d < minimum %d", len(value), c.MinLen)
@@ -141,4 +201,15 @@ func (c *Check) validateOneOf(value string, result *check.Result) error {
 	err := fmt.Errorf("value not in allowed list %v", c.OneOf)
 	result.Fail(fmt.Sprintf("value %q not in allowed list %v", c.formatValue(value), c.OneOf), err)
 	return err
+}
+
+// isValidBool checks if value is a valid boolean truthy/falsy string
+func isValidBool(value string) bool {
+	v := strings.ToLower(value)
+	switch v {
+	case "true", "false", "1", "0", "yes", "no", "on", "off":
+		return true
+	default:
+		return false
+	}
 }
