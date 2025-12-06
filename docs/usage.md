@@ -8,6 +8,30 @@ Preflight provides consistent checks for validating your container environment. 
 
 This is especially useful for complex multi-stage builds where it's easy to make small mistakes (wrong COPY paths, missing shared libraries, misconfigured environment).
 
+## Table of Contents
+
+**Commands**
+
+- [`preflight cmd`](#preflight-cmd) – verify binary exists and version
+- [`preflight env`](#preflight-env) – validate environment variables
+- [`preflight file`](#preflight-file) – check file/directory properties
+- [`preflight json`](#preflight-json) – validate JSON and check keys
+- [`preflight git`](#preflight-git) – verify git repository state
+- [`preflight tcp`](#preflight-tcp) – check TCP connectivity
+- [`preflight http`](#preflight-http) – HTTP health checks
+- [`preflight hash`](#preflight-hash) – verify file checksums
+- [`preflight sys`](#preflight-sys) – check OS and architecture
+- [`preflight resource`](#preflight-resource) – verify system resources
+- [`preflight user`](#preflight-user) – check user exists
+- [`preflight run`](#preflight-run) – run checks from file
+
+**Reference**
+
+- [CI & Container Verification](#ci--container-verification)
+- [Output Format](#output-format)
+- [Exit Codes](#exit-codes)
+- [Colored Output](#colored-output)
+
 ---
 
 ## `preflight cmd`
