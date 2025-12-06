@@ -87,7 +87,27 @@ type Check struct {
 	ExpectedHash string
 	Algorithm    HashAlgorithm
 	ChecksumFile string
+	AutoDetect   bool // auto-detect algorithm from hash length
 	Opener       HashFileOpener
+}
+
+// DetectAlgorithm returns the hash algorithm based on hex string length.
+// Returns empty string for unrecognized lengths.
+func DetectAlgorithm(hashStr string) HashAlgorithm {
+	switch len(hashStr) {
+	case 32:
+		return AlgorithmMD5
+	case 40:
+		return AlgorithmSHA1
+	case 64:
+		return AlgorithmSHA256 // also matches BLAKE2b-256, BLAKE3
+	case 96:
+		return AlgorithmSHA384
+	case 128:
+		return AlgorithmSHA512
+	default:
+		return ""
+	}
 }
 
 func (c *Check) Run() check.Result {
@@ -100,11 +120,8 @@ func (c *Check) Run() check.Result {
 	}
 
 	algorithm := c.Algorithm
-	if algorithm == "" {
-		algorithm = AlgorithmSHA256
-	}
-
 	expectedHash := c.ExpectedHash
+
 	if c.ChecksumFile != "" {
 		var err error
 		expectedHash, algorithm, err = c.parseChecksumFile()
@@ -114,7 +131,20 @@ func (c *Check) Run() check.Result {
 	}
 
 	if expectedHash == "" {
-		return result.Failf("expected hash is required (use --sha256, --sha512, --blake2b-256, --blake3, or --checksum-file)")
+		return result.Failf("expected hash is required (use --sha256, --sha512, --blake2b-256, --blake3, --auto, or --checksum-file)")
+	}
+
+	// Auto-detect algorithm from hash length if requested
+	if c.AutoDetect && algorithm == "" {
+		algorithm = DetectAlgorithm(expectedHash)
+		if algorithm == "" {
+			return result.Failf("cannot auto-detect algorithm: unrecognized hash length %d", len(expectedHash))
+		}
+	}
+
+	// Default to SHA256 if no algorithm specified
+	if algorithm == "" {
+		algorithm = AlgorithmSHA256
 	}
 
 	expectedHash = strings.ToLower(expectedHash)
