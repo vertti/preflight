@@ -1,23 +1,23 @@
-Output demo.gif
+Output cli-demo.gif
 Set Shell bash
 Set FontSize 16
-Set Width 900
-Set Height 550
+Set Width 800
+Set Height 400
 Set Theme "Catppuccin Mocha"
 Set Padding 20
 
-Type "# Show what we're building"
+Type "preflight cmd node --min 18.0"
 Enter
-Sleep 500ms
+Sleep 2s
 
-Type "cat demo/Dockerfile"
+Type "preflight env HOME"
 Enter
-Sleep 4s
+Sleep 2s
 
-Type "# Run the build"
+Type "preflight cmd node --min 99.0"
 Enter
-Sleep 500ms
+Sleep 2s
 
-Type "docker build --progress=plain -f demo/Dockerfile ."
+Type "preflight env HOME --match '^/nonexistent'"
 Enter
-Sleep 10s
+Sleep 5s
