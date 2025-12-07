@@ -122,7 +122,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter: &mockEnvGetter{Vars: map[string]string{"DATABASE_URL": "mysql://localhost:3306/db"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: `value does not match pattern "^postgres://"`,
+			wantDetail: `"mysql://localhost:3306/db" does not match pattern "^postgres://"`,
 		},
 
 		// --exact flag tests
@@ -143,7 +143,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter: &mockEnvGetter{Vars: map[string]string{"NODE_ENV": "development"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: `value does not equal "production"`,
+			wantDetail: `"development" does not equal "production"`,
 		},
 
 		// --one-of flag tests
@@ -230,7 +230,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter:     &mockEnvGetter{Vars: map[string]string{"PATH": "/opt/bin"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: `value does not start with "/usr"`,
+			wantDetail: `"/opt/bin" does not start with "/usr"`,
 		},
 
 		// --ends-with flag tests
@@ -251,7 +251,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter:   &mockEnvGetter{Vars: map[string]string{"CONFIG": "/app/config.json"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: `value does not end with ".yaml"`,
+			wantDetail: `"/app/config.json" does not end with ".yaml"`,
 		},
 
 		// --contains flag tests
@@ -272,7 +272,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter:   &mockEnvGetter{Vars: map[string]string{"URL": "https://other.com/api"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: `value does not contain "example"`,
+			wantDetail: `"https://other.com/api" does not contain "example"`,
 		},
 
 		// --is-numeric flag tests
@@ -302,7 +302,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter:    &mockEnvGetter{Vars: map[string]string{"PORT": "not-a-number"}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: "value is not numeric",
+			wantDetail: `"not-a-number" is not numeric`,
 		},
 
 		// --min-len flag tests
@@ -505,7 +505,7 @@ func TestEnvCheck_Run(t *testing.T) {
 				Getter: &mockEnvGetter{Vars: map[string]string{"BAD": `{key: value}`}},
 			},
 			wantStatus: check.StatusFail,
-			wantDetail: "value is not valid JSON",
+			wantDetail: `"{key: value}" is not valid JSON`,
 		},
 
 		// --is-bool flag tests

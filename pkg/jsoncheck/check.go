@@ -1,7 +1,7 @@
 package jsoncheck
 
 import (
-	"errors"
+	"encoding/json"
 
 	"github.com/tidwall/gjson"
 
@@ -30,10 +30,16 @@ func (c *Check) Run() check.Result {
 		return result.Failf("failed to read file: %v", err)
 	}
 
-	// Validate JSON syntax
+	// Validate JSON syntax using encoding/json for detailed errors
 	jsonStr := string(content)
 	if !gjson.Valid(jsonStr) {
-		return result.Fail("invalid JSON", errors.New("invalid JSON syntax"))
+		// Use encoding/json to get detailed parse error
+		var v any
+		if err := json.Unmarshal(content, &v); err != nil {
+			return result.Failf("invalid JSON: %v", err)
+		}
+		// Fallback if gjson says invalid but encoding/json passes (shouldn't happen)
+		return result.Failf("invalid JSON")
 	}
 
 	result.AddDetail("syntax: valid")

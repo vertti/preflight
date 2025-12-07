@@ -76,13 +76,13 @@ func (c *Check) Run() check.Result {
 			return result.Failf("invalid regex pattern: %v", err)
 		}
 		if !re.MatchString(value) {
-			return result.Failf("value does not match pattern %q", c.Match)
+			return result.Failf("%q does not match pattern %q", c.formatValue(value), c.Match)
 		}
 	}
 
 	// --exact: exact value match
 	if c.Exact != "" && value != c.Exact {
-		return result.Failf("value does not equal %q", c.Exact)
+		return result.Failf("%q does not equal %q", c.formatValue(value), c.Exact)
 	}
 
 	// --one-of: value must be one of the allowed values
@@ -94,23 +94,23 @@ func (c *Check) Run() check.Result {
 
 	// --starts-with: value must start with prefix
 	if c.StartsWith != "" && !strings.HasPrefix(value, c.StartsWith) {
-		return result.Failf("value does not start with %q", c.StartsWith)
+		return result.Failf("%q does not start with %q", c.formatValue(value), c.StartsWith)
 	}
 
 	// --ends-with: value must end with suffix
 	if c.EndsWith != "" && !strings.HasSuffix(value, c.EndsWith) {
-		return result.Failf("value does not end with %q", c.EndsWith)
+		return result.Failf("%q does not end with %q", c.formatValue(value), c.EndsWith)
 	}
 
 	// --contains: value must contain substring
 	if c.Contains != "" && !strings.Contains(value, c.Contains) {
-		return result.Failf("value does not contain %q", c.Contains)
+		return result.Failf("%q does not contain %q", c.formatValue(value), c.Contains)
 	}
 
 	// --is-numeric: value must be a valid number
 	if c.IsNumeric {
 		if _, err := strconv.ParseFloat(value, 64); err != nil {
-			return result.Fail("value is not numeric", errors.New("value is not numeric"))
+			return result.Failf("%q is not numeric", c.formatValue(value))
 		}
 	}
 
@@ -133,7 +133,7 @@ func (c *Check) Run() check.Result {
 	// --is-json: value must be valid JSON
 	if c.IsJSON {
 		if !gjson.Valid(value) {
-			return result.Fail("value is not valid JSON", errors.New("invalid JSON"))
+			return result.Failf("%q is not valid JSON", c.formatValue(value))
 		}
 	}
 
