@@ -16,6 +16,7 @@ This is especially useful for complex multi-stage builds where it's easy to make
 - [`preflight env`](#preflight-env) – validate environment variables
 - [`preflight file`](#preflight-file) – check file/directory properties
 - [`preflight json`](#preflight-json) – validate JSON and check keys
+- [`preflight prometheus`](#preflight-prometheus) – check Prometheus metrics
 - [`preflight git`](#preflight-git) – verify git repository state
 - [`preflight tcp`](#preflight-tcp) – check TCP connectivity
 - [`preflight http`](#preflight-http) – HTTP health checks
@@ -321,6 +322,119 @@ readinessProbe:
 - **Not supported:** Array indexing (`items[0]`)
 - **Not supported:** JSONPath queries
 - **Not supported:** Data extraction/transformation
+
+---
+
+## `preflight prometheus`
+
+Queries a Prometheus server and validates metric values against thresholds. Useful for pre-deployment checks like "don't deploy if error rate is already high" or verifying service health via Prometheus metrics.
+
+```sh
+preflight prometheus <url> --query '<promql>' [flags]
+```
+
+### Flags
+
+| Flag                   | Description                         |
+| ---------------------- | ----------------------------------- |
+| `--query <promql>`     | PromQL query (required)             |
+| `--min <value>`        | Minimum value (fail if below)       |
+| `--max <value>`        | Maximum value (fail if above)       |
+| `--exact <value>`      | Exact value required                |
+| `--timeout <duration>` | Request timeout (default: 5s)       |
+| `--retry <n>`          | Retry count on failure              |
+| `--retry-delay <dur>`  | Delay between retries (default: 1s) |
+| `--insecure`           | Skip TLS certificate verification   |
+| `--header <key:value>` | Custom header (can be repeated)     |
+
+### Examples
+
+```sh
+# Check service is up
+preflight prometheus http://prometheus:9090 --query 'up{job="myapp"}' --exact 1
+
+# Check error rate is below threshold
+preflight prometheus http://prometheus:9090 --query 'error_rate' --max 0.05
+
+# Check request count is above minimum
+preflight prometheus http://prometheus:9090 --query 'request_count' --min 100
+
+# With authentication
+preflight prometheus http://prometheus:9090 --query 'up' --exact 1 \
+  --header "Authorization:Bearer token123"
+
+# With retry for flaky metrics
+preflight prometheus http://prometheus:9090 --query 'up{job="myapp"}' --exact 1 \
+  --retry 3 --retry-delay 5s
+```
+
+### Use Cases
+
+**Pre-deployment validation:**
+
+```sh
+# Don't deploy if error rate is already high
+preflight prometheus http://prometheus:9090 --query 'error_rate{service="api"}' --max 0.01
+kubectl apply -f deployment.yaml
+```
+
+**CI pipeline health gate:**
+
+```yaml
+# GitHub Actions
+- name: Check production health before deploy
+  run: |
+    preflight prometheus $PROMETHEUS_URL --query 'up{job="api"}' --exact 1
+    preflight prometheus $PROMETHEUS_URL --query 'error_rate{job="api"}' --max 0.05
+```
+
+**Kubernetes readiness check:**
+
+```yaml
+readinessProbe:
+  exec:
+    command:
+      - preflight
+      - prometheus
+      - http://prometheus:9090
+      - --query
+      - up{job="myapp"}
+      - --exact
+      - "1"
+```
+
+### Query Requirements
+
+The PromQL query must return exactly one result. If your query returns multiple time series, make it more specific:
+
+```sh
+# This fails if multiple jobs match
+preflight prometheus http://prom:9090 --query 'up' --exact 1
+# Error: query returned 5 results, expected 1
+
+# Use a more specific query
+preflight prometheus http://prom:9090 --query 'up{job="myapp",instance="localhost:8080"}' --exact 1
+```
+
+### Tools Replaced
+
+`preflight prometheus` replaces curl + jq patterns for querying Prometheus:
+
+**Before:**
+
+```bash
+result=$(curl -s "http://prometheus:9090/api/v1/query?query=up{job=\"myapp\"}" | jq -r '.data.result[0].value[1]')
+if [ "$result" != "1" ]; then
+    echo "Service is down"
+    exit 1
+fi
+```
+
+**After:**
+
+```sh
+preflight prometheus http://prometheus:9090 --query 'up{job="myapp"}' --exact 1
+```
 
 ---
 
