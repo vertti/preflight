@@ -36,12 +36,15 @@ func PrintResult(r check.Result) {
 	if r.OK() {
 		fmt.Printf("%s[OK]%s %s\n", green, reset, formatLabel(r.Name))
 		indent = "     " // align with content after "[OK] "
+		for _, d := range r.Details {
+			fmt.Printf("%s%s\n", indent, formatLabel(d))
+		}
 	} else {
 		fmt.Printf("%s[FAIL]%s %s\n", red, reset, formatLabel(r.Name))
 		indent = "       " // align with content after "[FAIL] "
-	}
-	for _, d := range r.Details {
-		fmt.Printf("%s%s\n", indent, formatLabel(d))
+		for _, d := range r.Details {
+			fmt.Printf("%s%s%s%s\n", indent, red, d, reset)
+		}
 	}
 }
 
