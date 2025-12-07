@@ -4,9 +4,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -91,8 +93,9 @@ func (c *Check) Run() check.Result {
 		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure}
 	}
 
-	// Build query URL
-	queryURL := fmt.Sprintf("%s/api/v1/query?query=%s", c.URL, url.QueryEscape(c.Query))
+	// Build query URL (trim trailing slash to avoid double slash)
+	baseURL := strings.TrimSuffix(c.URL, "/")
+	queryURL := fmt.Sprintf("%s/api/v1/query?query=%s", baseURL, url.QueryEscape(c.Query))
 
 	// Retry loop
 	maxAttempts := c.Retry + 1
@@ -123,18 +126,11 @@ func (c *Check) Run() check.Result {
 		}
 
 		// Read response body
-		bodyBytes := make([]byte, 0, 4096)
-		buf := make([]byte, 4096)
-		for {
-			n, err := resp.Body.Read(buf)
-			if n > 0 {
-				bodyBytes = append(bodyBytes, buf[:n]...)
-			}
-			if err != nil {
-				break
-			}
-		}
+		bodyBytes, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		if err != nil {
+			return result.Failf("failed to read response body: %v", err)
+		}
 		respBody := string(bodyBytes)
 
 		// Check HTTP status
