@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -62,7 +61,7 @@ func runPrometheusCheck(cmd *cobra.Command, args []string) error {
 	promMaxSet = cmd.Flags().Changed("max")
 	promExactSet = cmd.Flags().Changed("exact")
 
-	headers := parsePrometheusHeaders(promHeaders)
+	headers := parseHeaders(promHeaders)
 
 	c := &promcheck.Check{
 		URL:        url,
@@ -87,16 +86,4 @@ func runPrometheusCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	return runCheck(c)
-}
-
-// parsePrometheusHeaders converts ["key:value", ...] to map[string]string
-func parsePrometheusHeaders(headers []string) map[string]string {
-	result := make(map[string]string)
-	for _, h := range headers {
-		parts := strings.SplitN(h, ":", 2)
-		if len(parts) == 2 {
-			result[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-		}
-	}
-	return result
 }
