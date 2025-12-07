@@ -414,6 +414,115 @@ func TestPrometheusCheck(t *testing.T) {
 	}
 }
 
+func TestPrometheusCheck_AdditionalCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		check         Check
+		wantStatus    check.Status
+		wantDetailSub string
+	}{
+		{
+			name: "unsupported result type",
+			check: Check{
+				URL:   "http://prometheus:9090",
+				Query: "up",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, `{"status":"success","data":{"resultType":"matrix","result":[]}}`), nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "unsupported result type",
+		},
+		{
+			name: "non-numeric value",
+			check: Check{
+				URL:   "http://prometheus:9090",
+				Query: "up",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, `{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1702000000,"not-a-number"]}]}}`), nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "failed to parse metric value",
+		},
+		{
+			name: "prometheus status without error message",
+			check: Check{
+				URL:   "http://prometheus:9090",
+				Query: "up",
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, `{"status":"error"}`), nil
+					},
+				},
+			},
+			wantStatus:    check.StatusFail,
+			wantDetailSub: "prometheus returned status",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.check.Run()
+			if result.Status != tt.wantStatus {
+				t.Errorf("Status = %v, want %v (details: %v)", result.Status, tt.wantStatus, result.Details)
+			}
+			if tt.wantDetailSub != "" {
+				found := false
+				for _, d := range result.Details {
+					if strings.Contains(d, tt.wantDetailSub) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Details %v should contain %q", result.Details, tt.wantDetailSub)
+				}
+			}
+		})
+	}
+}
+
+func TestPrometheusCheckRetryFailure(t *testing.T) {
+	// Test retry exhaustion with "after N attempts" message
+	attempts := 0
+	c := Check{
+		URL:        "http://prometheus:9090",
+		Query:      "up",
+		Retry:      2,
+		RetryDelay: 1,
+		Client: &mockHTTPClient{
+			DoFunc: func(req *http.Request) (*http.Response, error) {
+				attempts++
+				return mockResponse(500, ""), nil
+			},
+		},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail", result.Status)
+	}
+	if attempts != 3 {
+		t.Errorf("attempts = %d, want 3", attempts)
+	}
+	found := false
+	for _, d := range result.Details {
+		if strings.Contains(d, "after 3 attempts") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Details %v should contain 'after 3 attempts'", result.Details)
+	}
+}
+
 func TestPrometheusCheckRetry(t *testing.T) {
 	attempts := 0
 	c := Check{
@@ -439,5 +548,140 @@ func TestPrometheusCheckRetry(t *testing.T) {
 	}
 	if attempts != 3 {
 		t.Errorf("attempts = %d, want 3", attempts)
+	}
+}
+
+func TestPrometheusCheckRetryConnectionFailure(t *testing.T) {
+	// Test connection failure with retry exhaustion
+	c := Check{
+		URL:        "http://prometheus:9090",
+		Query:      "up",
+		Retry:      1,
+		RetryDelay: 1,
+		Client: &mockHTTPClient{
+			DoFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, errors.New("connection refused")
+			},
+		},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail", result.Status)
+	}
+	found := false
+	for _, d := range result.Details {
+		if strings.Contains(d, "after 2 attempts") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Details %v should contain 'after 2 attempts'", result.Details)
+	}
+}
+
+func TestPrometheusCheckRetryEmptyResult(t *testing.T) {
+	// Test empty result with retry exhaustion
+	c := Check{
+		URL:        "http://prometheus:9090",
+		Query:      "nonexistent",
+		Retry:      1,
+		RetryDelay: 1,
+		Client: &mockHTTPClient{
+			DoFunc: func(req *http.Request) (*http.Response, error) {
+				return mockResponse(200, promEmptyResult), nil
+			},
+		},
+	}
+
+	result := c.Run()
+
+	if result.Status != check.StatusFail {
+		t.Errorf("Status = %v, want Fail", result.Status)
+	}
+	found := false
+	for _, d := range result.Details {
+		if strings.Contains(d, "after 2 attempts") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Details %v should contain 'after 2 attempts'", result.Details)
+	}
+}
+
+func TestPrometheusCheckRetryThresholdFailure(t *testing.T) {
+	tests := []struct {
+		name  string
+		check Check
+	}{
+		{
+			name: "exact mismatch retry",
+			check: Check{
+				URL:        "http://prometheus:9090",
+				Query:      "up",
+				Exact:      ptr(0),
+				Retry:      1,
+				RetryDelay: 1,
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, promSuccessVector), nil // value is 1, not 0
+					},
+				},
+			},
+		},
+		{
+			name: "min threshold retry",
+			check: Check{
+				URL:        "http://prometheus:9090",
+				Query:      "up",
+				Min:        ptr(10),
+				Retry:      1,
+				RetryDelay: 1,
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, promSuccessVector), nil // value is 1, < 10
+					},
+				},
+			},
+		},
+		{
+			name: "max threshold retry",
+			check: Check{
+				URL:        "http://prometheus:9090",
+				Query:      "up",
+				Max:        ptr(0.5),
+				Retry:      1,
+				RetryDelay: 1,
+				Client: &mockHTTPClient{
+					DoFunc: func(req *http.Request) (*http.Response, error) {
+						return mockResponse(200, promSuccessVector), nil // value is 1, > 0.5
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.check.Run()
+
+			if result.Status != check.StatusFail {
+				t.Errorf("Status = %v, want Fail", result.Status)
+			}
+			found := false
+			for _, d := range result.Details {
+				if strings.Contains(d, "after 2 attempts") {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Details %v should contain 'after 2 attempts'", result.Details)
+			}
+		})
 	}
 }
