@@ -7,6 +7,8 @@
 
 Stop copying brittle shell scripts and installing a variety of tools for container validation. Preflight is a small, dependency-free binary that handles service readiness, health checks, environment validation, file verification, and more.
 
+![demo](demo/demo.gif)
+
 ```dockerfile
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
