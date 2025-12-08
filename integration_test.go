@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -525,5 +527,73 @@ func TestIntegration_Resource(t *testing.T) {
 
 	if result.Status != check.StatusOK {
 		t.Errorf("Status = %v, want OK (details: %v)", result.Status, result.Details)
+	}
+}
+
+func TestIntegration_Examples(t *testing.T) {
+	// Verify example files exist and contain expected preflight commands
+	// This catches CLI drift where docs/examples get out of sync with the tool
+
+	examples := []struct {
+		path             string
+		expectedContains []string
+	}{
+		{
+			path: "examples/multistage-dockerfile/Dockerfile",
+			expectedContains: []string{
+				"preflight cmd",
+				"preflight file",
+				"ghcr.io/vertti/preflight",
+			},
+		},
+		{
+			path: "examples/runtime-checks-with-entrypoint/Dockerfile",
+			expectedContains: []string{
+				"ghcr.io/vertti/preflight",
+				"entrypoint.sh",
+			},
+		},
+		{
+			path: "examples/runtime-checks-with-entrypoint/entrypoint.sh",
+			expectedContains: []string{
+				"#!/bin/sh",
+				"set -e",
+				"preflight tcp",
+				"preflight env",
+				"preflight file",
+				"exec \"$@\"",
+			},
+		},
+	}
+
+	for _, ex := range examples {
+		t.Run(ex.path, func(t *testing.T) {
+			content, err := os.ReadFile(ex.path)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", ex.path, err)
+			}
+
+			for _, expected := range ex.expectedContains {
+				if !strings.Contains(string(content), expected) {
+					t.Errorf("%s: expected to contain %q", ex.path, expected)
+				}
+			}
+		})
+	}
+}
+
+func TestIntegration_ExamplesShellSyntax(t *testing.T) {
+	// Verify shell scripts have valid syntax
+	shellScripts := []string{
+		"examples/runtime-checks-with-entrypoint/entrypoint.sh",
+	}
+
+	for _, script := range shellScripts {
+		t.Run(script, func(t *testing.T) {
+			cmd := exec.Command("sh", "-n", script)
+			if err := cmd.Run(); err != nil {
+				t.Errorf("shell syntax error in %s: %v", script, err)
+			}
+		})
 	}
 }
