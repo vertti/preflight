@@ -1265,6 +1265,8 @@ CMD ["myapp"]
 
 The container waits for dependencies and validates its environment before starting the main process.
 
+See [examples/runtime-checks-with-entrypoint](../examples/runtime-checks-with-entrypoint) for a complete example.
+
 ### Multi-stage Build (Zero Bloat)
 
 Use a dedicated validation stage that runs checks during build but doesn't ship preflight:
@@ -1290,6 +1292,8 @@ CMD ["myapp"]
 ```
 
 The validate stage runs during build—if any check fails, the build fails. But the final image only contains your app.
+
+See [examples/multistage-dockerfile](../examples/multistage-dockerfile) for a complete example.
 
 ---
 
