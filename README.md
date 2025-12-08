@@ -55,6 +55,8 @@ Exit code `0` on success, `1` on failure. Works with `set -e`, Docker `RUN`, and
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 ```
 
+> Want to keep your final image lean? See [Keeping Containers Clean](docs/usage.md#keeping-containers-clean) for multi-stage builds and external validation.
+
 **Shell**:
 
 ```sh

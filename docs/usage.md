@@ -29,6 +29,7 @@ This is especially useful for complex multi-stage builds where it's easy to make
 **Reference**
 
 - [CI & Container Verification](#ci--container-verification)
+- [Keeping Containers Clean](#keeping-containers-clean)
 - [Output Format](#output-format)
 - [Exit Codes](#exit-codes)
 - [Colored Output](#colored-output)
@@ -1219,6 +1220,76 @@ docker run myapp:latest sh -c '
   run: |
     docker run myapp:${{ github.sha }} preflight env APP_VERSION --exact "${{ github.sha }}"
 ```
+
+---
+
+## Keeping Containers Clean
+
+The examples above copy preflight into your final image, which adds ~6MB. Here are two patterns to keep your production images lean.
+
+### External Validation
+
+Keep preflight in the image but run checks externally via `docker run`:
+
+```sh
+# Run a single check
+docker run myapp:latest preflight cmd myapp --min 2.0
+
+# Or use a .preflight file for multiple checks
+docker run myapp:latest preflight run
+```
+
+This works well in CI pipelines where you build, validate, then push only if checks pass.
+
+### Runtime Checks with Entrypoint Script
+
+Run preflight checks at container startup before your app starts:
+
+```sh
+#!/bin/sh
+# entrypoint.sh
+set -e
+
+preflight tcp postgres:5432 --timeout 30s
+preflight env DATABASE_URL
+preflight file /app/config.yaml --not-empty
+
+exec "$@"
+```
+
+```dockerfile
+COPY entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["myapp"]
+```
+
+The container waits for dependencies and validates its environment before starting the main process.
+
+### Multi-stage Build (Zero Bloat)
+
+Use a dedicated validation stage that runs checks during build but doesn't ship preflight:
+
+```dockerfile
+# Stage 1: Build
+FROM golang:1.21 AS build
+WORKDIR /app
+COPY . .
+RUN go build -o myapp
+
+# Stage 2: Validate (runs checks, not included in final image)
+FROM alpine:3.19 AS validate
+COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
+COPY --from=build /app/myapp /usr/local/bin/myapp
+RUN preflight cmd myapp --min 2.0
+RUN preflight file /usr/local/bin/myapp --executable
+
+# Stage 3: Final (clean, no preflight)
+FROM alpine:3.19
+COPY --from=build /app/myapp /usr/local/bin/myapp
+CMD ["myapp"]
+```
+
+The validate stage runs during build—if any check fails, the build fails. But the final image only contains your app.
 
 ---
 
