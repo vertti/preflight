@@ -1285,9 +1285,8 @@ COPY --from=build /app/myapp /usr/local/bin/myapp
 RUN preflight cmd myapp --min 2.0
 RUN preflight file /usr/local/bin/myapp --executable
 
-# Stage 3: Final (clean, no preflight)
-FROM alpine:3.19
-COPY --from=build /app/myapp /usr/local/bin/myapp
+# Stage 3: Final (continues from build, no preflight)
+FROM build AS final
 CMD ["myapp"]
 ```
 
