@@ -51,14 +51,36 @@ main() {
         BINARY="${BINARY}.exe"
     fi
 
-    URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY}"
+    BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+    URL="${BASE_URL}/${BINARY}"
+    CHECKSUM_URL="${BASE_URL}/checksums.txt"
 
     echo "Installing preflight ${VERSION} (${OS}/${ARCH})..."
-    echo "Downloading from: ${URL}"
 
-    # Download binary
-    TMP_FILE=$(mktemp)
+    # Create temp directory for downloads
+    TMP_DIR=$(mktemp -d)
+    TMP_FILE="${TMP_DIR}/${BINARY}"
+    TMP_CHECKSUMS="${TMP_DIR}/checksums.txt"
+
+    # Download checksums and binary
+    echo "Downloading checksums..."
+    curl -fsSL "$CHECKSUM_URL" -o "$TMP_CHECKSUMS"
+
+    echo "Downloading binary..."
     curl -fsSL "$URL" -o "$TMP_FILE"
+
+    # Verify checksum
+    echo "Verifying checksum..."
+    cd "$TMP_DIR"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -c checksums.txt --ignore-missing
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 -c checksums.txt --ignore-missing
+    else
+        echo "Warning: Could not verify checksum (sha256sum/shasum not found)"
+    fi
+    cd - >/dev/null
+
     chmod +x "$TMP_FILE"
 
     # Install
@@ -68,6 +90,9 @@ main() {
         echo "Installing to ${INSTALL_DIR} (requires sudo)..."
         sudo mv "$TMP_FILE" "${INSTALL_DIR}/preflight"
     fi
+
+    # Cleanup
+    rm -rf "$TMP_DIR"
 
     echo "Successfully installed preflight to ${INSTALL_DIR}/preflight"
     echo ""
