@@ -21,6 +21,7 @@ linters:
     - bodyclose      # HTTP response body must be closed
     - forcetypeassert # type assertions must be checked
     - gosec          # security issues (command injection, hardcoded creds, weak crypto)
+    - nilnesserr     # checks err != nil but returns different nil error
     # Code quality
     - predeclared    # shadowing of predeclared identifiers
     - dupword        # duplicate words in comments
