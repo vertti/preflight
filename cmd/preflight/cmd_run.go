@@ -57,7 +57,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 			parts[0] = executable
 		}
 
-		execCmd := exec.Command(parts[0], parts[1:]...)
+		execCmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec // intentional: executing commands from .preflight file
 		execCmd.Stdout = os.Stdout
 		execCmd.Stderr = os.Stderr
 		execCmd.Stdin = os.Stdin

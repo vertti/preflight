@@ -31,10 +31,10 @@ func (r *RealFileSystem) Readlink(name string) (string, error) {
 // ReadFile reads up to limit bytes. If limit <= 0, reads entire file.
 func (r *RealFileSystem) ReadFile(name string, limit int64) ([]byte, error) {
 	if limit <= 0 {
-		return os.ReadFile(name)
+		return os.ReadFile(name) //nolint:gosec // intentional: file path from user config
 	}
 
-	f, err := os.Open(name)
+	f, err := os.Open(name) //nolint:gosec // intentional: file path from user config
 	if err != nil {
 		return nil, err
 	}

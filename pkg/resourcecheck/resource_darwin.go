@@ -8,6 +8,8 @@ import (
 )
 
 // getSystemMemory returns total system memory on macOS.
+//
+//nolint:gosec // G103: unsafe is required for syscall interface
 func getSystemMemory() (uint64, error) {
 	mib := []int32{6, 24} // CTL_HW, HW_MEMSIZE
 	var size uint64

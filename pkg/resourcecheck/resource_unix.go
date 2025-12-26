@@ -38,7 +38,7 @@ func (r *RealResourceChecker) AvailableMemory() (uint64, error) {
 
 // readCgroupMemoryLimit reads memory limit from a cgroup file.
 func readCgroupMemoryLimit(path string) (uint64, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // intentional: reading cgroup files
 	if err != nil {
 		return 0, err
 	}

@@ -53,7 +53,7 @@ func FindFile(startDir, explicitPath string) (string, error) {
 }
 
 func ParseFile(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // intentional: reading .preflight file
 	if err != nil {
 		return nil, fmt.Errorf("failed to read preflight file: %w", err)
 	}

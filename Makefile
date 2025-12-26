@@ -1,4 +1,4 @@
-.PHONY: all build test test-coverage lint fmt fmt-md check-md clean install-hooks
+.PHONY: all build test test-coverage lint fmt fmt-md check-md clean install-hooks security
 
 # Build the preflight binary
 build:
@@ -35,6 +35,10 @@ all: lint test build
 # Install pre-commit hooks
 install-hooks:
 	hk install --mise
+
+# Run security checks
+security:
+	govulncheck ./...
 
 # Clean build artifacts
 clean:

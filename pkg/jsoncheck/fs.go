@@ -12,5 +12,5 @@ type RealFileSystem struct{}
 
 // ReadFile reads the entire file contents.
 func (r *RealFileSystem) ReadFile(name string) ([]byte, error) {
-	return os.ReadFile(name)
+	return os.ReadFile(name) //nolint:gosec // intentional: file path from user config
 }
