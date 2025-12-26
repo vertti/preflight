@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/vertti/preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/vertti/preflight/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/vertti/preflight/graph/badge.svg)](https://codecov.io/gh/vertti/preflight)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vertti/preflight)](https://goreportcard.com/report/github.com/vertti/preflight)
+[![Security: gosec](https://img.shields.io/badge/security-gosec-blue)](https://github.com/securego/gosec)
+[![Security: govulncheck](https://img.shields.io/badge/security-govulncheck-blue)](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck)
 
 > A swiss army knife for CI and container checks. Single binary, zero dependencies.
 
@@ -146,6 +149,16 @@ preflight run --file /path/to/.preflight  # specify file explicitly
 [File format, discovery, and hashbang support](docs/usage.md#preflight-run)
 
 [Full usage guide](docs/usage.md)
+
+## Security
+
+Preflight is designed to replace shell scripts in security-sensitive environments like CI pipelines and container builds. We take code quality seriously:
+
+- **[gosec](https://github.com/securego/gosec)** - Static analysis for security vulnerabilities
+- **[govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck)** - Dependency vulnerability scanning
+- **20+ linters** via [golangci-lint](https://golangci-lint.run/) including nil-safety and error handling checks
+
+All security checks run in CI on every commit.
 
 ## License
 
