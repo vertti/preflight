@@ -78,6 +78,18 @@ jobs:
             dist/preflight-windows-amd64.exe
           ls -lh dist/
 
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v3
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
   container-test:
     name: Container Test
     runs-on: ubuntu-latest
