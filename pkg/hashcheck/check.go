@@ -28,7 +28,7 @@ type HashFileOpener interface {
 type RealHashFileOpener struct{}
 
 func (r *RealHashFileOpener) Open(name string) (io.ReadCloser, error) {
-	return os.Open(name)
+	return os.Open(name) //nolint:gosec // intentional: file path from user config
 }
 
 // HashAlgorithm represents supported hash algorithms.

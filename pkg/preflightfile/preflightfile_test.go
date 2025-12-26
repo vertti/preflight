@@ -10,7 +10,7 @@ import (
 func TestFindFile_ExplicitPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	preflightPath := filepath.Join(tmpDir, ".preflight")
-	if err := os.WriteFile(preflightPath, []byte("test"), 0o644); err != nil {
+	if err := os.WriteFile(preflightPath, []byte("test"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -33,12 +33,12 @@ func TestFindFile_TraverseUp(t *testing.T) {
 
 	subdir1 := filepath.Join(tmpDir, "subdir1")
 	subdir2 := filepath.Join(subdir1, "subdir2")
-	if err := os.MkdirAll(subdir2, 0o755); err != nil {
+	if err := os.MkdirAll(subdir2, 0o700); err != nil {
 		t.Fatalf("failed to create directories: %v", err)
 	}
 
 	preflightPath := filepath.Join(tmpDir, ".preflight")
-	if err := os.WriteFile(preflightPath, []byte("test"), 0o644); err != nil {
+	if err := os.WriteFile(preflightPath, []byte("test"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -56,17 +56,17 @@ func TestFindFile_StopAtGit(t *testing.T) {
 
 	projectDir := filepath.Join(tmpDir, "project")
 	gitDir := filepath.Join(projectDir, ".git")
-	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+	if err := os.MkdirAll(gitDir, 0o700); err != nil {
 		t.Fatalf("failed to create directories: %v", err)
 	}
 
 	preflightPath := filepath.Join(tmpDir, ".preflight")
-	if err := os.WriteFile(preflightPath, []byte("test"), 0o644); err != nil {
+	if err := os.WriteFile(preflightPath, []byte("test"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	projectPreflight := filepath.Join(projectDir, ".preflight")
-	if err := os.WriteFile(projectPreflight, []byte("test"), 0o644); err != nil {
+	if err := os.WriteFile(projectPreflight, []byte("test"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestFindFile_StopAtHome(t *testing.T) {
 	}
 
 	testDir := filepath.Join(homeDir, "test_preflight")
-	if err := os.MkdirAll(testDir, 0o755); err != nil {
+	if err := os.MkdirAll(testDir, 0o700); err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 	defer func() {
@@ -174,7 +174,7 @@ cmd myapp`,
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			preflightPath := filepath.Join(tmpDir, ".preflight")
-			if err := os.WriteFile(preflightPath, []byte(tt.content), 0o644); err != nil {
+			if err := os.WriteFile(preflightPath, []byte(tt.content), 0o600); err != nil {
 				t.Fatalf("failed to create test file: %v", err)
 			}
 

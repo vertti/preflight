@@ -60,7 +60,7 @@ type RealFileReader struct{}
 
 // ReadFile reads a file from the filesystem.
 func (r *RealFileReader) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
+	return os.ReadFile(path) //nolint:gosec // intentional: reading TLS cert files from user config
 }
 
 // Check verifies HTTP endpoint health.

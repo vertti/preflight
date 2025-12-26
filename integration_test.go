@@ -590,7 +590,7 @@ func TestIntegration_ExamplesShellSyntax(t *testing.T) {
 
 	for _, script := range shellScripts {
 		t.Run(script, func(t *testing.T) {
-			cmd := exec.Command("sh", "-n", script)
+			cmd := exec.Command("sh", "-n", script) //nolint:gosec // intentional: validating shell syntax of example scripts
 			if err := cmd.Run(); err != nil {
 				t.Errorf("shell syntax error in %s: %v", script, err)
 			}
