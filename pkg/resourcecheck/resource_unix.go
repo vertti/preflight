@@ -16,7 +16,7 @@ func (r *RealResourceChecker) FreeDiskSpace(path string) (uint64, error) {
 		return 0, err
 	}
 	// Available blocks * block size
-	return stat.Bavail * uint64(stat.Bsize), nil
+	return stat.Bavail * uint64(stat.Bsize), nil // #nosec G115 -- block size is always positive
 }
 
 // AvailableMemory returns available memory in bytes.
