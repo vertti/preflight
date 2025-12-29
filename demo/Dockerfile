@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:24-slim@sha256:04d9cbb7297edb843581b9bb9bbed6d7efb459447d5b6ade8d8ef988e6737804
 
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
