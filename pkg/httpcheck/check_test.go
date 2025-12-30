@@ -1,9 +1,13 @@
 package httpcheck
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -710,6 +714,122 @@ func TestRealHTTPClient(t *testing.T) {
 			t.Error("FollowRedirects should be true")
 		}
 	})
+
+	t.Run("basic request", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
+		}))
+		defer ts.Close()
+
+		client := &RealHTTPClient{
+			Timeout: 5 * time.Second,
+		}
+
+		req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
+		if err != nil {
+			t.Fatalf("NewRequest failed: %v", err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Do failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 200 {
+			t.Errorf("StatusCode = %d, want 200", resp.StatusCode)
+		}
+	})
+
+	t.Run("insecure TLS", func(t *testing.T) {
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		client := &RealHTTPClient{
+			Timeout:  5 * time.Second,
+			Insecure: true,
+		}
+
+		req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
+		if err != nil {
+			t.Fatalf("NewRequest failed: %v", err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Do with insecure failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 200 {
+			t.Errorf("StatusCode = %d, want 200", resp.StatusCode)
+		}
+	})
+
+	t.Run("redirects disabled", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/redirect" {
+				http.Redirect(w, r, "/target", http.StatusFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		client := &RealHTTPClient{
+			Timeout:         5 * time.Second,
+			FollowRedirects: false,
+		}
+
+		req, err := http.NewRequest(http.MethodGet, ts.URL+"/redirect", http.NoBody)
+		if err != nil {
+			t.Fatalf("NewRequest failed: %v", err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Do failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 302 {
+			t.Errorf("StatusCode = %d, want 302", resp.StatusCode)
+		}
+	})
+
+	t.Run("redirects enabled", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/redirect" {
+				http.Redirect(w, r, "/target", http.StatusFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		client := &RealHTTPClient{
+			Timeout:         5 * time.Second,
+			FollowRedirects: true,
+		}
+
+		req, err := http.NewRequest(http.MethodGet, ts.URL+"/redirect", http.NoBody)
+		if err != nil {
+			t.Fatalf("NewRequest failed: %v", err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Do with follow failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 200 {
+			t.Errorf("StatusCode = %d, want 200", resp.StatusCode)
+		}
+	})
 }
 
 func TestHTTPCheckContainsRetry(t *testing.T) {
@@ -878,4 +998,21 @@ func TestHTTPCheckJSONPathRetry(t *testing.T) {
 			t.Errorf("Details should mention 2 attempts: %v", result.Details)
 		}
 	})
+}
+
+func TestRealFileReader(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "testfile")
+	content := []byte("test content")
+	if err := os.WriteFile(tmpFile, content, 0o600); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	reader := &RealFileReader{}
+	data, err := reader.ReadFile(tmpFile)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if !bytes.Equal(data, content) {
+		t.Errorf("content = %q, want %q", string(data), string(content))
+	}
 }
