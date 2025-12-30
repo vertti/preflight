@@ -945,3 +945,140 @@ func TestParseOctalMode(t *testing.T) {
 		})
 	}
 }
+
+func TestRealFileSystem(t *testing.T) {
+	rfs := &RealFileSystem{}
+
+	t.Run("Stat", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "test-stat-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+		_ = tmpFile.Close()
+
+		info, err := rfs.Stat(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Stat() error = %v", err)
+		}
+		if info == nil {
+			t.Error("Stat() returned nil info")
+		}
+	})
+
+	t.Run("Stat nonexistent", func(t *testing.T) {
+		_, err := rfs.Stat("/nonexistent/file/path")
+		if err == nil {
+			t.Error("Stat() on nonexistent file should return error")
+		}
+	})
+
+	t.Run("Lstat", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		target := tmpDir + "/target"
+		link := tmpDir + "/link"
+
+		if err := os.WriteFile(target, []byte("content"), 0o600); err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatalf("failed to create symlink: %v", err)
+		}
+
+		info, err := rfs.Lstat(link)
+		if err != nil {
+			t.Fatalf("Lstat() error = %v", err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			t.Error("Lstat() should return symlink mode for symlink")
+		}
+	})
+
+	t.Run("Readlink", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		target := tmpDir + "/target"
+		link := tmpDir + "/link"
+
+		if err := os.WriteFile(target, []byte("content"), 0o600); err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatalf("failed to create symlink: %v", err)
+		}
+
+		dest, err := rfs.Readlink(link)
+		if err != nil {
+			t.Fatalf("Readlink() error = %v", err)
+		}
+		if dest != target {
+			t.Errorf("Readlink() = %q, want %q", dest, target)
+		}
+	})
+
+	t.Run("ReadFile full", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := tmpDir + "/testfile"
+		content := []byte("test content here")
+
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatalf("failed to create file: %v", err)
+		}
+
+		data, err := rfs.ReadFile(path, 0)
+		if err != nil {
+			t.Fatalf("ReadFile() error = %v", err)
+		}
+		if !slices.Equal(data, content) {
+			t.Errorf("ReadFile() = %q, want %q", data, content)
+		}
+	})
+
+	t.Run("ReadFile limited", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := tmpDir + "/testfile"
+		content := []byte("test content here that is longer")
+
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatalf("failed to create file: %v", err)
+		}
+
+		data, err := rfs.ReadFile(path, 10)
+		if err != nil {
+			t.Fatalf("ReadFile() error = %v", err)
+		}
+		if len(data) != 10 {
+			t.Errorf("ReadFile() returned %d bytes, want 10", len(data))
+		}
+	})
+
+	t.Run("ReadFile nonexistent", func(t *testing.T) {
+		_, err := rfs.ReadFile("/nonexistent/file", 0)
+		if err == nil {
+			t.Error("ReadFile() on nonexistent file should return error")
+		}
+	})
+
+	t.Run("ReadFile limited nonexistent", func(t *testing.T) {
+		_, err := rfs.ReadFile("/nonexistent/file", 10)
+		if err == nil {
+			t.Error("ReadFile() on nonexistent file should return error")
+		}
+	})
+
+	t.Run("GetOwner", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "test-owner-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+		_ = tmpFile.Close()
+
+		uid, gid, err := rfs.GetOwner(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("GetOwner() error = %v", err)
+		}
+		// Just verify we got some values (current user's uid/gid)
+		_ = uid
+		_ = gid
+	})
+}
