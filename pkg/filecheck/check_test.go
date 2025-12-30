@@ -844,6 +844,62 @@ func TestCheck_Run(t *testing.T) {
 			},
 			wantStatus: check.StatusOK,
 		},
+
+		// Additional error path tests
+		{
+			name: "generic stat error",
+			check: Check{
+				Path: "/broken",
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return nil, errors.New("I/O error")
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "stat failed: I/O error",
+		},
+		{
+			name: "GetOwner returns error",
+			check: Check{
+				Path:  "/data",
+				Owner: 1000,
+				FS: &mockFileSystem{
+					StatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "data",
+							ModeValue: 0o644,
+						}, nil
+					},
+					GetOwnerFunc: func(name string) (uid, gid uint32, err error) {
+						return 0, 0, errors.New("unable to get owner")
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "failed to get owner: unable to get owner",
+		},
+		{
+			name: "Readlink returns error",
+			check: Check{
+				Path:          "/usr/bin/python",
+				ExpectSymlink: true,
+				SymlinkTarget: "/usr/bin/python3",
+				FS: &mockFileSystem{
+					LstatFunc: func(name string) (fs.FileInfo, error) {
+						return &mockFileInfo{
+							NameValue: "python",
+							ModeValue: fs.ModeSymlink | 0o777,
+						}, nil
+					},
+					ReadlinkFunc: func(name string) (string, error) {
+						return "", errors.New("readlink failed")
+					},
+				},
+			},
+			wantStatus: check.StatusFail,
+			wantDetail: "failed to read symlink target: readlink failed",
+		},
 	}
 
 	for _, tt := range tests {
