@@ -178,3 +178,17 @@ func TestSysCheckResultName(t *testing.T) {
 		})
 	}
 }
+
+func TestRealSysInfo(t *testing.T) {
+	info := &RealSysInfo{}
+
+	os := info.OS()
+	if os == "" {
+		t.Error("OS() returned empty string")
+	}
+
+	arch := info.Arch()
+	if arch == "" {
+		t.Error("Arch() returned empty string")
+	}
+}
