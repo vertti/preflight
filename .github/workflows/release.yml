@@ -17,6 +17,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3
+        with:
+          cache: false
 
       - name: Install UPX
         run: |
