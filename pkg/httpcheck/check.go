@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/jsonpath"
 )
 
 // HTTPClient abstracts HTTP requests for testability.
@@ -212,7 +211,7 @@ func (c *Check) Run() check.Result {
 		// Check --json-path
 		if c.JSONPath != "" {
 			path, expectedValue, hasExpectedValue := parseJSONPath(c.JSONPath)
-			jsonResult := gjson.Get(respBody, path)
+			jsonResult := jsonpath.Get(respBody, path)
 			if !jsonResult.Exists() {
 				lastErr = fmt.Errorf("JSON path %q not found", path)
 				if attempt < maxAttempts {

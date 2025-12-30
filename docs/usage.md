@@ -1371,10 +1371,20 @@ Preflight outputs colored status indicators:
 
 ### Where Colors Work Automatically
 
-- **Terminals** - colors are detected automatically
-- **GitHub Actions** - colors are enabled automatically
-- **GitLab CI** - colors are enabled automatically
-- **Other CI systems** - most are detected automatically
+- **Terminals** - colors are detected automatically via TTY detection
+- **CI systems** - colors are enabled automatically for:
+  - GitHub Actions
+  - GitLab CI
+  - CircleCI
+  - Travis CI
+  - Jenkins (with AnsiColor plugin)
+  - Azure Pipelines
+  - Buildkite
+  - TeamCity
+  - Drone CI
+  - Bitbucket Pipelines
+  - AWS CodeBuild
+  - Woodpecker CI
 
 ### Docker Builds
 
@@ -1392,10 +1402,12 @@ RUN preflight file /app/config.yaml
 
 ### Environment Variables
 
-| Variable            | Description                       |
-| ------------------- | --------------------------------- |
-| `PREFLIGHT_COLOR=1` | Enable colors (for Docker builds) |
-| `NO_COLOR=1`        | Disable colors                    |
+| Variable            | Description                            |
+| ------------------- | -------------------------------------- |
+| `PREFLIGHT_COLOR=1` | Force colors on (for Docker builds)    |
+| `PREFLIGHT_COLOR=0` | Force colors off                       |
+| `CLICOLOR_FORCE=1`  | Force colors on (standard env var)     |
+| `NO_COLOR=1`        | Disable colors (https://no-color.org/) |
 
 ### Examples
 

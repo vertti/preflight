@@ -3,9 +3,8 @@ package jsoncheck
 import (
 	"encoding/json"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/jsonpath"
 )
 
 // Check verifies that a JSON file is valid and optionally checks key/value assertions.
@@ -32,7 +31,7 @@ func (c *Check) Run() check.Result {
 
 	// Validate JSON syntax using encoding/json for detailed errors
 	jsonStr := string(content)
-	if !gjson.Valid(jsonStr) {
+	if !jsonpath.Valid(jsonStr) {
 		// Use encoding/json to get detailed parse error
 		var v any
 		if err := json.Unmarshal(content, &v); err != nil {
@@ -46,7 +45,7 @@ func (c *Check) Run() check.Result {
 
 	// --has-key: check key exists
 	if c.HasKey != "" {
-		if !gjson.Get(jsonStr, c.HasKey).Exists() {
+		if !jsonpath.Get(jsonStr, c.HasKey).Exists() {
 			return result.Failf("key %q not found", c.HasKey)
 		}
 		result.AddDetailf("has key: %s", c.HasKey)
@@ -54,14 +53,14 @@ func (c *Check) Run() check.Result {
 
 	// --key: check value
 	if c.Key != "" {
-		jsonResult := gjson.Get(jsonStr, c.Key)
+		jsonResult := jsonpath.Get(jsonStr, c.Key)
 		if !jsonResult.Exists() {
 			return result.Failf("key %q not found", c.Key)
 		}
 
 		// Use String() for most values, but handle null specially
 		valueStr := jsonResult.String()
-		if jsonResult.Type == gjson.Null {
+		if jsonResult.IsNull() {
 			valueStr = "null"
 		}
 

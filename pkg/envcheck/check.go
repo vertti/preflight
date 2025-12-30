@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/jsonpath"
 )
 
 // Check verifies that an environment variable meets requirements.
@@ -132,7 +131,7 @@ func (c *Check) Run() check.Result {
 
 	// --is-json: value must be valid JSON
 	if c.IsJSON {
-		if !gjson.Valid(value) {
+		if !jsonpath.Valid(value) {
 			return result.Failf("%q is not valid JSON", c.formatValue(value))
 		}
 	}
