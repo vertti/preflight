@@ -3,6 +3,7 @@ package gitcheck
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -75,6 +76,65 @@ func TestRealGitRunner_IsGitRepo_NotRepo(t *testing.T) {
 	if isRepo {
 		t.Error("IsGitRepo() = true in non-git directory")
 	}
+}
+
+func TestRealGitRunner_TagsAtHead_WithTag(t *testing.T) {
+	// Create a temp git repo with a tag to test TagsAtHead returning tags
+	tmpDir, err := os.MkdirTemp("", "preflight-git-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// Initialize git repo
+	if err := runGitCommand("init"); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	// Configure git user for commit
+	if err := runGitCommand("config", "user.email", "test@test.com"); err != nil {
+		t.Fatalf("git config email failed: %v", err)
+	}
+	if err := runGitCommand("config", "user.name", "Test"); err != nil {
+		t.Fatalf("git config name failed: %v", err)
+	}
+
+	// Create a file and commit
+	if err := os.WriteFile("test.txt", []byte("test"), 0o600); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	if err := runGitCommand("add", "test.txt"); err != nil {
+		t.Fatalf("git add failed: %v", err)
+	}
+	if err := runGitCommand("commit", "-m", "initial"); err != nil {
+		t.Fatalf("git commit failed: %v", err)
+	}
+
+	// Create a tag
+	if err := runGitCommand("tag", "v1.0.0"); err != nil {
+		t.Fatalf("git tag failed: %v", err)
+	}
+
+	runner := &RealGitRunner{}
+	tags, err := runner.TagsAtHead()
+	if err != nil {
+		t.Fatalf("TagsAtHead() error = %v", err)
+	}
+	if len(tags) != 1 || tags[0] != "v1.0.0" {
+		t.Errorf("TagsAtHead() = %v, want [v1.0.0]", tags)
+	}
+}
+
+func runGitCommand(args ...string) error {
+	cmd := exec.Command("git", args...)
+	return cmd.Run()
 }
 
 type mockGitRunner struct {

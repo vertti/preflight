@@ -7,11 +7,23 @@ func TestVersion_Compare(t *testing.T) {
 		a, b Version
 		want int
 	}{
+		// Equal versions
 		{Version{1, 0, 0}, Version{1, 0, 0}, 0},
+		{Version{1, 2, 3}, Version{1, 2, 3}, 0},
+
+		// Major version differences
 		{Version{1, 0, 0}, Version{2, 0, 0}, -1},
 		{Version{2, 0, 0}, Version{1, 0, 0}, 1},
+
+		// Minor version differences (same major)
 		{Version{1, 1, 0}, Version{1, 0, 0}, 1},
+		{Version{1, 0, 0}, Version{1, 1, 0}, -1},
+
+		// Patch version differences (same major and minor)
 		{Version{1, 0, 1}, Version{1, 0, 0}, 1},
+		{Version{1, 0, 0}, Version{1, 0, 1}, -1},
+
+		// Real-world examples
 		{Version{18, 17, 0}, Version{18, 0, 0}, 1},
 		{Version{18, 17, 0}, Version{22, 0, 0}, -1},
 	}

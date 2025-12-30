@@ -74,6 +74,78 @@ func TestReadCgroupMemoryLimit(t *testing.T) {
 	if err == nil {
 		t.Error("readCgroupMemoryLimit(nonexistent) error = nil, expected error")
 	}
+
+	// Test with valid numeric value
+	t.Run("numeric value", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "memory_limit")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+		if _, err := tmpFile.WriteString("8589934592"); err != nil {
+			t.Fatalf("failed to write to temp file: %v", err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			t.Fatalf("failed to close temp file: %v", err)
+		}
+
+		mem, err := readCgroupMemoryLimit(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("readCgroupMemoryLimit() error = %v", err)
+		}
+		if mem != 8589934592 {
+			t.Errorf("readCgroupMemoryLimit() = %d, want 8589934592", mem)
+		}
+	})
+
+	// Test with "max" value (cgroup v2 unlimited)
+	t.Run("max value", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "memory_max")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+		if _, err := tmpFile.WriteString("max"); err != nil {
+			t.Fatalf("failed to write to temp file: %v", err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			t.Fatalf("failed to close temp file: %v", err)
+		}
+
+		mem, err := readCgroupMemoryLimit(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("readCgroupMemoryLimit() error = %v", err)
+		}
+		if mem != 0 {
+			t.Errorf("readCgroupMemoryLimit() = %d, want 0 for 'max'", mem)
+		}
+	})
+
+	// Test with value containing whitespace/newline
+	t.Run("value with newline", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "memory_limit")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+		if _, err := tmpFile.WriteString("4294967296\n"); err != nil {
+			t.Fatalf("failed to write to temp file: %v", err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			t.Fatalf("failed to close temp file: %v", err)
+		}
+
+		mem, err := readCgroupMemoryLimit(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("readCgroupMemoryLimit() error = %v", err)
+		}
+		if mem != 4294967296 {
+			t.Errorf("readCgroupMemoryLimit() = %d, want 4294967296", mem)
+		}
+	})
 }
 
 // Mock implementation for unit testing Check
