@@ -196,3 +196,20 @@ func TestParseFile_Nonexistent(t *testing.T) {
 		t.Error("expected error for non-existent file")
 	}
 }
+
+func TestFindFile_ReachFilesystemRoot(t *testing.T) {
+	// Create a deep temp directory structure outside home dir
+	// TempDir is typically in /tmp or similar, outside home
+	tmpDir := t.TempDir()
+	deepPath := filepath.Join(tmpDir, "a", "b", "c", "d")
+	if err := os.MkdirAll(deepPath, 0o700); err != nil {
+		t.Fatalf("failed to create directories: %v", err)
+	}
+
+	// No .preflight and no .git anywhere in this hierarchy
+	// The search should traverse up until it hits filesystem root
+	_, err := FindFile(deepPath, "")
+	if err == nil {
+		t.Error("expected error when .preflight not found")
+	}
+}
