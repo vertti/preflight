@@ -666,3 +666,51 @@ func TestDetectAlgorithm(t *testing.T) {
 		})
 	}
 }
+
+func TestHashAlgorithmNewHasher(t *testing.T) {
+	tests := []struct {
+		algo     HashAlgorithm
+		wantSize int
+	}{
+		{AlgorithmSHA256, 32},
+		{AlgorithmSHA384, 48},
+		{AlgorithmSHA512, 64},
+		{AlgorithmSHA1, 20},
+		{AlgorithmMD5, 16},
+		{HashAlgorithm("unknown"), 32}, // defaults to sha256
+		{HashAlgorithm(""), 32},        // defaults to sha256
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.algo), func(t *testing.T) {
+			hasher := tt.algo.NewHasher()
+			if hasher.Size() != tt.wantSize {
+				t.Errorf("NewHasher().Size() = %d, want %d", hasher.Size(), tt.wantSize)
+			}
+		})
+	}
+}
+
+func TestHashAlgorithmExpectedHexLength(t *testing.T) {
+	tests := []struct {
+		algo       HashAlgorithm
+		wantLength int
+	}{
+		{AlgorithmSHA256, 64},
+		{AlgorithmSHA384, 96},
+		{AlgorithmSHA512, 128},
+		{AlgorithmSHA1, 40},
+		{AlgorithmMD5, 32},
+		{HashAlgorithm("unknown"), 64}, // defaults to 64 (sha256)
+		{HashAlgorithm(""), 64},        // defaults to 64 (sha256)
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.algo), func(t *testing.T) {
+			length := tt.algo.ExpectedHexLength()
+			if length != tt.wantLength {
+				t.Errorf("ExpectedHexLength() = %d, want %d", length, tt.wantLength)
+			}
+		})
+	}
+}
