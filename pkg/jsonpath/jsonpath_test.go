@@ -278,3 +278,41 @@ func TestGet_EmptyPath(t *testing.T) {
 		t.Error("Empty path should return existing result for valid JSON")
 	}
 }
+
+func TestGet_FloatValues(t *testing.T) {
+	json := `{"pi": 3.14159, "integer": 42, "zero": 0}`
+
+	// Non-integer float should keep decimal representation
+	pi := Get(json, "pi")
+	if pi.String() != "3.14159" {
+		t.Errorf("pi.String() = %q, want %q", pi.String(), "3.14159")
+	}
+
+	// Integer-like float should format without decimal
+	integer := Get(json, "integer")
+	if integer.String() != "42" {
+		t.Errorf("integer.String() = %q, want %q", integer.String(), "42")
+	}
+
+	// Zero should format without decimal
+	zero := Get(json, "zero")
+	if zero.String() != "0" {
+		t.Errorf("zero.String() = %q, want %q", zero.String(), "0")
+	}
+}
+
+func TestResult_ArrayOnNonExisting(t *testing.T) {
+	json := `{"key": "value"}`
+
+	// Get a path that doesn't exist
+	result := Get(json, "nonexistent")
+	if result.Exists() {
+		t.Fatal("result should not exist")
+	}
+
+	// Array() on non-existing should return nil
+	arr := result.Array()
+	if arr != nil {
+		t.Errorf("Array() on non-existing = %v, want nil", arr)
+	}
+}
