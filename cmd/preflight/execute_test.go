@@ -176,6 +176,11 @@ func TestCmdCommand(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name:    "existing command with version-cmd (go)",
+			args:    []string{"cmd", "--version-cmd", "version", "go"},
+			wantErr: false,
+		},
+		{
 			name:    "nonexistent command",
 			args:    []string{"cmd", "nonexistent_command_xyz_12345"},
 			wantErr: true,
@@ -355,13 +360,27 @@ func TestHashCommand(t *testing.T) {
 }
 
 func TestGitCommand(t *testing.T) {
-	// Git tests run in the actual repo, so we can make meaningful assertions
-	t.Run("branch flag", func(t *testing.T) {
-		// Get current branch and verify it matches
-		output, _ := executeCommand("git", "--branch", "add-cmd-tests")
-		// Should either pass (on this branch) or fail with mismatch message
-		if strings.Contains(output, "panic") {
-			t.Errorf("git --branch should not panic: %s", output)
+	t.Run("clean flag", func(t *testing.T) {
+		// Test --clean flag - git status check runs in actual repo
+		_, err := executeCommand("git", "--clean")
+		// Result depends on repo state, but shouldn't error
+		if err != nil && !strings.Contains(err.Error(), "check failed") {
+			t.Errorf("git --clean unexpected error: %v", err)
+		}
+	})
+
+	t.Run("tag flag with no tag", func(t *testing.T) {
+		// HEAD likely doesn't have a tag in test environment
+		_, err := executeCommand("git", "--tag", "v999.999.999")
+		if err == nil {
+			t.Error("git --tag with nonexistent tag should fail")
+		}
+	})
+
+	t.Run("missing argument", func(t *testing.T) {
+		_, err := executeCommand("git")
+		if err == nil {
+			t.Error("git should fail without flags")
 		}
 	})
 }
@@ -553,20 +572,23 @@ func TestHashCommandMore(t *testing.T) {
 		}
 	})
 
-	t.Run("checksum file", func(t *testing.T) {
-		content := "test content for checksum"
+	t.Run("checksum file valid", func(t *testing.T) {
+		content := "test"
 		targetPath := writeTempFile(t, "target.txt", content)
-		// SHA256 of "test content for checksum"
-		checksumContent := fmt.Sprintf("d1b76bc8a1795f4fdeb7d96f541e9295c57ef32eb5e4a7c0b81a7d8a8a6a8f9a  %s\n", filepath.Base(targetPath))
+		// SHA256 of "test"
+		checksumContent := fmt.Sprintf("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  %s\n", filepath.Base(targetPath))
 		checksumPath := writeTempFile(t, "SHA256SUMS", checksumContent)
 
 		// Change to temp dir so relative path works
 		oldWd, _ := os.Getwd()
-		_ = os.Chdir(filepath.Dir(targetPath))
+		if err := os.Chdir(filepath.Dir(targetPath)); err != nil {
+			t.Fatalf("failed to chdir: %v", err)
+		}
 		defer func() { _ = os.Chdir(oldWd) }()
 
-		_, err := executeCommand("hash", "--file", checksumPath, filepath.Base(targetPath))
-		// This might fail due to hash mismatch, but exercises the code path
-		_ = err
+		_, err := executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
+		if err != nil {
+			t.Errorf("hash --checksum-file should pass for valid checksum: %v", err)
+		}
 	})
 }
