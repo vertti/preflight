@@ -491,6 +491,34 @@ func TestChecksumFileParsing(t *testing.T) {
 			wantAlgorithm:   AlgorithmMD5,
 		},
 		{
+			name:            "BSD format - SHA384",
+			checksumContent: "SHA384 (test.txt) = " + testContentSHA384 + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentSHA384,
+			wantAlgorithm:   AlgorithmSHA384,
+		},
+		{
+			name:            "BSD format - SHA1",
+			checksumContent: "SHA1 (test.txt) = " + testContentSHA1 + "\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentSHA1,
+			wantAlgorithm:   AlgorithmSHA1,
+		},
+		{
+			name:            "GNU format - SHA384 detected by length",
+			checksumContent: testContentSHA384 + "  test.txt\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentSHA384,
+			wantAlgorithm:   AlgorithmSHA384,
+		},
+		{
+			name:            "GNU format - SHA1 detected by length",
+			checksumContent: testContentSHA1 + "  test.txt\n",
+			targetFile:      "test.txt",
+			wantHash:        testContentSHA1,
+			wantAlgorithm:   AlgorithmSHA1,
+		},
+		{
 			name: "multiple entries - finds correct one",
 			checksumContent: `abc123  other.txt
 ` + testContentSHA256 + `  test.txt
