@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/jsonpath"
 )
 
 // HTTPClient abstracts HTTP requests for testability.
@@ -147,9 +146,9 @@ func (c *Check) Run() check.Result {
 		}
 
 		// Parse Prometheus response
-		status := gjson.Get(respBody, "status").String()
+		status := jsonpath.Get(respBody, "status").String()
 		if status != "success" {
-			errorMsg := gjson.Get(respBody, "error").String()
+			errorMsg := jsonpath.Get(respBody, "error").String()
 			if errorMsg != "" {
 				return result.Failf("prometheus error: %s", errorMsg)
 			}
@@ -157,13 +156,13 @@ func (c *Check) Run() check.Result {
 		}
 
 		// Get result type and extract value
-		resultType := gjson.Get(respBody, "data.resultType").String()
+		resultType := jsonpath.Get(respBody, "data.resultType").String()
 		var valueStr string
 		var metricLabels string
 
 		switch resultType {
 		case "vector":
-			results := gjson.Get(respBody, "data.result")
+			results := jsonpath.Get(respBody, "data.result")
 			if !results.Exists() || len(results.Array()) == 0 {
 				lastErr = errors.New("query returned no data")
 				if attempt < maxAttempts {
@@ -178,10 +177,10 @@ func (c *Check) Run() check.Result {
 			if len(results.Array()) > 1 {
 				return result.Failf("query returned %d results, expected 1 (use a more specific query)", len(results.Array()))
 			}
-			valueStr = gjson.Get(respBody, "data.result.0.value.1").String()
-			metricLabels = gjson.Get(respBody, "data.result.0.metric").String()
+			valueStr = jsonpath.Get(respBody, "data.result.0.value.1").String()
+			metricLabels = jsonpath.Get(respBody, "data.result.0.metric").String()
 		case "scalar":
-			valueStr = gjson.Get(respBody, "data.result.1").String()
+			valueStr = jsonpath.Get(respBody, "data.result.1").String()
 		default:
 			return result.Failf("unsupported result type: %s", resultType)
 		}
