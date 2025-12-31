@@ -18,7 +18,9 @@ COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 RUN preflight cmd node --min 18.0        # verify binary + version
 RUN preflight env DATABASE_URL           # env var exists
 RUN preflight file /app/config.yaml      # file exists
-RUN preflight tcp postgres:5432          # service reachable
+RUN preflight tcp postgres:5432 --retry 5 --retry-interval 2s  # wait for DB
+
+HEALTHCHECK CMD ["/preflight", "http", "http://localhost:8080/health"]
 ```
 
 ## What It Does
