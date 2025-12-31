@@ -918,6 +918,8 @@ RUN preflight sys --os linux --arch arm64
 
 Checks system resources meet minimum requirements. Critical for CI pipelines where runners have limited disk space, or containers with memory limits.
 
+> **Container-aware**: Memory checks read cgroup limits (v1 and v2), not just host `/proc/meminfo`. Your 512MB container limit is detected correctly.
+
 ```sh
 preflight resource [flags]
 ```
