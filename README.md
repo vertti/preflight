@@ -27,13 +27,10 @@ HEALTHCHECK CMD ["/preflight", "http", "http://localhost:8080/health"]
 
 Pre-flight checks for containers: verify services, environment, dependencies. Each check does multiple things and tells you exactly what failed.
 
-**One command, multiple checks** — `preflight cmd node --min 18.0` verifies: on PATH, actually runs, returns version, meets constraint. Clear error if any step fails.
-
-**Works without a shell** — Runs in distroless/scratch. No bash required.
-
-**Container-aware** — Reads cgroup limits, not just host /proc/meminfo.
-
-**Version constraints** — `--min ^1.0` uses semver, not string comparison.
+- **One command, multiple checks** — `preflight cmd node --min 18.0` verifies: on PATH, actually runs, returns version, meets constraint
+- **Works without a shell** — Runs in distroless/scratch, no shell required
+- **Container-aware** — Reads cgroup limits, not just host /proc/meminfo
+- **Version constraints** — `--min ^1.0` uses semver, not string comparison
 
 ```
 [OK] cmd: node
@@ -58,25 +55,28 @@ Exit code `0` on success, `1` on failure. Works with `set -e`, Docker `RUN`, and
 <details>
 <summary><b>Why not just shell scripts?</b></summary>
 
-Shell works for simple checks. Preflight helps when you need:
+Shell works for simple checks. But this:
+
+```bash
+# Check node exists, runs, and version >= 18
+command -v node >/dev/null 2>&1 && \
+  node --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | \
+  awk -F. '{if ($1 >= 18) exit 0; else exit 1}' || \
+  (echo "node missing or wrong version"; exit 1)
+```
+
+Becomes:
+
+```bash
+preflight cmd node --min 18.0
+```
+
+Preflight also helps when you need:
 
 - Checks in minimal images (no shell available)
 - Container-aware resource limits (cgroup detection)
 - Semantic version constraints (`^1.0`, `>=2.0, <3.0`)
 - Consistent output format across all checks
-
-One preflight command replaces complex shell chains:
-
-```bash
-# Shell: check node exists, runs, and version >= 18
-command -v node >/dev/null 2>&1 && \
-  node --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | \
-  awk -F. '{if ($1 >= 18) exit 0; else exit 1}' || \
-  (echo "node missing or wrong version"; exit 1)
-
-# Preflight: one command, clear error message
-preflight cmd node --min 18.0
-```
 
 </details>
 
@@ -101,7 +101,7 @@ Curl works. Preflight is useful when curl isn't in your image, or you need JSON 
 
 ## Install
 
-**Dockerfiles** (recommended):
+**In containers:**
 
 ```dockerfile
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
@@ -109,7 +109,7 @@ COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
 > Want to keep your final image lean? See [Keeping Containers Clean](docs/usage.md#keeping-containers-clean) for multi-stage builds and external validation.
 
-**Shell**:
+**On your machine / CI:**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | sh
