@@ -221,7 +221,7 @@ func TestRealFileSystem(t *testing.T) {
 
 		info, err := rfs.Lstat(link)
 		require.NoError(t, err)
-		assert.True(t, info.Mode()&os.ModeSymlink != 0)
+		assert.NotEqual(t, os.FileMode(0), info.Mode()&os.ModeSymlink)
 	})
 
 	t.Run("Readlink", func(t *testing.T) {

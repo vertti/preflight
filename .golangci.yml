@@ -39,6 +39,8 @@ linters:
     # Consistency
     - recvcheck      # check receiver type consistency
     - nilnil         # check for nil,nil returns (excluding intentional cases)
+    # Testing
+    - testifylint    # check testify best practices
   settings:
     gocritic:
       enabled-tags:

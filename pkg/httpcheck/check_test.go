@@ -86,12 +86,12 @@ func TestHTTPCheck(t *testing.T) {
 		// Request body
 		{"body string sent", Check{URL: "http://localhost/api", Method: "POST", Body: `{"key": "value"}`, Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			body, _ := io.ReadAll(req.Body)
-			assert.Equal(t, `{"key": "value"}`, string(body))
+			assert.JSONEq(t, `{"key": "value"}`, string(body))
 			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
 		{"body-file sent", Check{URL: "http://localhost/api", Method: "POST", BodyFile: "/tmp/request.json", FileReader: &mockFileReader{Files: map[string][]byte{"/tmp/request.json": []byte(`{"from": "file"}`)}}, Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			body, _ := io.ReadAll(req.Body)
-			assert.Equal(t, `{"from": "file"}`, string(body))
+			assert.JSONEq(t, `{"from": "file"}`, string(body))
 			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
 		{"body-file not found", Check{URL: "http://localhost/api", Method: "POST", BodyFile: "/nonexistent/file.json", FileReader: &mockFileReader{Files: map[string][]byte{}}}, check.StatusFail, "failed to read body file"},

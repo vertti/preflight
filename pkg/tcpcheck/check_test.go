@@ -113,7 +113,7 @@ func TestTCPCheck(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, result.Status)
 			assert.Equal(t, tt.wantName, result.Name)
 			if tt.wantStatus == check.StatusFail {
-				assert.NotNil(t, result.Err)
+				assert.Error(t, result.Err)
 			}
 		})
 	}

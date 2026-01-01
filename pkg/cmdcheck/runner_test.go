@@ -57,6 +57,6 @@ func TestMockCmdRunner_RunCommandContext(t *testing.T) {
 	assert.Empty(t, stderr)
 
 	_, stderr, err = mock.RunCommandContext(ctx, "bad")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "command failed", stderr)
 }

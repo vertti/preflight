@@ -337,7 +337,7 @@ func TestSubcommandHelp(t *testing.T) {
 	for _, subcmd := range subcommands {
 		t.Run(subcmd, func(t *testing.T) {
 			output, err := executeCommand(subcmd, "--help")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, output)
 		})
 	}
