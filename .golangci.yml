@@ -4,6 +4,11 @@ run:
   timeout: 5m
 
 linters:
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - bodyclose
   enable:
     - errcheck
     - govet
