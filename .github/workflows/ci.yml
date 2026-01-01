@@ -170,6 +170,10 @@ jobs:
           docker run --rm preflight-distroless --version
           docker run --rm preflight-distroless env PATH
 
+          # Test exec mode (the key feature for distroless - no shell needed)
+          # This runs a check, then execs into preflight --version
+          docker run --rm --entrypoint /preflight preflight-distroless env PATH -- /preflight --version
+
       - name: Test in scratch
         run: |
           echo 'FROM scratch
@@ -178,3 +182,6 @@ jobs:
           docker build -f Dockerfile.scratch -t preflight-scratch .
 
           docker run --rm preflight-scratch --version
+
+          # Test exec mode in scratch too
+          docker run --rm --entrypoint /preflight preflight-scratch env PATH -- /preflight --version
