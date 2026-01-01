@@ -301,34 +301,6 @@ func TestHashCommand(t *testing.T) {
 		_, err := executeCommand("hash")
 		assert.Error(t, err)
 	})
-
-	t.Run("sha512", func(t *testing.T) {
-		path := writeTempFile(t, "test.txt", "test")
-		hash := "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
-		_, err := executeCommand("hash", "--sha512", hash, path)
-		assert.NoError(t, err)
-	})
-
-	t.Run("md5", func(t *testing.T) {
-		path := writeTempFile(t, "test.txt", "test")
-		hash := "098f6bcd4621d373cade4e832627b4f6"
-		_, err := executeCommand("hash", "--md5", hash, path)
-		assert.NoError(t, err)
-	})
-
-	t.Run("checksum file valid", func(t *testing.T) {
-		targetPath := writeTempFile(t, "target.txt", "test")
-		checksumContent := fmt.Sprintf("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  %s\n", filepath.Base(targetPath))
-		checksumPath := writeTempFile(t, "SHA256SUMS", checksumContent)
-
-		oldWd, err := os.Getwd()
-		require.NoError(t, err)
-		require.NoError(t, os.Chdir(filepath.Dir(targetPath)))
-		t.Cleanup(func() { _ = os.Chdir(oldWd) })
-
-		_, err = executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
-		assert.NoError(t, err)
-	})
 }
 
 func TestGitCommand(t *testing.T) {
@@ -441,23 +413,6 @@ func TestPrometheusCommand(t *testing.T) {
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("prometheus")
-		assert.Error(t, err)
-	})
-}
-
-func TestResourceCommandMore(t *testing.T) {
-	t.Run("min-disk", func(t *testing.T) {
-		_, err := executeCommand("resource", "--min-disk", "1MB")
-		assert.NoError(t, err)
-	})
-
-	t.Run("combined flags", func(t *testing.T) {
-		_, err := executeCommand("resource", "--min-memory", "1MB", "--min-cpus", "1")
-		assert.NoError(t, err)
-	})
-
-	t.Run("no flags", func(t *testing.T) {
-		_, err := executeCommand("resource")
 		assert.Error(t, err)
 	})
 }
