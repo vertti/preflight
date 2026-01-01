@@ -611,6 +611,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 	t.Run("exec after successful check", func(t *testing.T) {
 		// Run: preflight env PATH -- echo "success"
 		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "exec-success-marker") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("command failed: %v\n%s", err, output)
@@ -629,6 +630,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 	t.Run("no exec after failed check", func(t *testing.T) {
 		// Run: preflight env NONEXISTENT_VAR_12345 -- echo "should-not-print"
 		cmd := exec.Command(binaryPath, "env", "NONEXISTENT_VAR_12345", "--", "echo", "should-not-print") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 
 		// Command should fail
@@ -649,6 +651,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 	t.Run("exec with arguments", func(t *testing.T) {
 		// Run: preflight env PATH -- echo arg1 arg2 arg3
 		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "arg1", "arg2", "arg3") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("command failed: %v\n%s", err, output)
@@ -664,6 +667,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 	t.Run("exec command not found", func(t *testing.T) {
 		// Run: preflight env PATH -- nonexistent-command-xyz-12345
 		cmd := exec.Command(binaryPath, "env", "PATH", "--", "nonexistent-command-xyz-12345") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 
 		// Command should fail because exec'd command doesn't exist
