@@ -131,6 +131,38 @@ func TestEnvExactMatch(t *testing.T) {
 	}
 }
 
+func TestEnvMinMaxValue(t *testing.T) {
+	t.Setenv("PREFLIGHT_NUM_VAR", "50")
+
+	t.Run("min-value pass", func(t *testing.T) {
+		_, err := executeCommand("env", "--is-numeric", "--min-value", "10", "PREFLIGHT_NUM_VAR")
+		if err != nil {
+			t.Errorf("env --min-value 10 should pass for 50: %v", err)
+		}
+	})
+
+	t.Run("max-value pass", func(t *testing.T) {
+		_, err := executeCommand("env", "--is-numeric", "--max-value", "100", "PREFLIGHT_NUM_VAR")
+		if err != nil {
+			t.Errorf("env --max-value 100 should pass for 50: %v", err)
+		}
+	})
+
+	t.Run("min-value fail", func(t *testing.T) {
+		_, err := executeCommand("env", "--is-numeric", "--min-value", "60", "PREFLIGHT_NUM_VAR")
+		if err == nil {
+			t.Error("env --min-value 60 should fail for 50")
+		}
+	})
+
+	t.Run("max-value fail", func(t *testing.T) {
+		_, err := executeCommand("env", "--is-numeric", "--max-value", "40", "PREFLIGHT_NUM_VAR")
+		if err == nil {
+			t.Error("env --max-value 40 should fail for 50")
+		}
+	})
+}
+
 func TestSysCommand(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -188,6 +220,21 @@ func TestCmdCommand(t *testing.T) {
 		{
 			name:    "missing argument",
 			args:    []string{"cmd"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid min version",
+			args:    []string{"cmd", "--min", "not-a-version", "go"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid max version",
+			args:    []string{"cmd", "--max", "not-a-version", "go"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid exact version",
+			args:    []string{"cmd", "--exact", "not-a-version", "go"},
 			wantErr: true,
 		},
 	}
@@ -386,8 +433,8 @@ func TestGitCommand(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
-	// Note: We only test error paths here because run spawns subprocesses
-	// via exec.Command which makes it difficult to test the happy path.
+	// Note: Most run command tests are in integration_test.go because
+	// runRun uses exec.Command which is hard to test in unit tests.
 	t.Run("nonexistent file", func(t *testing.T) {
 		_, err := executeCommand("run", "--file", "/nonexistent/.preflight")
 		if err == nil {
@@ -562,6 +609,26 @@ func TestHashCommandMore(t *testing.T) {
 		}
 	})
 
+	t.Run("sha384", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		// SHA384 of "test"
+		hash := "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9"
+		_, err := executeCommand("hash", "--sha384", hash, path)
+		if err != nil {
+			t.Errorf("hash --sha384 should pass: %v", err)
+		}
+	})
+
+	t.Run("sha1", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		// SHA1 of "test"
+		hash := "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+		_, err := executeCommand("hash", "--sha1", hash, path)
+		if err != nil {
+			t.Errorf("hash --sha1 should pass: %v", err)
+		}
+	})
+
 	t.Run("md5", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
 		// MD5 of "test"
@@ -569,6 +636,16 @@ func TestHashCommandMore(t *testing.T) {
 		_, err := executeCommand("hash", "--md5", hash, path)
 		if err != nil {
 			t.Errorf("hash --md5 should pass: %v", err)
+		}
+	})
+
+	t.Run("auto sha256", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		// SHA256 of "test" - auto-detect by length
+		hash := "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+		_, err := executeCommand("hash", "--auto", hash, path)
+		if err != nil {
+			t.Errorf("hash --auto should pass: %v", err)
 		}
 	})
 
@@ -589,6 +666,160 @@ func TestHashCommandMore(t *testing.T) {
 		_, err := executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
 		if err != nil {
 			t.Errorf("hash --checksum-file should pass for valid checksum: %v", err)
+		}
+	})
+
+	t.Run("no hash flag", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		_, err := executeCommand("hash", path)
+		if err == nil {
+			t.Error("hash without hash flag should fail")
+		}
+	})
+}
+
+func TestRealFileChecker(t *testing.T) {
+	t.Run("existing file returns true", func(t *testing.T) {
+		path := writeTempFile(t, "testfile.txt", "content")
+		if !realFileChecker(path) {
+			t.Error("realFileChecker should return true for existing file")
+		}
+	})
+
+	t.Run("nonexistent file returns false", func(t *testing.T) {
+		if realFileChecker("/nonexistent/path/file.txt") {
+			t.Error("realFileChecker should return false for nonexistent file")
+		}
+	})
+
+	t.Run("directory returns false", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if realFileChecker(tmpDir) {
+			t.Error("realFileChecker should return false for directory")
+		}
+	})
+}
+
+func TestJSONCommandErrorPaths(t *testing.T) {
+	t.Run("nonexistent file", func(t *testing.T) {
+		_, err := executeCommand("json", "/nonexistent/file.json")
+		if err == nil {
+			t.Error("json should fail for nonexistent file")
+		}
+	})
+
+	t.Run("exact without key", func(t *testing.T) {
+		path := writeTempFile(t, "test.json", `{"key": "value"}`)
+		_, err := executeCommand("json", "--exact", "value", path)
+		if err == nil {
+			t.Error("json --exact without --key should fail")
+		}
+	})
+
+	t.Run("match without key", func(t *testing.T) {
+		path := writeTempFile(t, "test.json", `{"key": "value"}`)
+		_, err := executeCommand("json", "--match", "val.*", path)
+		if err == nil {
+			t.Error("json --match without --key should fail")
+		}
+	})
+
+	t.Run("has-key check passes", func(t *testing.T) {
+		path := writeTempFile(t, "test.json", `{"nested": {"key": "value"}}`)
+		_, err := executeCommand("json", "--has-key", "nested.key", path)
+		if err != nil {
+			t.Errorf("json --has-key should pass: %v", err)
+		}
+	})
+
+	t.Run("key with exact check", func(t *testing.T) {
+		path := writeTempFile(t, "test.json", `{"key": "expected"}`)
+		_, err := executeCommand("json", "--key", "key", "--exact", "expected", path)
+		if err != nil {
+			t.Errorf("json --key --exact should pass: %v", err)
+		}
+	})
+
+	t.Run("key with match check", func(t *testing.T) {
+		path := writeTempFile(t, "test.json", `{"key": "hello123world"}`)
+		_, err := executeCommand("json", "--key", "key", "--match", "hello.*world", path)
+		if err != nil {
+			t.Errorf("json --key --match should pass: %v", err)
+		}
+	})
+}
+
+func TestPrometheusCommandErrorPaths(t *testing.T) {
+	t.Run("invalid url", func(t *testing.T) {
+		_, err := executeCommand("prometheus", "not-a-valid-url", "--query", "up")
+		if err == nil {
+			t.Error("prometheus should fail for invalid URL")
+		}
+	})
+
+	t.Run("min check passes", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"50"]}]}}`))
+		}))
+		defer ts.Close()
+
+		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--min", "10")
+		if err != nil {
+			t.Errorf("prometheus --min 10 should pass for value 50: %v", err)
+		}
+	})
+
+	t.Run("max check fails", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"50"]}]}}`))
+		}))
+		defer ts.Close()
+
+		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--max", "10")
+		if err == nil {
+			t.Error("prometheus --max 10 should fail for value 50")
+		}
+	})
+
+	t.Run("exact check passes", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"1"]}]}}`))
+		}))
+		defer ts.Close()
+
+		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--exact", "1")
+		if err != nil {
+			t.Errorf("prometheus --exact 1 should pass for value 1: %v", err)
+		}
+	})
+}
+
+func TestResourceCommandErrorPaths(t *testing.T) {
+	t.Run("disk path does not exist", func(t *testing.T) {
+		_, err := executeCommand("resource", "--min-disk", "1MB", "--path", "/nonexistent/path")
+		if err == nil {
+			t.Error("resource should fail for nonexistent disk path")
+		}
+	})
+
+	t.Run("invalid memory size format", func(t *testing.T) {
+		_, err := executeCommand("resource", "--min-memory", "invalid")
+		if err == nil {
+			t.Error("resource should fail for invalid memory size format")
+		}
+	})
+
+	t.Run("invalid disk size format", func(t *testing.T) {
+		_, err := executeCommand("resource", "--min-disk", "invalid")
+		if err == nil {
+			t.Error("resource should fail for invalid disk size format")
+		}
+	})
+
+	t.Run("with custom path", func(t *testing.T) {
+		_, err := executeCommand("resource", "--min-disk", "1MB", "--path", ".")
+		if err != nil {
+			t.Errorf("resource with custom path should pass: %v", err)
 		}
 	})
 }

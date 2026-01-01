@@ -2,6 +2,24 @@ package version
 
 import "testing"
 
+func TestVersion_String(t *testing.T) {
+	tests := []struct {
+		v    Version
+		want string
+	}{
+		{Version{1, 2, 3}, "1.2.3"},
+		{Version{18, 17, 0}, "18.17.0"},
+		{Version{0, 0, 0}, "0.0.0"},
+	}
+
+	for _, tt := range tests {
+		got := tt.v.String()
+		if got != tt.want {
+			t.Errorf("Version%v.String() = %q, want %q", tt.v, got, tt.want)
+		}
+	}
+}
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		input   string
