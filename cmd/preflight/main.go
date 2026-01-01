@@ -73,6 +73,15 @@ func extractExecArgs(args *[]string) []string {
 // executor is the default exec implementation, can be overridden for testing.
 var executor exec.Executor = &exec.RealExecutor{}
 
+// runExec executes the command specified in execArgs.
+// Returns an error if the exec fails.
+func runExec(execArgs []string) error {
+	if len(execArgs) == 0 {
+		return nil
+	}
+	return executor.Exec(execArgs[0], execArgs[1:])
+}
+
 func main() {
 	var file string
 	os.Args, file = transformArgsForHashbang(os.Args, realFileChecker)
@@ -88,11 +97,9 @@ func main() {
 	}
 
 	// Checks passed - exec into command if args were provided
-	if len(execArgs) > 0 {
-		if err := executor.Exec(execArgs[0], execArgs[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "exec: %v\n", err)
-			os.Exit(1)
-		}
+	if err := runExec(execArgs); err != nil {
+		fmt.Fprintf(os.Stderr, "exec: %v\n", err)
+		os.Exit(1)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -98,6 +99,100 @@ func TestTransformArgsForHashbang(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockExecutor is a test implementation of exec.Executor
+type mockExecutor struct {
+	execFunc func(name string, args []string) error
+}
+
+func (m *mockExecutor) Exec(name string, args []string) error {
+	if m.execFunc != nil {
+		return m.execFunc(name, args)
+	}
+	return nil
+}
+
+func TestRunExec(t *testing.T) {
+	// Save original executor and restore after test
+	originalExecutor := executor
+	defer func() { executor = originalExecutor }()
+
+	t.Run("empty args returns nil", func(t *testing.T) {
+		err := runExec([]string{})
+		if err != nil {
+			t.Errorf("runExec([]) = %v, want nil", err)
+		}
+	})
+
+	t.Run("nil args returns nil", func(t *testing.T) {
+		err := runExec(nil)
+		if err != nil {
+			t.Errorf("runExec(nil) = %v, want nil", err)
+		}
+	})
+
+	t.Run("calls executor with correct args", func(t *testing.T) {
+		var calledName string
+		var calledArgs []string
+
+		executor = &mockExecutor{
+			execFunc: func(name string, args []string) error {
+				calledName = name
+				calledArgs = args
+				return nil
+			},
+		}
+
+		err := runExec([]string{"./myapp", "arg1", "arg2"})
+		if err != nil {
+			t.Errorf("runExec() = %v, want nil", err)
+		}
+		if calledName != "./myapp" {
+			t.Errorf("name = %q, want %q", calledName, "./myapp")
+		}
+		if !reflect.DeepEqual(calledArgs, []string{"arg1", "arg2"}) {
+			t.Errorf("args = %v, want %v", calledArgs, []string{"arg1", "arg2"})
+		}
+	})
+
+	t.Run("single arg no extra args", func(t *testing.T) {
+		var calledName string
+		var calledArgs []string
+
+		executor = &mockExecutor{
+			execFunc: func(name string, args []string) error {
+				calledName = name
+				calledArgs = args
+				return nil
+			},
+		}
+
+		err := runExec([]string{"./myapp"})
+		if err != nil {
+			t.Errorf("runExec() = %v, want nil", err)
+		}
+		if calledName != "./myapp" {
+			t.Errorf("name = %q, want %q", calledName, "./myapp")
+		}
+		if len(calledArgs) != 0 {
+			t.Errorf("args = %v, want empty", calledArgs)
+		}
+	})
+
+	t.Run("returns executor error", func(t *testing.T) {
+		expectedErr := errors.New("exec failed")
+		executor = &mockExecutor{
+			execFunc: func(name string, args []string) error {
+				return expectedErr
+			},
+		}
+
+		err := runExec([]string{"./myapp"})
+		if !errors.Is(err, expectedErr) {
+			t.Errorf("runExec() = %v, want %v", err, expectedErr)
+		}
+	})
 }
 
 func TestExtractExecArgs(t *testing.T) {
