@@ -73,7 +73,8 @@ func extractExecArgs(args *[]string) []string {
 var executor exec.Executor = &exec.RealExecutor{}
 
 // runExec executes the command specified in execArgs.
-// Returns an error if the exec fails.
+// runExec invokes the configured executor with the provided command and arguments.
+// It returns the error returned by the executor, or nil if no execArgs are provided.
 func runExec(execArgs []string) error {
 	if len(execArgs) == 0 {
 		return nil
