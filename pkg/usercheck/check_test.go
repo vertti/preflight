@@ -57,7 +57,7 @@ func TestUserCheck(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, result.Status)
 			assert.Equal(t, "user: "+tt.username, result.Name)
 			if tt.wantStatus == check.StatusFail {
-				assert.NotNil(t, result.Err)
+				assert.Error(t, result.Err)
 			}
 		})
 	}

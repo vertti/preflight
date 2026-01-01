@@ -15,7 +15,7 @@ func TestRealResourceChecker_FreeDiskSpace(t *testing.T) {
 
 	space, err := r.FreeDiskSpace(".")
 	require.NoError(t, err)
-	assert.Greater(t, space, uint64(0))
+	assert.Positive(t, space)
 
 	_, err = r.FreeDiskSpace("/nonexistent/path/that/does/not/exist")
 	assert.Error(t, err)
@@ -27,7 +27,7 @@ func TestRealResourceChecker_FreeDiskSpace_TempDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	space, err := r.FreeDiskSpace(tmpDir)
 	require.NoError(t, err)
-	assert.Greater(t, space, uint64(0))
+	assert.Positive(t, space)
 }
 
 func TestRealResourceChecker_AvailableMemory(t *testing.T) {
@@ -45,7 +45,7 @@ func TestRealResourceChecker_NumCPUs(t *testing.T) {
 
 func TestReadCgroupMemoryLimit(t *testing.T) {
 	_, err := readCgroupMemoryLimit("/nonexistent/path")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	t.Run("numeric value", func(t *testing.T) {
 		tmpFile := writeTempFile(t, "8589934592")

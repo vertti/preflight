@@ -210,7 +210,7 @@ func TestRealHashFileOpener(t *testing.T) {
 	if err != nil {
 		require.ErrorIs(t, err, io.EOF, "unexpected read error")
 	}
-	assert.Greater(t, n, 0)
+	assert.Positive(t, n)
 }
 
 func TestDetectAlgorithm(t *testing.T) {
