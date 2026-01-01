@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -12,6 +13,9 @@ type MockHTTPClient struct {
 }
 
 func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	if m.DoFunc == nil {
+		return nil, errors.New("MockHTTPClient.DoFunc is nil")
+	}
 	return m.DoFunc(req)
 }
 

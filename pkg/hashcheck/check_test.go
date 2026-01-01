@@ -207,8 +207,8 @@ func TestRealHashFileOpener(t *testing.T) {
 
 	buf := make([]byte, 10)
 	n, err := f.Read(buf)
-	if err != nil && !errors.Is(err, io.EOF) {
-		t.Errorf("failed to read: %v", err)
+	if err != nil {
+		require.ErrorIs(t, err, io.EOF, "unexpected read error")
 	}
 	assert.Greater(t, n, 0)
 }

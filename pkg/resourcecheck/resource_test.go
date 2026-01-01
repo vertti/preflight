@@ -1,3 +1,5 @@
+//go:build unix
+
 package resourcecheck
 
 import (
@@ -86,7 +88,7 @@ type mockResourceChecker struct {
 	numCPUs         int
 }
 
-func (m *mockResourceChecker) FreeDiskSpace(string) (uint64, error) {
+func (m *mockResourceChecker) FreeDiskSpace(path string) (uint64, error) {
 	return m.freeDiskSpace, m.freeDiskErr
 }
 
