@@ -3,16 +3,14 @@ package envcheck
 import (
 	"errors"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/testutil"
 )
-
-func ptr(f float64) *float64 { return &f }
 
 type mockEnvGetter struct{ Vars map[string]string }
 
@@ -135,18 +133,18 @@ func TestEnvCheck_Run(t *testing.T) {
 		{"is-bool fails invalid", Check{Name: "FLAG", IsBool: true, Getter: env(map[string]string{"FLAG": "maybe"})}, check.StatusFail, "not a valid boolean"},
 
 		// --min-value
-		{"min-value passes", Check{Name: "COUNT", MinValue: ptr(10), Getter: env(map[string]string{"COUNT": "15"})}, check.StatusOK, ""},
-		{"min-value passes at boundary", Check{Name: "COUNT", MinValue: ptr(10), Getter: env(map[string]string{"COUNT": "10"})}, check.StatusOK, ""},
-		{"min-value fails below minimum", Check{Name: "COUNT", MinValue: ptr(10), Getter: env(map[string]string{"COUNT": "5"})}, check.StatusFail, "< minimum 10"},
-		{"min-value fails with non-numeric", Check{Name: "COUNT", MinValue: ptr(10), Getter: env(map[string]string{"COUNT": "abc"})}, check.StatusFail, "not numeric"},
+		{"min-value passes", Check{Name: "COUNT", MinValue: testutil.Ptr(10.0), Getter: env(map[string]string{"COUNT": "15"})}, check.StatusOK, ""},
+		{"min-value passes at boundary", Check{Name: "COUNT", MinValue: testutil.Ptr(10.0), Getter: env(map[string]string{"COUNT": "10"})}, check.StatusOK, ""},
+		{"min-value fails below minimum", Check{Name: "COUNT", MinValue: testutil.Ptr(10.0), Getter: env(map[string]string{"COUNT": "5"})}, check.StatusFail, "< minimum 10"},
+		{"min-value fails with non-numeric", Check{Name: "COUNT", MinValue: testutil.Ptr(10.0), Getter: env(map[string]string{"COUNT": "abc"})}, check.StatusFail, "not numeric"},
 
 		// --max-value
-		{"max-value passes", Check{Name: "COUNT", MaxValue: ptr(100), Getter: env(map[string]string{"COUNT": "50"})}, check.StatusOK, ""},
-		{"max-value passes at boundary", Check{Name: "COUNT", MaxValue: ptr(100), Getter: env(map[string]string{"COUNT": "100"})}, check.StatusOK, ""},
-		{"max-value fails above maximum", Check{Name: "COUNT", MaxValue: ptr(100), Getter: env(map[string]string{"COUNT": "150"})}, check.StatusFail, "> maximum 100"},
+		{"max-value passes", Check{Name: "COUNT", MaxValue: testutil.Ptr(100.0), Getter: env(map[string]string{"COUNT": "50"})}, check.StatusOK, ""},
+		{"max-value passes at boundary", Check{Name: "COUNT", MaxValue: testutil.Ptr(100.0), Getter: env(map[string]string{"COUNT": "100"})}, check.StatusOK, ""},
+		{"max-value fails above maximum", Check{Name: "COUNT", MaxValue: testutil.Ptr(100.0), Getter: env(map[string]string{"COUNT": "150"})}, check.StatusFail, "> maximum 100"},
 
 		// combined min-value and max-value
-		{"min and max value in range", Check{Name: "PORT", MinValue: ptr(1024), MaxValue: ptr(65535), Getter: env(map[string]string{"PORT": "8080"})}, check.StatusOK, ""},
+		{"min and max value in range", Check{Name: "PORT", MinValue: testutil.Ptr(1024.0), MaxValue: testutil.Ptr(65535.0), Getter: env(map[string]string{"PORT": "8080"})}, check.StatusOK, ""},
 
 		// --is-file
 		{"is-file passes for existing file", Check{Name: "CONFIG_PATH", IsFile: true, Getter: env(map[string]string{"CONFIG_PATH": "/etc/config.yaml"}), Stater: &mockFileStater{Files: map[string]*mockFileInfo{"/etc/config.yaml": {isDir: false}}}}, check.StatusOK, ""},
@@ -164,17 +162,8 @@ func TestEnvCheck_Run(t *testing.T) {
 			result := tt.check.Run()
 			assert.Equal(t, tt.wantStatus, result.Status, "details: %v", result.Details)
 			if tt.wantDetail != "" {
-				assert.True(t, containsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
+				assert.True(t, testutil.ContainsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
 			}
 		})
 	}
-}
-
-func containsDetail(details []string, substr string) bool {
-	for _, d := range details {
-		if strings.Contains(d, substr) {
-			return true
-		}
-	}
-	return false
 }

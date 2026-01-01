@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/testutil"
 )
 
 type mockFileSystem struct {
@@ -160,19 +160,10 @@ func TestCheck_Run(t *testing.T) {
 			result := tt.check.Run()
 			assert.Equal(t, tt.wantStatus, result.Status, "details: %v", result.Details)
 			if tt.wantDetail != "" {
-				assert.True(t, containsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
+				assert.True(t, testutil.ContainsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
 			}
 		})
 	}
-}
-
-func containsDetail(details []string, substr string) bool {
-	for _, d := range details {
-		if strings.Contains(d, substr) {
-			return true
-		}
-	}
-	return false
 }
 
 func TestParseOctalMode(t *testing.T) {

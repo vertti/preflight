@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-// HTTPClient matches the interface used by httpcheck and promcheck.
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // MockHTTPClient is a test double for HTTP clients.
 type MockHTTPClient struct {
 	DoFunc func(req *http.Request) (*http.Response, error)
@@ -32,4 +27,14 @@ func MockResponse(status int, body string) *http.Response {
 // Ptr returns a pointer to the value (useful for optional fields in tests).
 func Ptr[T any](v T) *T {
 	return &v
+}
+
+// ContainsDetail checks if any detail string contains the given substring.
+func ContainsDetail(details []string, substr string) bool {
+	for _, d := range details {
+		if strings.Contains(d, substr) {
+			return true
+		}
+	}
+	return false
 }

@@ -16,15 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/testutil"
 )
-
-type mockHTTPClient struct {
-	DoFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return m.DoFunc(req)
-}
 
 type mockFileReader struct {
 	Files map[string][]byte
@@ -41,28 +34,20 @@ func (m *mockFileReader) ReadFile(path string) ([]byte, error) {
 	return nil, errors.New("file not found")
 }
 
-func mockResp(statusCode int) *http.Response {
-	return &http.Response{StatusCode: statusCode, Body: io.NopCloser(strings.NewReader(""))}
+func clientOK() *testutil.MockHTTPClient {
+	return &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return testutil.MockResponse(200, ""), nil }}
 }
 
-func mockRespBody(statusCode int, body string) *http.Response {
-	return &http.Response{StatusCode: statusCode, Body: io.NopCloser(strings.NewReader(body))}
+func clientStatus(code int) *testutil.MockHTTPClient {
+	return &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return testutil.MockResponse(code, ""), nil }}
 }
 
-func clientOK() *mockHTTPClient {
-	return &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return mockResp(200), nil }}
+func clientErr(msg string) *testutil.MockHTTPClient {
+	return &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return nil, errors.New(msg) }}
 }
 
-func clientStatus(code int) *mockHTTPClient {
-	return &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return mockResp(code), nil }}
-}
-
-func clientErr(msg string) *mockHTTPClient {
-	return &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return nil, errors.New(msg) }}
-}
-
-func clientBody(body string) *mockHTTPClient {
-	return &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return mockRespBody(200, body), nil }}
+func clientBody(body string) *testutil.MockHTTPClient {
+	return &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) { return testutil.MockResponse(200, body), nil }}
 }
 
 func TestHTTPCheck(t *testing.T) {
@@ -83,31 +68,31 @@ func TestHTTPCheck(t *testing.T) {
 		{"can expect redirect", Check{URL: "http://localhost/redirect", ExpectedStatus: 302, Client: clientStatus(302)}, check.StatusOK, ""},
 
 		// HTTP methods
-		{"HEAD method", Check{URL: "http://localhost/health", Method: "HEAD", Client: &mockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
+		{"HEAD method", Check{URL: "http://localhost/health", Method: "HEAD", Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "HEAD", req.Method)
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
-		{"default GET method", Check{URL: "http://localhost/health", Client: &mockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
+		{"default GET method", Check{URL: "http://localhost/health", Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "GET", req.Method)
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
 
 		// Custom headers
-		{"custom headers sent", Check{URL: "http://localhost/api", Headers: map[string]string{"Authorization": "Bearer token123"}, Client: &mockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
+		{"custom headers sent", Check{URL: "http://localhost/api", Headers: map[string]string{"Authorization": "Bearer token123"}, Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "Bearer token123", req.Header.Get("Authorization"))
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
 
 		// Request body
-		{"body string sent", Check{URL: "http://localhost/api", Method: "POST", Body: `{"key": "value"}`, Client: &mockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
+		{"body string sent", Check{URL: "http://localhost/api", Method: "POST", Body: `{"key": "value"}`, Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			body, _ := io.ReadAll(req.Body)
 			assert.Equal(t, `{"key": "value"}`, string(body))
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
-		{"body-file sent", Check{URL: "http://localhost/api", Method: "POST", BodyFile: "/tmp/request.json", FileReader: &mockFileReader{Files: map[string][]byte{"/tmp/request.json": []byte(`{"from": "file"}`)}}, Client: &mockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
+		{"body-file sent", Check{URL: "http://localhost/api", Method: "POST", BodyFile: "/tmp/request.json", FileReader: &mockFileReader{Files: map[string][]byte{"/tmp/request.json": []byte(`{"from": "file"}`)}}, Client: &testutil.MockHTTPClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 			body, _ := io.ReadAll(req.Body)
 			assert.Equal(t, `{"from": "file"}`, string(body))
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}, check.StatusOK, ""},
 		{"body-file not found", Check{URL: "http://localhost/api", Method: "POST", BodyFile: "/nonexistent/file.json", FileReader: &mockFileReader{Files: map[string][]byte{}}}, check.StatusFail, "failed to read body file"},
 
@@ -148,12 +133,12 @@ func TestHTTPCheck(t *testing.T) {
 func TestHTTPCheckRetry(t *testing.T) {
 	t.Run("succeeds on second attempt", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			if attempts < 2 {
 				return nil, errors.New("connection refused")
 			}
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusOK, result.Status)
@@ -163,7 +148,7 @@ func TestHTTPCheckRetry(t *testing.T) {
 	t.Run("exhausted after max attempts", func(t *testing.T) {
 		attempts := 0
 		c := Check{URL: "http://localhost/health", Retry: 2, RetryDelay: time.Millisecond, Client: clientErr("connection refused")}
-		c.Client = &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c.Client = &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			return nil, errors.New("connection refused")
 		}}
@@ -175,12 +160,12 @@ func TestHTTPCheckRetry(t *testing.T) {
 
 	t.Run("retry on status mismatch", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", ExpectedStatus: 200, Retry: 1, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", ExpectedStatus: 200, Retry: 1, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			if attempts < 2 {
-				return mockResp(503), nil
+				return testutil.MockResponse(503, ""), nil
 			}
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusOK, result.Status)
@@ -196,9 +181,9 @@ func TestHTTPCheckRetry(t *testing.T) {
 
 	t.Run("exhausted on status mismatch", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", ExpectedStatus: 200, Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", ExpectedStatus: 200, Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
-			return mockResp(503), nil
+			return testutil.MockResponse(503, ""), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusFail, result.Status)
@@ -210,12 +195,12 @@ func TestHTTPCheckRetry(t *testing.T) {
 
 	t.Run("success includes attempt info", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			if attempts < 3 {
-				return mockResp(503), nil
+				return testutil.MockResponse(503, ""), nil
 			}
-			return mockResp(200), nil
+			return testutil.MockResponse(200, ""), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusOK, result.Status)
@@ -226,12 +211,12 @@ func TestHTTPCheckRetry(t *testing.T) {
 func TestHTTPCheckContainsRetry(t *testing.T) {
 	t.Run("succeeds on second attempt", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", Contains: "healthy", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", Contains: "healthy", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			if attempts < 2 {
-				return mockRespBody(200, `{"status": "starting"}`), nil
+				return testutil.MockResponse(200, `{"status": "starting"}`), nil
 			}
-			return mockRespBody(200, `{"status": "healthy"}`), nil
+			return testutil.MockResponse(200, `{"status": "healthy"}`), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusOK, result.Status)
@@ -240,9 +225,9 @@ func TestHTTPCheckContainsRetry(t *testing.T) {
 
 	t.Run("exhausted", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/health", Contains: "healthy", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/health", Contains: "healthy", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
-			return mockRespBody(200, `{"status": "starting"}`), nil
+			return testutil.MockResponse(200, `{"status": "starting"}`), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusFail, result.Status)
@@ -254,12 +239,12 @@ func TestHTTPCheckContainsRetry(t *testing.T) {
 func TestHTTPCheckJSONPathRetry(t *testing.T) {
 	t.Run("succeeds on second attempt", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/api", JSONPath: "status=ready", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/api", JSONPath: "status=ready", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
 			if attempts < 2 {
-				return mockRespBody(200, `{"status": "starting"}`), nil
+				return testutil.MockResponse(200, `{"status": "starting"}`), nil
 			}
-			return mockRespBody(200, `{"status": "ready"}`), nil
+			return testutil.MockResponse(200, `{"status": "ready"}`), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusOK, result.Status)
@@ -268,9 +253,9 @@ func TestHTTPCheckJSONPathRetry(t *testing.T) {
 
 	t.Run("exhausted on value mismatch", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/api", JSONPath: "status=ready", Retry: 2, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/api", JSONPath: "status=ready", Retry: 2, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
-			return mockRespBody(200, `{"status": "starting"}`), nil
+			return testutil.MockResponse(200, `{"status": "starting"}`), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusFail, result.Status)
@@ -280,9 +265,9 @@ func TestHTTPCheckJSONPathRetry(t *testing.T) {
 
 	t.Run("exhausted on path not found", func(t *testing.T) {
 		attempts := 0
-		c := Check{URL: "http://localhost/api", JSONPath: "data.missing", Retry: 1, RetryDelay: time.Millisecond, Client: &mockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
+		c := Check{URL: "http://localhost/api", JSONPath: "data.missing", Retry: 1, RetryDelay: time.Millisecond, Client: &testutil.MockHTTPClient{DoFunc: func(*http.Request) (*http.Response, error) {
 			attempts++
-			return mockRespBody(200, `{"data": {"id": 123}}`), nil
+			return testutil.MockResponse(200, `{"data": {"id": 123}}`), nil
 		}}}
 		result := c.Run()
 		assert.Equal(t, check.StatusFail, result.Status)
