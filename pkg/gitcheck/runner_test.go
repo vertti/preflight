@@ -39,8 +39,9 @@ func TestRealGitRunner_TagsAtHead(t *testing.T) {
 
 func TestRealGitRunner_IsGitRepo_NotRepo(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
 
 	require.NoError(t, os.Chdir(tmpDir))
 
@@ -52,8 +53,9 @@ func TestRealGitRunner_IsGitRepo_NotRepo(t *testing.T) {
 
 func TestRealGitRunner_TagsAtHead_WithTag(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
 
 	require.NoError(t, os.Chdir(tmpDir))
 

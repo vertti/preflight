@@ -321,11 +321,12 @@ func TestHashCommand(t *testing.T) {
 		checksumContent := fmt.Sprintf("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  %s\n", filepath.Base(targetPath))
 		checksumPath := writeTempFile(t, "SHA256SUMS", checksumContent)
 
-		oldWd, _ := os.Getwd()
+		oldWd, err := os.Getwd()
+		require.NoError(t, err)
 		require.NoError(t, os.Chdir(filepath.Dir(targetPath)))
-		defer func() { _ = os.Chdir(oldWd) }()
+		t.Cleanup(func() { _ = os.Chdir(oldWd) })
 
-		_, err := executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
+		_, err = executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
 		assert.NoError(t, err)
 	})
 }
