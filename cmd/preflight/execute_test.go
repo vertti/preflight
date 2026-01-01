@@ -14,24 +14,20 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// executeCommand runs a command with the given args and returns the output.
-// It resets all flags to their default values before execution to avoid
-// state pollution between tests.
 func executeCommand(args ...string) (string, error) {
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
 	rootCmd.SetArgs(args)
-
 	resetFlags(rootCmd)
-
 	err := rootCmd.Execute()
 	return buf.String(), err
 }
 
-// resetFlags resets all flags on a command and its subcommands to defaults.
 func resetFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		if f.Value.Type() == "stringSlice" || f.Value.Type() == "intSlice" {
@@ -46,78 +42,45 @@ func resetFlags(cmd *cobra.Command) {
 	}
 }
 
-// writeTempFile creates a temp file with content and returns its path.
 func writeTempFile(t *testing.T, name, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("failed to write temp file: %v", err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	return path
 }
 
 func TestVersionFlag(t *testing.T) {
 	output, err := executeCommand("--version")
-	if err != nil {
-		t.Fatalf("--version failed: %v", err)
-	}
-	if !strings.Contains(output, "preflight") {
-		t.Errorf("output should contain 'preflight', got: %s", output)
-	}
+	require.NoError(t, err)
+	assert.Contains(t, output, "preflight")
 }
 
 func TestHelpFlag(t *testing.T) {
 	output, err := executeCommand("--help")
-	if err != nil {
-		t.Fatalf("--help failed: %v", err)
-	}
-	if !strings.Contains(output, "preflight") {
-		t.Errorf("help should mention preflight, got: %s", output)
-	}
+	require.NoError(t, err)
+	assert.Contains(t, output, "preflight")
 }
 
 func TestEnvCommand(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    []string
-		setup   func()
 		wantErr bool
 	}{
-		{
-			name:    "existing variable",
-			args:    []string{"env", "PATH"},
-			wantErr: false,
-		},
-		{
-			name:    "missing variable",
-			args:    []string{"env", "PREFLIGHT_NONEXISTENT_VAR_12345"},
-			wantErr: true,
-		},
-		{
-			name:    "not-set with unset variable",
-			args:    []string{"env", "--not-set", "PREFLIGHT_NONEXISTENT_VAR_12345"},
-			wantErr: false,
-		},
-		{
-			name:    "not-set with set variable",
-			args:    []string{"env", "--not-set", "PATH"},
-			wantErr: true,
-		},
-		{
-			name:    "missing argument",
-			args:    []string{"env"},
-			wantErr: true,
-		},
+		{"existing variable", []string{"env", "PATH"}, false},
+		{"missing variable", []string{"env", "PREFLIGHT_NONEXISTENT_VAR_12345"}, true},
+		{"not-set with unset variable", []string{"env", "--not-set", "PREFLIGHT_NONEXISTENT_VAR_12345"}, false},
+		{"not-set with set variable", []string{"env", "--not-set", "PATH"}, true},
+		{"missing argument", []string{"env"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.setup != nil {
-				tt.setup()
-			}
 			_, err := executeCommand(tt.args...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("executeCommand(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -126,9 +89,7 @@ func TestEnvCommand(t *testing.T) {
 func TestEnvExactMatch(t *testing.T) {
 	t.Setenv("PREFLIGHT_TEST_VAR", "expected_value")
 	_, err := executeCommand("env", "--exact", "expected_value", "PREFLIGHT_TEST_VAR")
-	if err != nil {
-		t.Errorf("env --exact should pass for matching value: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestEnvMinMaxValue(t *testing.T) {
@@ -136,30 +97,22 @@ func TestEnvMinMaxValue(t *testing.T) {
 
 	t.Run("min-value pass", func(t *testing.T) {
 		_, err := executeCommand("env", "--is-numeric", "--min-value", "10", "PREFLIGHT_NUM_VAR")
-		if err != nil {
-			t.Errorf("env --min-value 10 should pass for 50: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("max-value pass", func(t *testing.T) {
 		_, err := executeCommand("env", "--is-numeric", "--max-value", "100", "PREFLIGHT_NUM_VAR")
-		if err != nil {
-			t.Errorf("env --max-value 100 should pass for 50: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("min-value fail", func(t *testing.T) {
 		_, err := executeCommand("env", "--is-numeric", "--min-value", "60", "PREFLIGHT_NUM_VAR")
-		if err == nil {
-			t.Error("env --min-value 60 should fail for 50")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("max-value fail", func(t *testing.T) {
 		_, err := executeCommand("env", "--is-numeric", "--max-value", "40", "PREFLIGHT_NUM_VAR")
-		if err == nil {
-			t.Error("env --max-value 40 should fail for 50")
-		}
+		assert.Error(t, err)
 	})
 }
 
@@ -169,33 +122,19 @@ func TestSysCommand(t *testing.T) {
 		args    []string
 		wantErr bool
 	}{
-		{
-			name:    "matching os",
-			args:    []string{"sys", "--os", runtime.GOOS},
-			wantErr: false,
-		},
-		{
-			name:    "matching arch",
-			args:    []string{"sys", "--arch", runtime.GOARCH},
-			wantErr: false,
-		},
-		{
-			name:    "matching os and arch",
-			args:    []string{"sys", "--os", runtime.GOOS, "--arch", runtime.GOARCH},
-			wantErr: false,
-		},
-		{
-			name:    "wrong os",
-			args:    []string{"sys", "--os", "plan9"},
-			wantErr: true,
-		},
+		{"matching os", []string{"sys", "--os", runtime.GOOS}, false},
+		{"matching arch", []string{"sys", "--arch", runtime.GOARCH}, false},
+		{"matching os and arch", []string{"sys", "--os", runtime.GOOS, "--arch", runtime.GOARCH}, false},
+		{"wrong os", []string{"sys", "--os", "plan9"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := executeCommand(tt.args...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("executeCommand(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -207,43 +146,21 @@ func TestCmdCommand(t *testing.T) {
 		args    []string
 		wantErr bool
 	}{
-		{
-			name:    "existing command with version-cmd (go)",
-			args:    []string{"cmd", "--version-cmd", "version", "go"},
-			wantErr: false,
-		},
-		{
-			name:    "nonexistent command",
-			args:    []string{"cmd", "nonexistent_command_xyz_12345"},
-			wantErr: true,
-		},
-		{
-			name:    "missing argument",
-			args:    []string{"cmd"},
-			wantErr: true,
-		},
-		{
-			name:    "invalid min version",
-			args:    []string{"cmd", "--min", "not-a-version", "go"},
-			wantErr: true,
-		},
-		{
-			name:    "invalid max version",
-			args:    []string{"cmd", "--max", "not-a-version", "go"},
-			wantErr: true,
-		},
-		{
-			name:    "invalid exact version",
-			args:    []string{"cmd", "--exact", "not-a-version", "go"},
-			wantErr: true,
-		},
+		{"existing command with version-cmd", []string{"cmd", "--version-cmd", "version", "go"}, false},
+		{"nonexistent command", []string{"cmd", "nonexistent_command_xyz_12345"}, true},
+		{"missing argument", []string{"cmd"}, true},
+		{"invalid min version", []string{"cmd", "--min", "not-a-version", "go"}, true},
+		{"invalid max version", []string{"cmd", "--max", "not-a-version", "go"}, true},
+		{"invalid exact version", []string{"cmd", "--exact", "not-a-version", "go"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := executeCommand(tt.args...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("executeCommand(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -253,39 +170,29 @@ func TestFileCommand(t *testing.T) {
 	t.Run("existing file", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "content")
 		_, err := executeCommand("file", path)
-		if err != nil {
-			t.Errorf("file should pass for existing file: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("nonexistent file", func(t *testing.T) {
 		_, err := executeCommand("file", "/nonexistent/path/file.txt")
-		if err == nil {
-			t.Error("file should fail for nonexistent file")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("not-empty with content", func(t *testing.T) {
 		path := writeTempFile(t, "nonempty.txt", "has content")
 		_, err := executeCommand("file", "--not-empty", path)
-		if err != nil {
-			t.Errorf("file --not-empty should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("not-empty with empty file", func(t *testing.T) {
 		path := writeTempFile(t, "empty.txt", "")
 		_, err := executeCommand("file", "--not-empty", path)
-		if err == nil {
-			t.Error("file --not-empty should fail for empty file")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("file")
-		if err == nil {
-			t.Error("file should fail without argument")
-		}
+		assert.Error(t, err)
 	})
 }
 
@@ -297,16 +204,12 @@ func TestUserCommand(t *testing.T) {
 
 	t.Run("current user", func(t *testing.T) {
 		_, err := executeCommand("user", currentUser)
-		if err != nil {
-			t.Errorf("user should pass for current user: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("user")
-		if err == nil {
-			t.Error("user should fail without argument")
-		}
+		assert.Error(t, err)
 	})
 }
 
@@ -316,119 +219,133 @@ func TestResourceCommand(t *testing.T) {
 		args    []string
 		wantErr bool
 	}{
-		{
-			name:    "min-memory 1MB",
-			args:    []string{"resource", "--min-memory", "1MB"},
-			wantErr: false,
-		},
-		{
-			name:    "min-cpus 1",
-			args:    []string{"resource", "--min-cpus", "1"},
-			wantErr: false,
-		},
+		{"min-memory 1MB", []string{"resource", "--min-memory", "1MB"}, false},
+		{"min-cpus 1", []string{"resource", "--min-cpus", "1"}, false},
+		{"min-disk 1MB", []string{"resource", "--min-disk", "1MB"}, false},
+		{"combined flags", []string{"resource", "--min-memory", "1MB", "--min-cpus", "1"}, false},
+		{"no flags", []string{"resource"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := executeCommand(tt.args...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("executeCommand(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
 }
 
 func TestTCPCommand(t *testing.T) {
-	_, err := executeCommand("tcp")
-	if err == nil {
-		t.Error("tcp should fail without argument")
-	}
+	t.Run("missing argument", func(t *testing.T) {
+		_, err := executeCommand("tcp")
+		assert.Error(t, err)
+	})
+
+	t.Run("reachable port", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		_, err = executeCommand("tcp", listener.Addr().String())
+		assert.NoError(t, err)
+	})
+
+	t.Run("unreachable port", func(t *testing.T) {
+		_, err := executeCommand("tcp", "--timeout", "100ms", "127.0.0.1:1")
+		assert.Error(t, err)
+	})
 }
 
 func TestJSONCommand(t *testing.T) {
 	t.Run("valid json", func(t *testing.T) {
 		path := writeTempFile(t, "valid.json", `{"key": "value"}`)
 		_, err := executeCommand("json", path)
-		if err != nil {
-			t.Errorf("json should pass for valid JSON: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
 		path := writeTempFile(t, "invalid.json", `{not valid}`)
 		_, err := executeCommand("json", path)
-		if err == nil {
-			t.Error("json should fail for invalid JSON")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("json")
-		if err == nil {
-			t.Error("json should fail without argument")
-		}
+		assert.Error(t, err)
 	})
 }
 
 func TestHashCommand(t *testing.T) {
-	t.Run("valid hash", func(t *testing.T) {
+	t.Run("valid sha256", func(t *testing.T) {
 		path := writeTempFile(t, "hashtest.txt", "test content")
-		// SHA256 of "test content"
 		hash := "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
 		_, err := executeCommand("hash", "--sha256", hash, path)
-		if err != nil {
-			t.Errorf("hash should pass for correct hash: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("wrong hash", func(t *testing.T) {
 		path := writeTempFile(t, "hashtest.txt", "test content")
-		wrongHash := "0000000000000000000000000000000000000000000000000000000000000000"
-		_, err := executeCommand("hash", "--sha256", wrongHash, path)
-		if err == nil {
-			t.Error("hash should fail for wrong hash")
-		}
+		_, err := executeCommand("hash", "--sha256", strings.Repeat("0", 64), path)
+		assert.Error(t, err)
 	})
 
 	t.Run("nonexistent file", func(t *testing.T) {
-		hash := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-		_, err := executeCommand("hash", "--sha256", hash, "/nonexistent/file.txt")
-		if err == nil {
-			t.Error("hash should fail for nonexistent file")
-		}
+		_, err := executeCommand("hash", "--sha256", strings.Repeat("0", 64), "/nonexistent/file.txt")
+		assert.Error(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("hash")
-		if err == nil {
-			t.Error("hash should fail without argument")
-		}
+		assert.Error(t, err)
+	})
+
+	t.Run("sha512", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		hash := "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
+		_, err := executeCommand("hash", "--sha512", hash, path)
+		assert.NoError(t, err)
+	})
+
+	t.Run("md5", func(t *testing.T) {
+		path := writeTempFile(t, "test.txt", "test")
+		hash := "098f6bcd4621d373cade4e832627b4f6"
+		_, err := executeCommand("hash", "--md5", hash, path)
+		assert.NoError(t, err)
+	})
+
+	t.Run("checksum file valid", func(t *testing.T) {
+		targetPath := writeTempFile(t, "target.txt", "test")
+		checksumContent := fmt.Sprintf("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  %s\n", filepath.Base(targetPath))
+		checksumPath := writeTempFile(t, "SHA256SUMS", checksumContent)
+
+		oldWd, _ := os.Getwd()
+		require.NoError(t, os.Chdir(filepath.Dir(targetPath)))
+		defer func() { _ = os.Chdir(oldWd) }()
+
+		_, err := executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
+		assert.NoError(t, err)
 	})
 }
 
 func TestGitCommand(t *testing.T) {
 	t.Run("clean flag", func(t *testing.T) {
-		// Test --clean flag - git status check runs in actual repo
 		_, err := executeCommand("git", "--clean")
-		// Result depends on repo state, but shouldn't error
-		if err != nil && !strings.Contains(err.Error(), "check failed") {
-			t.Errorf("git --clean unexpected error: %v", err)
+		if err != nil {
+			assert.Contains(t, err.Error(), "check failed")
 		}
 	})
 
-	t.Run("tag flag with no tag", func(t *testing.T) {
-		// HEAD likely doesn't have a tag in test environment
+	t.Run("tag flag with nonexistent tag", func(t *testing.T) {
 		_, err := executeCommand("git", "--tag", "v999.999.999")
-		if err == nil {
-			t.Error("git --tag with nonexistent tag should fail")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("git")
-		if err == nil {
-			t.Error("git should fail without flags")
-		}
+		assert.Error(t, err)
 	})
 }
 
@@ -437,9 +354,7 @@ func TestRunCommand(t *testing.T) {
 	// runRun uses exec.Command which is hard to test in unit tests.
 	t.Run("nonexistent file", func(t *testing.T) {
 		_, err := executeCommand("run", "--file", "/nonexistent/.preflight")
-		if err == nil {
-			t.Error("run should fail for nonexistent file")
-		}
+		assert.Error(t, err)
 	})
 }
 
@@ -449,377 +364,268 @@ func TestSubcommandHelp(t *testing.T) {
 	for _, subcmd := range subcommands {
 		t.Run(subcmd, func(t *testing.T) {
 			output, err := executeCommand(subcmd, "--help")
-			if err != nil {
-				t.Errorf("%s --help failed: %v", subcmd, err)
-			}
-			if output == "" {
-				t.Errorf("%s --help returned empty output", subcmd)
-			}
+			assert.NoError(t, err)
+			assert.NotEmpty(t, output)
 		})
 	}
 }
 
 func TestHTTPCommand(t *testing.T) {
 	t.Run("successful request", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("http", ts.URL)
-		if err != nil {
-			t.Errorf("http should pass for 200 response: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("wrong status code", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("http", ts.URL)
-		if err == nil {
-			t.Error("http should fail for 404 response")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("expected status code", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("http", "--status", "404", ts.URL)
-		if err != nil {
-			t.Errorf("http --status 404 should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("contains check", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status": "healthy"}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("http", "--contains", "healthy", ts.URL)
-		if err != nil {
-			t.Errorf("http --contains should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("http")
-		if err == nil {
-			t.Error("http should fail without argument")
-		}
-	})
-}
-
-func TestTCPCommandWithServer(t *testing.T) {
-	// Start a TCP listener
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to start listener: %v", err)
-	}
-	defer func() { _ = listener.Close() }()
-
-	addr := listener.Addr().String()
-
-	t.Run("reachable port", func(t *testing.T) {
-		_, err := executeCommand("tcp", addr)
-		if err != nil {
-			t.Errorf("tcp should pass for listening port: %v", err)
-		}
-	})
-
-	t.Run("unreachable port", func(t *testing.T) {
-		// Use a port that's definitely not listening
-		_, err := executeCommand("tcp", "--timeout", "100ms", "127.0.0.1:1")
-		if err == nil {
-			t.Error("tcp should fail for unreachable port")
-		}
+		assert.Error(t, err)
 	})
 }
 
 func TestPrometheusCommand(t *testing.T) {
 	t.Run("successful query", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"1"]}]}}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("prometheus", ts.URL, "--query", "up")
-		if err != nil {
-			t.Errorf("prometheus should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("empty result", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("prometheus", ts.URL, "--query", "nonexistent_metric")
-		if err == nil {
-			t.Error("prometheus should fail for empty result")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		_, err := executeCommand("prometheus")
-		if err == nil {
-			t.Error("prometheus should fail without argument")
-		}
+		assert.Error(t, err)
 	})
 }
 
 func TestResourceCommandMore(t *testing.T) {
 	t.Run("min-disk", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-disk", "1MB")
-		if err != nil {
-			t.Errorf("resource --min-disk 1MB should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("combined flags", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-memory", "1MB", "--min-cpus", "1")
-		if err != nil {
-			t.Errorf("resource with multiple flags should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("no flags", func(t *testing.T) {
 		_, err := executeCommand("resource")
-		if err == nil {
-			t.Error("resource without flags should fail")
-		}
+		assert.Error(t, err)
 	})
 }
 
 func TestHashCommandMore(t *testing.T) {
 	t.Run("sha512", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
-		// SHA512 of "test"
 		hash := "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
 		_, err := executeCommand("hash", "--sha512", hash, path)
-		if err != nil {
-			t.Errorf("hash --sha512 should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("sha384", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
-		// SHA384 of "test"
 		hash := "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9"
 		_, err := executeCommand("hash", "--sha384", hash, path)
-		if err != nil {
-			t.Errorf("hash --sha384 should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("sha1", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
-		// SHA1 of "test"
 		hash := "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
 		_, err := executeCommand("hash", "--sha1", hash, path)
-		if err != nil {
-			t.Errorf("hash --sha1 should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("md5", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
-		// MD5 of "test"
 		hash := "098f6bcd4621d373cade4e832627b4f6"
 		_, err := executeCommand("hash", "--md5", hash, path)
-		if err != nil {
-			t.Errorf("hash --md5 should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("auto sha256", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
-		// SHA256 of "test" - auto-detect by length
 		hash := "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
 		_, err := executeCommand("hash", "--auto", hash, path)
-		if err != nil {
-			t.Errorf("hash --auto should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("checksum file valid", func(t *testing.T) {
-		content := "test"
-		targetPath := writeTempFile(t, "target.txt", content)
-		// SHA256 of "test"
+		targetPath := writeTempFile(t, "target.txt", "test")
 		checksumContent := fmt.Sprintf("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  %s\n", filepath.Base(targetPath))
 		checksumPath := writeTempFile(t, "SHA256SUMS", checksumContent)
 
-		// Change to temp dir so relative path works
-		oldWd, _ := os.Getwd()
-		if err := os.Chdir(filepath.Dir(targetPath)); err != nil {
-			t.Fatalf("failed to chdir: %v", err)
-		}
-		defer func() { _ = os.Chdir(oldWd) }()
+		oldWd, err := os.Getwd()
+		require.NoError(t, err)
+		require.NoError(t, os.Chdir(filepath.Dir(targetPath)))
+		t.Cleanup(func() { _ = os.Chdir(oldWd) })
 
-		_, err := executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
-		if err != nil {
-			t.Errorf("hash --checksum-file should pass for valid checksum: %v", err)
-		}
+		_, err = executeCommand("hash", "--checksum-file", checksumPath, filepath.Base(targetPath))
+		assert.NoError(t, err)
 	})
 
 	t.Run("no hash flag", func(t *testing.T) {
 		path := writeTempFile(t, "test.txt", "test")
 		_, err := executeCommand("hash", path)
-		if err == nil {
-			t.Error("hash without hash flag should fail")
-		}
+		assert.Error(t, err)
 	})
 }
 
 func TestRealFileChecker(t *testing.T) {
 	t.Run("existing file returns true", func(t *testing.T) {
 		path := writeTempFile(t, "testfile.txt", "content")
-		if !realFileChecker(path) {
-			t.Error("realFileChecker should return true for existing file")
-		}
+		assert.True(t, realFileChecker(path))
 	})
 
 	t.Run("nonexistent file returns false", func(t *testing.T) {
-		if realFileChecker("/nonexistent/path/file.txt") {
-			t.Error("realFileChecker should return false for nonexistent file")
-		}
+		assert.False(t, realFileChecker("/nonexistent/path/file.txt"))
 	})
 
 	t.Run("directory returns false", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		if realFileChecker(tmpDir) {
-			t.Error("realFileChecker should return false for directory")
-		}
+		assert.False(t, realFileChecker(tmpDir))
 	})
 }
 
 func TestJSONCommandErrorPaths(t *testing.T) {
 	t.Run("nonexistent file", func(t *testing.T) {
 		_, err := executeCommand("json", "/nonexistent/file.json")
-		if err == nil {
-			t.Error("json should fail for nonexistent file")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("exact without key", func(t *testing.T) {
 		path := writeTempFile(t, "test.json", `{"key": "value"}`)
 		_, err := executeCommand("json", "--exact", "value", path)
-		if err == nil {
-			t.Error("json --exact without --key should fail")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("match without key", func(t *testing.T) {
 		path := writeTempFile(t, "test.json", `{"key": "value"}`)
 		_, err := executeCommand("json", "--match", "val.*", path)
-		if err == nil {
-			t.Error("json --match without --key should fail")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("has-key check passes", func(t *testing.T) {
 		path := writeTempFile(t, "test.json", `{"nested": {"key": "value"}}`)
 		_, err := executeCommand("json", "--has-key", "nested.key", path)
-		if err != nil {
-			t.Errorf("json --has-key should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("key with exact check", func(t *testing.T) {
 		path := writeTempFile(t, "test.json", `{"key": "expected"}`)
 		_, err := executeCommand("json", "--key", "key", "--exact", "expected", path)
-		if err != nil {
-			t.Errorf("json --key --exact should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("key with match check", func(t *testing.T) {
 		path := writeTempFile(t, "test.json", `{"key": "hello123world"}`)
 		_, err := executeCommand("json", "--key", "key", "--match", "hello.*world", path)
-		if err != nil {
-			t.Errorf("json --key --match should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 }
 
 func TestPrometheusCommandErrorPaths(t *testing.T) {
 	t.Run("invalid url", func(t *testing.T) {
 		_, err := executeCommand("prometheus", "not-a-valid-url", "--query", "up")
-		if err == nil {
-			t.Error("prometheus should fail for invalid URL")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("min check passes", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"50"]}]}}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--min", "10")
-		if err != nil {
-			t.Errorf("prometheus --min 10 should pass for value 50: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("max check fails", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"50"]}]}}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--max", "10")
-		if err == nil {
-			t.Error("prometheus --max 10 should fail for value 50")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("exact check passes", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1234567890,"1"]}]}}`))
 		}))
 		defer ts.Close()
 
 		_, err := executeCommand("prometheus", ts.URL, "--query", "up", "--exact", "1")
-		if err != nil {
-			t.Errorf("prometheus --exact 1 should pass for value 1: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 }
 
 func TestResourceCommandErrorPaths(t *testing.T) {
 	t.Run("disk path does not exist", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-disk", "1MB", "--path", "/nonexistent/path")
-		if err == nil {
-			t.Error("resource should fail for nonexistent disk path")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid memory size format", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-memory", "invalid")
-		if err == nil {
-			t.Error("resource should fail for invalid memory size format")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid disk size format", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-disk", "invalid")
-		if err == nil {
-			t.Error("resource should fail for invalid disk size format")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("with custom path", func(t *testing.T) {
 		_, err := executeCommand("resource", "--min-disk", "1MB", "--path", ".")
-		if err != nil {
-			t.Errorf("resource with custom path should pass: %v", err)
-		}
+		assert.NoError(t, err)
 	})
 }
