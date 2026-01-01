@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -80,27 +79,6 @@ func runExec(execArgs []string) error {
 		return nil
 	}
 	return executor.Exec(execArgs[0], execArgs[1:])
-}
-
-func main() {
-	var file string
-	os.Args, file = transformArgsForHashbang(os.Args, realFileChecker)
-	if file != "" {
-		runFile = file
-	}
-
-	// Extract exec args (everything after "--")
-	execArgs := extractExecArgs(&os.Args)
-
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
-
-	// Checks passed - exec into command if args were provided
-	if err := runExec(execArgs); err != nil {
-		fmt.Fprintf(os.Stderr, "exec: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 var rootCmd = &cobra.Command{
