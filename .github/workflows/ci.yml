@@ -167,7 +167,7 @@ jobs:
           docker build -f Dockerfile.distroless -t preflight-distroless .
 
           # Test basic commands (no shell available)
-          docker run --rm preflight-distroless version
+          docker run --rm preflight-distroless --version
           docker run --rm preflight-distroless env PATH
 
       - name: Test in scratch
@@ -177,4 +177,4 @@ jobs:
           ENTRYPOINT ["/preflight"]' > Dockerfile.scratch
           docker build -f Dockerfile.scratch -t preflight-scratch .
 
-          docker run --rm preflight-scratch version
+          docker run --rm preflight-scratch --version
