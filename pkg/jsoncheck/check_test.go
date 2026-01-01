@@ -1,10 +1,12 @@
 package jsoncheck
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/testutil"
 )
 
 type mockFS struct {
@@ -12,12 +14,14 @@ type mockFS struct {
 	Err     error
 }
 
-func (m *mockFS) ReadFile(_ string) ([]byte, error) {
+func (m *mockFS) ReadFile(string) ([]byte, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
 	return m.Content, nil
 }
+
+func fs(content string) *mockFS { return &mockFS{Content: []byte(content)} }
 
 func TestJSONCheck_Run(t *testing.T) {
 	tests := []struct {
@@ -26,243 +30,43 @@ func TestJSONCheck_Run(t *testing.T) {
 		wantStatus check.Status
 		wantDetail string
 	}{
-		// Syntax validation tests
-		{
-			name: "valid JSON object passes",
-			check: Check{
-				File: "config.json",
-				FS:   &mockFS{Content: []byte(`{"name": "test"}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "syntax: valid",
-		},
-		{
-			name: "valid JSON array passes",
-			check: Check{
-				File: "data.json",
-				FS:   &mockFS{Content: []byte(`[1, 2, 3]`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "syntax: valid",
-		},
-		{
-			name: "invalid JSON fails",
-			check: Check{
-				File: "bad.json",
-				FS:   &mockFS{Content: []byte(`{invalid}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: "invalid JSON",
-		},
-		{
-			name: "empty file is invalid JSON",
-			check: Check{
-				File: "empty.json",
-				FS:   &mockFS{Content: []byte(``)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: "invalid JSON",
-		},
+		// Syntax validation
+		{"valid JSON object", Check{File: "config.json", FS: fs(`{"name": "test"}`)}, check.StatusOK, "syntax: valid"},
+		{"valid JSON array", Check{File: "data.json", FS: fs(`[1, 2, 3]`)}, check.StatusOK, "syntax: valid"},
+		{"invalid JSON", Check{File: "bad.json", FS: fs(`{invalid}`)}, check.StatusFail, "invalid JSON"},
+		{"empty file invalid", Check{File: "empty.json", FS: fs(``)}, check.StatusFail, "invalid JSON"},
 
-		// --has-key tests
-		{
-			name: "has-key exists passes",
-			check: Check{
-				File:   "config.json",
-				HasKey: "name",
-				FS:     &mockFS{Content: []byte(`{"name": "test"}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "has key: name",
-		},
-		{
-			name: "has-key missing fails",
-			check: Check{
-				File:   "config.json",
-				HasKey: "missing",
-				FS:     &mockFS{Content: []byte(`{"name": "test"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `key "missing" not found`,
-		},
-		{
-			name: "has-key nested exists passes",
-			check: Check{
-				File:   "config.json",
-				HasKey: "database.host",
-				FS:     &mockFS{Content: []byte(`{"database": {"host": "localhost"}}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "has key: database.host",
-		},
-		{
-			name: "has-key nested missing fails",
-			check: Check{
-				File:   "config.json",
-				HasKey: "database.port",
-				FS:     &mockFS{Content: []byte(`{"database": {"host": "localhost"}}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `key "database.port" not found`,
-		},
-		{
-			name: "has-key on non-object path fails",
-			check: Check{
-				File:   "config.json",
-				HasKey: "name.nested",
-				FS:     &mockFS{Content: []byte(`{"name": "test"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `key "name.nested" not found`,
-		},
+		// --has-key
+		{"has-key exists", Check{File: "f.json", HasKey: "name", FS: fs(`{"name": "test"}`)}, check.StatusOK, "has key: name"},
+		{"has-key missing", Check{File: "f.json", HasKey: "missing", FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "missing" not found`},
+		{"has-key nested exists", Check{File: "f.json", HasKey: "database.host", FS: fs(`{"database": {"host": "localhost"}}`)}, check.StatusOK, "has key: database.host"},
+		{"has-key nested missing", Check{File: "f.json", HasKey: "database.port", FS: fs(`{"database": {"host": "localhost"}}`)}, check.StatusFail, `key "database.port" not found`},
+		{"has-key on non-object", Check{File: "f.json", HasKey: "name.nested", FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "name.nested" not found`},
 
-		// --key + --exact tests
-		{
-			name: "key exact match passes",
-			check: Check{
-				File:  "config.json",
-				Key:   "env",
-				Exact: "production",
-				FS:    &mockFS{Content: []byte(`{"env": "production"}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key env: production",
-		},
-		{
-			name: "key exact mismatch fails",
-			check: Check{
-				File:  "config.json",
-				Key:   "env",
-				Exact: "production",
-				FS:    &mockFS{Content: []byte(`{"env": "development"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `value "development" does not equal "production"`,
-		},
-		{
-			name: "key exact on nested key passes",
-			check: Check{
-				File:  "config.json",
-				Key:   "db.host",
-				Exact: "localhost",
-				FS:    &mockFS{Content: []byte(`{"db": {"host": "localhost"}}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key db.host: localhost",
-		},
-		{
-			name: "key not found fails",
-			check: Check{
-				File:  "config.json",
-				Key:   "missing",
-				Exact: "value",
-				FS:    &mockFS{Content: []byte(`{"name": "test"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `key "missing" not found`,
-		},
+		// --key + --exact
+		{"key exact match", Check{File: "f.json", Key: "env", Exact: "production", FS: fs(`{"env": "production"}`)}, check.StatusOK, "key env: production"},
+		{"key exact mismatch", Check{File: "f.json", Key: "env", Exact: "production", FS: fs(`{"env": "development"}`)}, check.StatusFail, `value "development" does not equal "production"`},
+		{"key exact nested", Check{File: "f.json", Key: "db.host", Exact: "localhost", FS: fs(`{"db": {"host": "localhost"}}`)}, check.StatusOK, "key db.host: localhost"},
+		{"key not found", Check{File: "f.json", Key: "missing", Exact: "value", FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "missing" not found`},
 
-		// --key + --match tests
-		{
-			name: "key match pattern passes",
-			check: Check{
-				File:  "config.json",
-				Key:   "version",
-				Match: `^1\.`,
-				FS:    &mockFS{Content: []byte(`{"version": "1.2.3"}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key version: 1.2.3",
-		},
-		{
-			name: "key match pattern fails",
-			check: Check{
-				File:  "config.json",
-				Key:   "version",
-				Match: `^1\.`,
-				FS:    &mockFS{Content: []byte(`{"version": "2.0.0"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: `does not match pattern`,
-		},
-		{
-			name: "key match invalid regex fails",
-			check: Check{
-				File:  "config.json",
-				Key:   "version",
-				Match: `[invalid`,
-				FS:    &mockFS{Content: []byte(`{"version": "1.0.0"}`)},
-			},
-			wantStatus: check.StatusFail,
-			wantDetail: "invalid regex pattern",
-		},
+		// --key + --match
+		{"key match pattern", Check{File: "f.json", Key: "version", Match: `^1\.`, FS: fs(`{"version": "1.2.3"}`)}, check.StatusOK, "key version: 1.2.3"},
+		{"key match fails", Check{File: "f.json", Key: "version", Match: `^1\.`, FS: fs(`{"version": "2.0.0"}`)}, check.StatusFail, `does not match pattern`},
+		{"key match invalid regex", Check{File: "f.json", Key: "version", Match: `[invalid`, FS: fs(`{"version": "1.0.0"}`)}, check.StatusFail, "invalid regex pattern"},
 
-		// Non-string value coercion tests
-		{
-			name: "key exact on number value",
-			check: Check{
-				File:  "config.json",
-				Key:   "port",
-				Exact: "8080",
-				FS:    &mockFS{Content: []byte(`{"port": 8080}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key port: 8080",
-		},
-		{
-			name: "key exact on boolean value",
-			check: Check{
-				File:  "config.json",
-				Key:   "enabled",
-				Exact: "true",
-				FS:    &mockFS{Content: []byte(`{"enabled": true}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key enabled: true",
-		},
-		{
-			name: "key exact on null value",
-			check: Check{
-				File:  "config.json",
-				Key:   "value",
-				Exact: "null",
-				FS:    &mockFS{Content: []byte(`{"value": null}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key value: null",
-		},
-		{
-			name: "key match on float value",
-			check: Check{
-				File:  "config.json",
-				Key:   "rate",
-				Match: `^0\.5`,
-				FS:    &mockFS{Content: []byte(`{"rate": 0.5}`)},
-			},
-			wantStatus: check.StatusOK,
-			wantDetail: "key rate: 0.5",
-		},
+		// Non-string value coercion
+		{"key exact number", Check{File: "f.json", Key: "port", Exact: "8080", FS: fs(`{"port": 8080}`)}, check.StatusOK, "key port: 8080"},
+		{"key exact boolean", Check{File: "f.json", Key: "enabled", Exact: "true", FS: fs(`{"enabled": true}`)}, check.StatusOK, "key enabled: true"},
+		{"key exact null", Check{File: "f.json", Key: "value", Exact: "null", FS: fs(`{"value": null}`)}, check.StatusOK, "key value: null"},
+		{"key match float", Check{File: "f.json", Key: "rate", Match: `^0\.5`, FS: fs(`{"rate": 0.5}`)}, check.StatusOK, "key rate: 0.5"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.check.Run()
-
-			if result.Status != tt.wantStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.wantStatus)
-			}
-
+			assert.Equal(t, tt.wantStatus, result.Status)
 			if tt.wantDetail != "" {
-				found := false
-				for _, d := range result.Details {
-					if strings.Contains(d, tt.wantDetail) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Details %v does not contain %q", result.Details, tt.wantDetail)
-				}
+				assert.True(t, testutil.ContainsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
 			}
 		})
 	}

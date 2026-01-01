@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/vertti/preflight/pkg/check"
 )
 
-// mockTCPDialer is a mock implementation of TCPDialer for testing.
 type mockTCPDialer struct {
 	DialFunc func(network, address string, timeout time.Duration) (net.Conn, error)
 }
@@ -18,7 +19,6 @@ func (m *mockTCPDialer) DialTimeout(network, address string, timeout time.Durati
 	return m.DialFunc(network, address, timeout)
 }
 
-// mockConn is a minimal net.Conn implementation for testing.
 type mockConn struct{}
 
 func (m *mockConn) Read(b []byte) (n int, err error)   { return 0, nil }
@@ -42,7 +42,7 @@ func TestTCPCheck(t *testing.T) {
 		{
 			name:    "successful connection",
 			address: "localhost:5432",
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
+			dialFunc: func(_, _ string, _ time.Duration) (net.Conn, error) {
 				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
@@ -51,7 +51,7 @@ func TestTCPCheck(t *testing.T) {
 		{
 			name:    "connection refused",
 			address: "localhost:9999",
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
+			dialFunc: func(_, _ string, _ time.Duration) (net.Conn, error) {
 				return nil, errors.New("connection refused")
 			},
 			wantStatus: check.StatusFail,
@@ -61,7 +61,7 @@ func TestTCPCheck(t *testing.T) {
 			name:    "timeout",
 			address: "10.255.255.1:80",
 			timeout: 1 * time.Second,
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
+			dialFunc: func(_, _ string, _ time.Duration) (net.Conn, error) {
 				return nil, errors.New("i/o timeout")
 			},
 			wantStatus: check.StatusFail,
@@ -70,7 +70,7 @@ func TestTCPCheck(t *testing.T) {
 		{
 			name:    "dns resolution failure",
 			address: "nonexistent.invalid:80",
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
+			dialFunc: func(_, _ string, _ time.Duration) (net.Conn, error) {
 				return nil, errors.New("no such host")
 			},
 			wantStatus: check.StatusFail,
@@ -80,10 +80,8 @@ func TestTCPCheck(t *testing.T) {
 			name:    "custom timeout used",
 			address: "localhost:8080",
 			timeout: 10 * time.Second,
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
-				if timeout != 10*time.Second {
-					t.Errorf("expected timeout 10s, got %v", timeout)
-				}
+			dialFunc: func(_, _ string, timeout time.Duration) (net.Conn, error) {
+				assert.Equal(t, 10*time.Second, timeout)
 				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
@@ -93,10 +91,8 @@ func TestTCPCheck(t *testing.T) {
 			name:    "default timeout when zero",
 			address: "localhost:3000",
 			timeout: 0,
-			dialFunc: func(network, address string, timeout time.Duration) (net.Conn, error) {
-				if timeout != 5*time.Second {
-					t.Errorf("expected default timeout 5s, got %v", timeout)
-				}
+			dialFunc: func(_, _ string, timeout time.Duration) (net.Conn, error) {
+				assert.Equal(t, 5*time.Second, timeout)
 				return &mockConn{}, nil
 			},
 			wantStatus: check.StatusOK,
@@ -109,21 +105,15 @@ func TestTCPCheck(t *testing.T) {
 			c := &Check{
 				Address: tt.address,
 				Timeout: tt.timeout,
-				Dialer: &mockTCPDialer{
-					DialFunc: tt.dialFunc,
-				},
+				Dialer:  &mockTCPDialer{DialFunc: tt.dialFunc},
 			}
 
 			result := c.Run()
 
-			if result.Status != tt.wantStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.wantStatus)
-			}
-			if result.Name != tt.wantName {
-				t.Errorf("Name = %q, want %q", result.Name, tt.wantName)
-			}
-			if tt.wantStatus == check.StatusFail && result.Err == nil {
-				t.Error("expected Err to be set on failure")
+			assert.Equal(t, tt.wantStatus, result.Status)
+			assert.Equal(t, tt.wantName, result.Name)
+			if tt.wantStatus == check.StatusFail {
+				assert.NotNil(t, result.Err)
 			}
 		})
 	}
