@@ -597,3 +597,91 @@ func TestIntegration_ExamplesShellSyntax(t *testing.T) {
 		})
 	}
 }
+
+func TestIntegration_ExecMode(t *testing.T) {
+	// Build preflight binary for testing
+	tmpDir := t.TempDir()
+	binaryPath := tmpDir + "/preflight"
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/preflight") //nolint:gosec // intentional: building test binary
+	if output, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build preflight: %v\n%s", err, output)
+	}
+
+	t.Run("exec after successful check", func(t *testing.T) {
+		// Run: preflight env PATH -- echo "success"
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "exec-success-marker") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("command failed: %v\n%s", err, output)
+		}
+
+		// Should see both the check output and the exec'd command output
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "[OK] env: PATH") {
+			t.Errorf("expected check output, got: %s", outputStr)
+		}
+		if !strings.Contains(outputStr, "exec-success-marker") {
+			t.Errorf("expected exec'd command output, got: %s", outputStr)
+		}
+	})
+
+	t.Run("no exec after failed check", func(t *testing.T) {
+		// Run: preflight env NONEXISTENT_VAR_12345 -- echo "should-not-print"
+		cmd := exec.Command(binaryPath, "env", "NONEXISTENT_VAR_12345", "--", "echo", "should-not-print") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
+		output, err := cmd.CombinedOutput()
+
+		// Command should fail
+		if err == nil {
+			t.Fatal("expected command to fail")
+		}
+
+		// Should see the failure output but NOT the exec'd command
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "[FAIL]") {
+			t.Errorf("expected failure output, got: %s", outputStr)
+		}
+		if strings.Contains(outputStr, "should-not-print") {
+			t.Errorf("exec'd command should not have run, got: %s", outputStr)
+		}
+	})
+
+	t.Run("exec with arguments", func(t *testing.T) {
+		// Run: preflight env PATH -- echo arg1 arg2 arg3
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "arg1", "arg2", "arg3") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("command failed: %v\n%s", err, output)
+		}
+
+		// Should see all arguments passed through
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "arg1 arg2 arg3") {
+			t.Errorf("expected arguments to be passed through, got: %s", outputStr)
+		}
+	})
+
+	t.Run("exec command not found", func(t *testing.T) {
+		// Run: preflight env PATH -- nonexistent-command-xyz-12345
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "nonexistent-command-xyz-12345") //nolint:gosec // intentional: testing exec mode
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
+		output, err := cmd.CombinedOutput()
+
+		// Command should fail because exec'd command doesn't exist
+		if err == nil {
+			t.Fatal("expected command to fail")
+		}
+
+		// Should see the check pass but exec fail
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "[OK] env: PATH") {
+			t.Errorf("expected check to pass, got: %s", outputStr)
+		}
+		if !strings.Contains(outputStr, "exec:") {
+			t.Errorf("expected exec error message, got: %s", outputStr)
+		}
+	})
+}

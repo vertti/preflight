@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/vertti/preflight/pkg/exec"
 )
 
 // Version is set at build time via ldflags
@@ -53,6 +56,32 @@ func transformArgsForHashbang(args []string, checkFile fileChecker) (newArgs []s
 	return args, ""
 }
 
+// extractExecArgs finds "--" in args and returns everything after it.
+// It modifies the input slice to remove the "--" and everything after.
+// This allows syntax like: preflight tcp postgres:5432 -- ./myapp
+func extractExecArgs(args *[]string) []string {
+	for i, arg := range *args {
+		if arg == "--" {
+			execArgs := (*args)[i+1:]
+			*args = (*args)[:i]
+			return execArgs
+		}
+	}
+	return nil
+}
+
+// executor is the default exec implementation, can be overridden for testing.
+var executor exec.Executor = &exec.RealExecutor{}
+
+// runExec executes the command specified in execArgs.
+// Returns an error if the exec fails.
+func runExec(execArgs []string) error {
+	if len(execArgs) == 0 {
+		return nil
+	}
+	return executor.Exec(execArgs[0], execArgs[1:])
+}
+
 func main() {
 	var file string
 	os.Args, file = transformArgsForHashbang(os.Args, realFileChecker)
@@ -60,7 +89,16 @@ func main() {
 		runFile = file
 	}
 
+	// Extract exec args (everything after "--")
+	execArgs := extractExecArgs(&os.Args)
+
 	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+
+	// Checks passed - exec into command if args were provided
+	if err := runExec(execArgs); err != nil {
+		fmt.Fprintf(os.Stderr, "exec: %v\n", err)
 		os.Exit(1)
 	}
 }

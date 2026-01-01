@@ -1269,6 +1269,51 @@ The container waits for dependencies and validates its environment before starti
 
 See [examples/runtime-checks-with-entrypoint](../examples/runtime-checks-with-entrypoint) for a complete example.
 
+### Entrypoint Mode (No Shell Required)
+
+For distroless or scratch images without a shell, use preflight's exec mode. Add `--` followed by your application command:
+
+```dockerfile
+FROM gcr.io/distroless/static-debian12
+COPY --from=ghcr.io/vertti/preflight:latest /preflight /preflight
+COPY myapp /myapp
+
+# Wait for postgres, then start app (no shell needed)
+ENTRYPOINT ["/preflight", "tcp", "postgres:5432", "--retry", "10", "--"]
+CMD ["/myapp"]
+```
+
+When checks pass, preflight uses `exec()` to replace itself with your command—proper signal handling, PID 1, everything works correctly.
+
+**Multiple checks with `.preflight` file:**
+
+```dockerfile
+COPY .preflight /.preflight
+ENTRYPOINT ["/preflight", "run", "--"]
+CMD ["/myapp"]
+```
+
+**How it works:**
+
+1. Preflight runs the check(s)
+2. If all checks pass, it execs into the command after `--`
+3. If any check fails, it exits with code 1 (command never runs)
+
+This works with any preflight command:
+
+```sh
+# Wait for database
+preflight tcp postgres:5432 --retry 10 -- ./myapp
+
+# Check environment then start
+preflight env DATABASE_URL -- ./myapp
+
+# HTTP health check then start
+preflight http http://api:8080/ready --retry 5 -- ./myapp
+```
+
+> **Note:** Exec mode is not supported on Windows.
+
 ### Multi-stage Build (Zero Bloat)
 
 Use a dedicated validation stage that runs checks during build but doesn't ship preflight:
