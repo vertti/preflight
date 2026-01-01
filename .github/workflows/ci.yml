@@ -134,3 +134,47 @@ jobs:
             preflight cmd ${{ matrix.cmd }} &&
             echo "Container test passed: ${{ matrix.image }}"
           '
+
+  distroless-test:
+    name: Distroless Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3
+
+      - name: Build static binary
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o preflight ./cmd/preflight
+
+      - name: Verify binary is static
+        run: |
+          file preflight
+          # Check that ldd reports it as not dynamic or statically linked
+          if ldd preflight 2>&1 | grep -qE "(not a dynamic executable|statically linked)"; then
+            echo "Binary is static"
+          else
+            echo "ERROR: Binary has dynamic dependencies"
+            ldd preflight
+            exit 1
+          fi
+
+      - name: Test in distroless (no shell)
+        run: |
+          echo 'FROM gcr.io/distroless/static-debian12
+          COPY preflight /preflight
+          ENTRYPOINT ["/preflight"]' > Dockerfile.distroless
+          docker build -f Dockerfile.distroless -t preflight-distroless .
+
+          # Test basic commands (no shell available)
+          docker run --rm preflight-distroless version
+          docker run --rm preflight-distroless env PATH
+
+      - name: Test in scratch
+        run: |
+          echo 'FROM scratch
+          COPY preflight /preflight
+          ENTRYPOINT ["/preflight"]' > Dockerfile.scratch
+          docker build -f Dockerfile.scratch -t preflight-scratch .
+
+          docker run --rm preflight-scratch version
