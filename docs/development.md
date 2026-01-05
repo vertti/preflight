@@ -15,13 +15,13 @@ mise install
 hk install
 
 # Run tests
-make test
+just test
 
 # Run linter
-make lint
+just lint
 
 # Build
-make build
+just build
 ```
 
 ## Project Structure
@@ -41,7 +41,7 @@ preflight/
 
 1. **TDD Approach**: Write tests first, then implementation
 2. **Small Steps**: Each commit should be focused and atomic
-3. **Always Lint**: Run `make lint` before committing
+3. **Always Lint**: Run `just lint` before committing
 
 ## Pull Requests
 
