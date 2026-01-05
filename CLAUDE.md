@@ -9,7 +9,7 @@
 ## Before Committing
 
 ```sh
-make fmt && make lint && make test
+just fmt && just lint && just test
 ```
 
 ## Commit Messages
