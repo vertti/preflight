@@ -210,7 +210,7 @@ func (c *Check) Run() check.Result {
 
 		// Check --json-path
 		if c.JSONPath != "" {
-			path, expectedValue, hasExpectedValue := parseJSONPath(c.JSONPath)
+			path, expectedValue, hasExpectedValue := strings.Cut(c.JSONPath, "=")
 			jsonResult := jsonpath.Get(respBody, path)
 			if !jsonResult.Exists() {
 				lastErr = fmt.Errorf("JSON path %q not found", path)
@@ -247,12 +247,4 @@ func (c *Check) Run() check.Result {
 
 	// Should not reach here, but handle edge case
 	return result.Failf("unexpected error: %v", lastErr)
-}
-
-// parseJSONPath parses "path=value" or "path" format.
-func parseJSONPath(jsonPath string) (path, expectedValue string, hasExpectedValue bool) {
-	if idx := strings.Index(jsonPath, "="); idx != -1 {
-		return jsonPath[:idx], jsonPath[idx+1:], true
-	}
-	return jsonPath, "", false
 }
