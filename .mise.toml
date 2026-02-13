@@ -1,5 +1,5 @@
 [tools]
-go = "1.25"
+go = "1.26.0"
 golangci-lint = "2.9.0"
 dprint = "0.51.1"
 hk = "1.36.0"
