@@ -4,5 +4,22 @@
   "ignorePresets": ["helpers:pinGitHubActionDigests"],
   "mode": "full",
   "prHourlyLimit": 10,
-  "labels": ["dependencies"]
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Automerge GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge linters, formatters, test tools, and Go",
+      "matchPackageNames": [
+        "golangci-lint",
+        "dprint",
+        "go",
+        "github.com/stretchr/testify"
+      ],
+      "automerge": true
+    }
+  ]
 }
