@@ -9,6 +9,7 @@
     {
       "description": "Automerge GitHub Actions updates",
       "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true
     },
     {
@@ -19,6 +20,7 @@
         "go",
         "github.com/stretchr/testify"
       ],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     }
   ]
