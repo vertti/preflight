@@ -21,7 +21,7 @@ type fileChecker func(path string) (isFile bool)
 
 // realFileChecker checks if a path exists and is a file (not a directory)
 func realFileChecker(path string) bool {
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) //nolint:gosec // intentional: checking hashbang script path from user invocation
 	return err == nil && !info.IsDir()
 }
 

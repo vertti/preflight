@@ -610,7 +610,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 
 	t.Run("exec after successful check", func(t *testing.T) {
 		// Run: preflight env PATH -- echo "success"
-		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "exec-success-marker") //nolint:gosec // intentional: testing exec mode
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "exec-success-marker")
 		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -629,7 +629,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 
 	t.Run("no exec after failed check", func(t *testing.T) {
 		// Run: preflight env NONEXISTENT_VAR_12345 -- echo "should-not-print"
-		cmd := exec.Command(binaryPath, "env", "NONEXISTENT_VAR_12345", "--", "echo", "should-not-print") //nolint:gosec // intentional: testing exec mode
+		cmd := exec.Command(binaryPath, "env", "NONEXISTENT_VAR_12345", "--", "echo", "should-not-print")
 		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 
@@ -650,7 +650,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 
 	t.Run("exec with arguments", func(t *testing.T) {
 		// Run: preflight env PATH -- echo arg1 arg2 arg3
-		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "arg1", "arg2", "arg3") //nolint:gosec // intentional: testing exec mode
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "echo", "arg1", "arg2", "arg3")
 		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -666,7 +666,7 @@ func TestIntegration_ExecMode(t *testing.T) {
 
 	t.Run("exec command not found", func(t *testing.T) {
 		// Run: preflight env PATH -- nonexistent-command-xyz-12345
-		cmd := exec.Command(binaryPath, "env", "PATH", "--", "nonexistent-command-xyz-12345") //nolint:gosec // intentional: testing exec mode
+		cmd := exec.Command(binaryPath, "env", "PATH", "--", "nonexistent-command-xyz-12345")
 		cmd.Env = append(os.Environ(), "NO_COLOR=1")
 		output, err := cmd.CombinedOutput()
 
