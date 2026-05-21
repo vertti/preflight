@@ -24,7 +24,7 @@ func (r *RealCmdRunner) LookPath(file string) (string, error) {
 }
 
 func (r *RealCmdRunner) RunCommandContext(ctx context.Context, name string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // intentional: executing user-specified version check commands
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
