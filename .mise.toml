@@ -3,5 +3,51 @@ go = "1.26.5"
 golangci-lint = "2.12.2"
 dprint = "0.55.2"
 hk = "1.54.1"
-just = "1.58.0"
 pkl = "0.32.1"
+
+[tasks.build]
+description = "Build the preflight binary"
+run = "go build -o bin/preflight ./cmd/preflight"
+
+[tasks.test]
+description = "Run tests with race detection"
+run = "go test -race ./..."
+
+[tasks.test-coverage]
+description = "Run tests with coverage report"
+run = [
+  "go test -race -coverprofile=coverage.out ./...",
+  "go tool cover -html=coverage.out -o coverage.html",
+]
+
+[tasks.lint]
+description = "Run linters"
+run = "golangci-lint run"
+
+[tasks.fmt]
+description = "Format code"
+run = "goimports -w ."
+
+[tasks.fmt-md]
+description = "Format markdown files"
+run = "dprint fmt"
+
+[tasks.check-md]
+description = "Check markdown formatting"
+run = "dprint check"
+
+[tasks.all]
+description = "Run all checks (lint, test, build)"
+depends = ["lint", "test", "build"]
+
+[tasks.install-hooks]
+description = "Install pre-commit hooks"
+run = "hk install --mise"
+
+[tasks.security]
+description = "Run security checks"
+run = "govulncheck ./..."
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -rf bin/ coverage.out coverage.html"
