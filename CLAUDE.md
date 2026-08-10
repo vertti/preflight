@@ -9,7 +9,7 @@
 ## Before Committing
 
 ```sh
-just fmt && just lint && just test
+mise run fmt && mise run lint && mise run test
 ```
 
 ## Commit Messages
