@@ -20,10 +20,10 @@ jobs:
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
 
       - name: Check formatting (dprint)
-        run: dprint check
+        run: mise run check-md
 
       - name: Run golangci-lint
-        run: golangci-lint run
+        run: mise run lint
 
   test:
     name: Test
@@ -99,9 +99,7 @@ jobs:
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
 
       - name: Run govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+        run: mise run security
 
   container-test:
     name: Container Test
