@@ -177,6 +177,15 @@ func TestParseOctalMode(t *testing.T) {
 		{"0755", 0o755, false},
 		{"0600", 0o600, false},
 		{"invalid", 0, true},
+		// Trailing garbage must not be silently truncated: "0o600" is the Go
+		// and Python spelling and previously parsed as 0, which disables the
+		// permission check entirely.
+		{"0o600", 0, true},
+		{"0644xyz", 0, true},
+		{"600,", 0, true},
+		{"", 0, true},
+		{"999", 0, true},
+		{"-644", 0, true},
 	}
 
 	for _, tt := range tests {
@@ -188,6 +197,37 @@ func TestParseOctalMode(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
+		})
+	}
+}
+
+func TestSymlinkTargetImpliesSymlinkCheck(t *testing.T) {
+	symlinkInfo := &mockFileInfo{NameValue: "link", ModeValue: fs.ModeSymlink | 0o777}
+	regularInfo := &mockFileInfo{NameValue: "f", ModeValue: 0o644}
+
+	tests := []struct {
+		name   string
+		info   fs.FileInfo
+		target string
+		want   check.Status
+	}{
+		{"target matches", symlinkInfo, "/real/target", check.StatusOK},
+		{"target differs", symlinkInfo, "/wrong/target", check.StatusFail},
+		{"not a symlink at all", regularInfo, "/real/target", check.StatusFail},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Check{
+				Path:          "link",
+				SymlinkTarget: tt.target,
+				FS: &mockFileSystem{
+					LstatFunc:    func(string) (fs.FileInfo, error) { return tt.info, nil },
+					StatFunc:     func(string) (fs.FileInfo, error) { return tt.info, nil },
+					ReadlinkFunc: func(string) (string, error) { return "/real/target", nil },
+				},
+			}
+			assert.Equal(t, tt.want, c.Run().Status)
 		})
 	}
 }
