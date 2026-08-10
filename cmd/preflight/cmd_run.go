@@ -69,6 +69,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("failed to execute command %q: %w", command, err)
 		}
+		checkRan = true
 	}
 
 	return nil

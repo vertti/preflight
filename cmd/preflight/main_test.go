@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/vertti/preflight/pkg/check"
 )
 
 func TestTransformArgsForHashbang(t *testing.T) {
@@ -113,10 +115,87 @@ func (m *mockExecutor) Exec(name string, args []string) error {
 	return nil
 }
 
+type passingChecker struct{}
+
+func (passingChecker) Run() check.Result {
+	return check.Result{Name: "stub", Status: check.StatusOK}
+}
+
+type failingChecker struct{}
+
+func (failingChecker) Run() check.Result {
+	return check.Result{Name: "stub", Status: check.StatusFail}
+}
+
+func TestRunExec_RequiresACheckToHaveRun(t *testing.T) {
+	originalExecutor := executor
+	originalCheckRan := checkRan
+	defer func() { executor = originalExecutor; checkRan = originalCheckRan }()
+
+	t.Run("refuses to exec when no check ran", func(t *testing.T) {
+		execCalled := false
+		executor = &mockExecutor{execFunc: func(string, []string) error {
+			execCalled = true
+			return nil
+		}}
+		checkRan = false
+
+		err := runExec([]string{"./myapp"})
+		if err == nil {
+			t.Fatal("runExec() = nil, want error when no check ran")
+		}
+		if execCalled {
+			t.Error("executor was called despite no check having run")
+		}
+	})
+
+	t.Run("execs when a check ran", func(t *testing.T) {
+		execCalled := false
+		executor = &mockExecutor{execFunc: func(string, []string) error {
+			execCalled = true
+			return nil
+		}}
+		checkRan = true
+
+		if err := runExec([]string{"./myapp"}); err != nil {
+			t.Fatalf("runExec() = %v, want nil", err)
+		}
+		if !execCalled {
+			t.Error("executor was not called after a successful check")
+		}
+	})
+
+	t.Run("no exec args is not an error even without a check", func(t *testing.T) {
+		checkRan = false
+		if err := runExec(nil); err != nil {
+			t.Errorf("runExec(nil) = %v, want nil", err)
+		}
+	})
+}
+
+func TestRunCheckRecordsThatItRan(t *testing.T) {
+	original := checkRan
+	defer func() { checkRan = original }()
+
+	checkRan = false
+	_ = runCheck(passingChecker{})
+	if !checkRan {
+		t.Error("runCheck did not record that a check ran")
+	}
+
+	checkRan = false
+	_ = runCheck(failingChecker{})
+	if !checkRan {
+		t.Error("runCheck did not record a failing check as having run")
+	}
+}
+
 func TestRunExec(t *testing.T) {
 	// Save original executor and restore after test
 	originalExecutor := executor
-	defer func() { executor = originalExecutor }()
+	originalCheckRan := checkRan
+	checkRan = true
+	defer func() { executor = originalExecutor; checkRan = originalCheckRan }()
 
 	t.Run("empty args returns nil", func(t *testing.T) {
 		err := runExec([]string{})
