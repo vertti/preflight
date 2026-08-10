@@ -4,6 +4,7 @@ golangci-lint = "2.12.2"
 dprint = "0.55.2"
 hk = "1.54.1"
 pkl = "0.32.1"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
 
 [tasks.build]
 description = "Build the preflight binary"
@@ -26,7 +27,7 @@ run = "golangci-lint run"
 
 [tasks.fmt]
 description = "Format code"
-run = "goimports -w ."
+run = "golangci-lint fmt"
 
 [tasks.fmt-md]
 description = "Format markdown files"
