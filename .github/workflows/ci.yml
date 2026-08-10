@@ -35,7 +35,7 @@ jobs:
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -coverpkg=./... ./...
+        run: mise run test-coverage
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7

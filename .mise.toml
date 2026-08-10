@@ -15,11 +15,13 @@ description = "Run tests with race detection"
 run = "go test -race ./..."
 
 [tasks.test-coverage]
-description = "Run tests with coverage report"
-run = [
-  "go test -race -coverprofile=coverage.out ./...",
-  "go tool cover -html=coverage.out -o coverage.html",
-]
+description = "Run tests and write coverage.out"
+run = "go test -race -coverprofile=coverage.out -coverpkg=./... ./..."
+
+[tasks.coverage-html]
+description = "Render coverage.out as a browsable HTML report"
+depends = ["test-coverage"]
+run = "go tool cover -html=coverage.out -o coverage.html"
 
 [tasks.lint]
 description = "Run linters"
