@@ -95,14 +95,22 @@ func (c *Check) Run() check.Result {
 
 	// --writable
 	if c.Writable {
-		if !isWritable(info.Mode()) {
+		writable, err := c.FS.CanAccess(c.Path, AccessWrite)
+		if err != nil {
+			return result.Failf("failed to check write permission: %v", err)
+		}
+		if !writable {
 			return result.Fail("not writable", errors.New("file is not writable"))
 		}
 	}
 
 	// --executable
 	if c.Executable {
-		if !isExecutable(info.Mode()) {
+		executable, err := c.FS.CanAccess(c.Path, AccessExecute)
+		if err != nil {
+			return result.Failf("failed to check execute permission: %v", err)
+		}
+		if !executable {
 			return result.Fail("not executable", errors.New("file is not executable"))
 		}
 	}
@@ -294,16 +302,6 @@ func parseOctalMode(s string) (fs.FileMode, error) {
 		return 0, fmt.Errorf("invalid octal mode %q: expected octal digits like 0644", s)
 	}
 	return fs.FileMode(mode), nil
-}
-
-// isWritable checks if the mode has any write bit set (owner, group, or other)
-func isWritable(mode fs.FileMode) bool {
-	return mode&0o222 != 0
-}
-
-// isExecutable checks if the mode has any execute bit set (owner, group, or other)
-func isExecutable(mode fs.FileMode) bool {
-	return mode&0o111 != 0
 }
 
 // isSocket checks if the mode indicates a Unix socket
