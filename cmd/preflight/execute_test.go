@@ -254,7 +254,16 @@ func TestTCPCommand(t *testing.T) {
 	})
 
 	t.Run("unreachable port", func(t *testing.T) {
-		_, err := executeCommand("tcp", "--timeout", "100ms", "127.0.0.1:1")
+		// Bind then close, so the port is known to have nothing on it. Port 1
+		// is not safe to assume free: a process bound to the IPv6 wildcard
+		// accepts IPv4-mapped connections to 127.0.0.1:1, which made this pass
+		// in CI and fail on developer machines.
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		addr := listener.Addr().String()
+		require.NoError(t, listener.Close())
+
+		_, err = executeCommand("tcp", "--timeout", "100ms", addr)
 		assert.Error(t, err)
 	})
 }
@@ -304,16 +313,26 @@ func TestHashCommand(t *testing.T) {
 }
 
 func TestGitCommand(t *testing.T) {
-	t.Run("clean flag", func(t *testing.T) {
-		_, err := executeCommand("git", "--clean")
-		if err != nil {
-			assert.Contains(t, err.Error(), "check failed")
-		}
+	// "clean flag" used to live here, asserting inside `if err != nil` with no
+	// else. It could not fail: a clean tree asserted nothing, and a dirty tree
+	// only matched ErrCheckFailed's text, which every failing check returns. Its
+	// result also depended on the developer's uncommitted files, and it printed
+	// their private file list into test output. pkg/gitcheck covers the logic
+	// against mocks, so it is gone rather than rewritten.
+
+	t.Run("unknown flag is rejected", func(t *testing.T) {
+		// Previously "tag flag with nonexistent tag", passing --tag. There is no
+		// --tag flag, so assert.Error was satisfied by cobra's parse error and
+		// nothing about tag matching ran. The real flag is --tag-match.
+		_, err := executeCommand("git", "--tag", "v999.999.999")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown flag")
 	})
 
-	t.Run("tag flag with nonexistent tag", func(t *testing.T) {
-		_, err := executeCommand("git", "--tag", "v999.999.999")
-		assert.Error(t, err)
+	t.Run("tag-match against a tag that cannot exist", func(t *testing.T) {
+		_, err := executeCommand("git", "--tag-match", "v999.999.999-nonexistent")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCheckFailed)
 	})
 
 	t.Run("missing argument", func(t *testing.T) {

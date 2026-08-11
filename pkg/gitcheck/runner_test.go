@@ -37,6 +37,22 @@ func TestRealGitRunner_TagsAtHead(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// git runs a command with the developer's global and system config ignored.
+// Inheriting them made these tests fail on real machines: commit.gpgsign=true
+// aborts the commit with exit 128, and a global core.hooksPath with a failing
+// pre-commit hook does the same.
+func git(t *testing.T, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...) //nolint:gosec // args are literals from this test file
+	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_TERMINAL_PROMPT=0",
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git %v: %s", args, out)
+}
+
 func TestRealGitRunner_IsGitRepo_NotRepo(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldWd, err := os.Getwd()
@@ -60,13 +76,13 @@ func TestRealGitRunner_TagsAtHead_WithTag(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 
 	// Initialize git repo with a commit and tag
-	require.NoError(t, exec.Command("git", "init").Run())
-	require.NoError(t, exec.Command("git", "config", "user.email", "test@test.com").Run())
-	require.NoError(t, exec.Command("git", "config", "user.name", "Test").Run())
+	git(t, "init")
+	git(t, "config", "user.email", "test@test.com")
+	git(t, "config", "user.name", "Test")
 	require.NoError(t, os.WriteFile("test.txt", []byte("test"), 0o600))
-	require.NoError(t, exec.Command("git", "add", "test.txt").Run())
-	require.NoError(t, exec.Command("git", "commit", "-m", "initial").Run())
-	require.NoError(t, exec.Command("git", "tag", "v1.0.0").Run())
+	git(t, "add", "test.txt")
+	git(t, "commit", "-m", "initial")
+	git(t, "tag", "v1.0.0")
 
 	runner := &RealGitRunner{}
 	tags, err := runner.TagsAtHead()
