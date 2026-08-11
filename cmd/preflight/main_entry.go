@@ -15,7 +15,11 @@ func main() {
 	// Extract exec args (everything after "--")
 	execArgs := extractExecArgs(&os.Args)
 
-	if err := rootCmd.Execute(); err != nil {
+	// ExecuteC returns the command that actually ran, so usage errors can show
+	// that command's usage rather than the root's.
+	cmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		reportExecuteError(cmd, err, os.Stderr)
 		os.Exit(1)
 	}
 
