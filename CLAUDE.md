@@ -32,7 +32,8 @@ When using syscalls/OS APIs:
 - Platform methods in `*_unix.go`, `*_windows.go`
 - Use `//go:build unix` for darwin/linux shared code
 - Unsupported features return errors, not panic
-- Test with: `GOOS=windows go build ./...`
+- Test with: `GOOS=windows go vet ./...` — `go build` skips `_test.go`, so it
+  won't catch a helper stranded behind the wrong build tag
 
 ## Adding New Commands
 
