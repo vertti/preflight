@@ -279,6 +279,46 @@ func TestRunExec(t *testing.T) {
 	})
 }
 
+// The set of subcommands must come from cobra rather than a hand-kept list.
+// The list had already drifted: it named "version", which is not a command, and
+// a command added without updating it would be mistaken for a script path
+// whenever a file of that name sat in the working directory.
+func TestKnownSubcommandsMatchesCobra(t *testing.T) {
+	for _, cmd := range rootCmd.Commands() {
+		name := cmd.Name()
+		t.Run(name, func(t *testing.T) {
+			if !isKnownSubcommand(name) {
+				t.Errorf("%q is a registered command but not recognized; a file named %q would hijack it", name, name)
+			}
+		})
+	}
+
+	t.Run("does not claim commands that do not exist", func(t *testing.T) {
+		registered := map[string]bool{}
+		for _, cmd := range rootCmd.Commands() {
+			registered[cmd.Name()] = true
+		}
+		// "version" was listed by hand but has never been a subcommand.
+		if isKnownSubcommand("version") && !registered["version"] {
+			t.Error(`"version" is recognized as a subcommand but is not registered with cobra`)
+		}
+	})
+
+	t.Run("help and flags still recognized", func(t *testing.T) {
+		for _, name := range []string{"help", "--help", "-h"} {
+			if !isKnownSubcommand(name) {
+				t.Errorf("%q should be recognized", name)
+			}
+		}
+	})
+
+	t.Run("an arbitrary word is not a subcommand", func(t *testing.T) {
+		if isKnownSubcommand("notes.txt") {
+			t.Error("notes.txt should not be treated as a subcommand")
+		}
+	})
+}
+
 func TestReportExecuteError(t *testing.T) {
 	newCmd := func() *cobra.Command {
 		return &cobra.Command{Use: "demo", Short: "a demo", Run: func(*cobra.Command, []string) {}}

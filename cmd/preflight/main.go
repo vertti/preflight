@@ -16,8 +16,26 @@ import (
 // Version is set at build time via ldflags
 var Version = "dev"
 
-// knownSubcommands lists all valid preflight subcommands
-var knownSubcommands = []string{"cmd", "env", "file", "git", "hash", "http", "json", "prometheus", "resource", "sys", "tcp", "user", "run", "version", "help", "--help", "-h"}
+// isKnownSubcommand reports whether name is one of preflight's own commands.
+// Derived from cobra rather than a hand-kept list: the list had drifted (it
+// named "version", which is not a command), and adding a command without
+// updating it meant a file of that name in the working directory would be
+// mistaken for a hashbang script.
+func isKnownSubcommand(name string) bool {
+	switch name {
+	case "help", "--help", "-h":
+		return true
+	}
+	for _, cmd := range rootCmd.Commands() {
+		if cmd.Name() == name {
+			return true
+		}
+		if slices.Contains(cmd.Aliases, name) {
+			return true
+		}
+	}
+	return false
+}
 
 // fileChecker abstracts file existence checks for testing
 type fileChecker func(path string) (isFile bool)
@@ -45,7 +63,7 @@ func transformArgsForHashbang(args []string, checkFile fileChecker) (newArgs []s
 	}
 
 	// Skip if it's a known subcommand
-	if slices.Contains(knownSubcommands, firstArg) {
+	if isKnownSubcommand(firstArg) {
 		return args, ""
 	}
 
