@@ -3,11 +3,14 @@ package promcheck
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/httpclient"
 	"github.com/vertti/preflight/pkg/testutil"
 )
 
@@ -150,4 +153,39 @@ func TestPrometheusCheckRetry(t *testing.T) {
 			})
 		}
 	})
+}
+
+// A Prometheus endpoint that redirects must not carry custom headers to the
+// new host. Go strips Authorization across domains but not custom headers, and
+// Mimir/Cortex/Thanos/Grafana Cloud carry tenancy in exactly those. Following
+// the redirect would also let the destination decide the pass/fail verdict.
+func TestRealHTTPClient_DoesNotFollowRedirects(t *testing.T) {
+	var leaked http.Header
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		leaked = r.Header.Clone()
+		_, _ = w.Write([]byte(promSuccessVector))
+	}))
+	defer attacker.Close()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//nolint:gosec // G710: redirecting to another host is the attack being simulated
+		http.Redirect(w, r, attacker.URL+r.URL.Path, http.StatusFound)
+	}))
+	defer prometheus.Close()
+
+	c := Check{
+		URL:     prometheus.URL,
+		Query:   "up",
+		Exact:   testutil.Ptr(1.0),
+		Timeout: 2 * time.Second,
+		Headers: map[string]string{
+			"X-Scope-OrgID": "tenant-42",
+			"X-Api-Key":     "SUPERSECRET",
+		},
+		Client: &httpclient.Real{Timeout: 2 * time.Second},
+	}
+	result := c.Run()
+
+	assert.Nil(t, leaked, "credentials must not reach the redirect destination")
+	assert.Equal(t, check.StatusFail, result.Status, "a 302 is not a successful query")
 }

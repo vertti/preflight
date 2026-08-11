@@ -18,6 +18,7 @@ import (
 	"github.com/vertti/preflight/pkg/gitcheck"
 	"github.com/vertti/preflight/pkg/hashcheck"
 	"github.com/vertti/preflight/pkg/httpcheck"
+	"github.com/vertti/preflight/pkg/httpclient"
 	"github.com/vertti/preflight/pkg/jsoncheck"
 	"github.com/vertti/preflight/pkg/resourcecheck"
 	"github.com/vertti/preflight/pkg/syscheck"
@@ -377,7 +378,7 @@ func TestIntegration_HTTP(t *testing.T) {
 
 	c := httpcheck.Check{
 		URL:    server.URL,
-		Client: &httpcheck.RealHTTPClient{Timeout: 5 * time.Second},
+		Client: &httpclient.Real{Timeout: 5 * time.Second},
 	}
 
 	result := c.Run()
