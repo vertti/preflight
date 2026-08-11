@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/vertti/preflight/pkg/check"
@@ -31,6 +32,13 @@ type Check struct {
 	FS            FileSystem // injected for testing
 }
 
+// expectsSymlink reports whether the path should be checked as a symlink.
+// --symlink-target implies --symlink: without this the target was parsed and
+// then never compared, so the flag silently validated nothing.
+func (c *Check) expectsSymlink() bool {
+	return c.ExpectSymlink || c.SymlinkTarget != ""
+}
+
 // Run executes the file check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
@@ -40,7 +48,7 @@ func (c *Check) Run() check.Result {
 	// Use Lstat for symlink checks (doesn't follow symlinks), Stat otherwise
 	var info fs.FileInfo
 	var err error
-	if c.ExpectSymlink {
+	if c.expectsSymlink() {
 		info, err = c.FS.Lstat(c.Path)
 	} else {
 		info, err = c.FS.Stat(c.Path)
@@ -153,7 +161,7 @@ func (c *Check) checkModeExact(mode fs.FileMode, result *check.Result) error {
 func (c *Check) checkTypeConstraint(info fs.FileInfo, result *check.Result) error {
 	mode := info.Mode()
 
-	if c.ExpectSymlink {
+	if c.expectsSymlink() {
 		if !isSymlink(mode) {
 			err := errors.New("expected symlink, got file/directory")
 			result.Fail("expected symlink, got file/directory", err)
@@ -277,12 +285,13 @@ func (c *Check) checkOwner(result *check.Result) error {
 	return nil
 }
 
-// parseOctalMode parses an octal permission string like "0644" or "644"
+// parseOctalMode parses an octal permission string like "0644" or "644".
+// ParseUint rejects trailing garbage, which Sscanf("%o") accepted: "0o600"
+// consumed a single 0 and yielded mode 0, silently disabling the check.
 func parseOctalMode(s string) (fs.FileMode, error) {
-	var mode uint32
-	_, err := fmt.Sscanf(s, "%o", &mode)
+	mode, err := strconv.ParseUint(s, 8, 32)
 	if err != nil {
-		return 0, fmt.Errorf("invalid octal mode %q: %w", s, err)
+		return 0, fmt.Errorf("invalid octal mode %q: expected octal digits like 0644", s)
 	}
 	return fs.FileMode(mode), nil
 }

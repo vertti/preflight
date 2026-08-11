@@ -167,7 +167,7 @@ preflight file <path> [flags]
 | `--dir`                   | Expect a directory (fail if it's a file)             |
 | `--socket`                | Expect a Unix socket (e.g., docker.sock)             |
 | `--symlink`               | Expect a symbolic link                               |
-| `--symlink-target <path>` | Expected symlink target path                         |
+| `--symlink-target <path>` | Expected symlink target path (implies `--symlink`)   |
 | `--writable`              | Check write permission                               |
 | `--executable`            | Check execute permission                             |
 | `--not-empty`             | File must have size > 0                              |
