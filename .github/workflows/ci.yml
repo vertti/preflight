@@ -60,7 +60,15 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -o bin/preflight-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/preflight || echo "Build skipped for ${{ matrix.goos }}/${{ matrix.goarch }}"
+        run: go build ./...
+
+      # go build skips _test.go, so it cannot see a mock behind the wrong build
+      # tag. go vet type-checks the tests too.
+      - name: Vet
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go vet ./...
 
   upx-test:
     name: UPX Compression Test

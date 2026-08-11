@@ -79,23 +79,3 @@ func writeTempFile(t *testing.T, content string) string {
 	require.NoError(t, tmpFile.Close())
 	return tmpFile.Name()
 }
-
-type mockResourceChecker struct {
-	freeDiskSpace   uint64
-	freeDiskErr     error
-	availableMemory uint64
-	availableMemErr error
-	numCPUs         int
-}
-
-func (m *mockResourceChecker) FreeDiskSpace(path string) (uint64, error) {
-	return m.freeDiskSpace, m.freeDiskErr
-}
-
-func (m *mockResourceChecker) AvailableMemory() (uint64, error) {
-	return m.availableMemory, m.availableMemErr
-}
-
-func (m *mockResourceChecker) NumCPUs() int {
-	return m.numCPUs
-}

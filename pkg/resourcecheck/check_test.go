@@ -9,6 +9,29 @@ import (
 	"github.com/vertti/preflight/pkg/check"
 )
 
+// Lives here rather than in resource_test.go, which is //go:build unix: the
+// mock has no platform dependency, and tagging it broke `GOOS=windows go vet`
+// for every test in this package.
+type mockResourceChecker struct {
+	freeDiskSpace   uint64
+	freeDiskErr     error
+	availableMemory uint64
+	availableMemErr error
+	numCPUs         int
+}
+
+func (m *mockResourceChecker) FreeDiskSpace(path string) (uint64, error) {
+	return m.freeDiskSpace, m.freeDiskErr
+}
+
+func (m *mockResourceChecker) AvailableMemory() (uint64, error) {
+	return m.availableMemory, m.availableMemErr
+}
+
+func (m *mockResourceChecker) NumCPUs() int {
+	return m.numCPUs
+}
+
 func TestResourceCheck_Run(t *testing.T) {
 	tests := []struct {
 		name       string
