@@ -226,3 +226,33 @@ func TestFindFile_ReachFilesystemRoot(t *testing.T) {
 		t.Error("expected error when .preflight not found")
 	}
 }
+
+// The file format's contract is that every line runs preflight. The check was
+// HasPrefix, so any token merely starting with "preflight" satisfied it while
+// cmd_run's `parts[0] == "preflight"` substitution did not fire — letting a
+// line like preflight/../evil.sh run an arbitrary binary from the repo.
+func TestParseFile_OnlyExactPreflightTokenCountsAsPrefixed(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		want string
+	}{
+		{"bare command gets prefixed", "env HOME", "preflight env HOME"},
+		{"already prefixed is left alone", "preflight env HOME", "preflight env HOME"},
+		{"path that starts with preflight is prefixed", "preflight/../evil.sh", "preflight preflight/../evil.sh"},
+		{"lookalike token is prefixed", "preflightfoo --bar", "preflight preflightfoo --bar"},
+		{"absolute path is prefixed", "/bin/sh -c whoami", "preflight /bin/sh -c whoami"},
+		{"relative path is prefixed", "./evil.sh", "preflight ./evil.sh"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), ".preflight")
+			require.NoError(t, os.WriteFile(path, []byte(tt.line+"\n"), 0o600))
+
+			commands, err := ParseFile(path)
+			require.NoError(t, err)
+			require.Equal(t, []string{tt.want}, commands)
+		})
+	}
+}
