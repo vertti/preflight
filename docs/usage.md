@@ -1298,6 +1298,11 @@ CMD ["/myapp"]
 1. Preflight runs the check(s)
 2. If all checks pass, it execs into the command after `--`
 3. If any check fails, it exits with code 1 (command never runs)
+4. If no check ran at all, it exits with code 1 (command never runs)
+
+Step 4 matters when the check arguments are templated. `preflight -- /myapp` and
+`preflight --help -- /myapp` run no check, so preflight refuses to exec rather
+than starting the command with nothing verified.
 
 This works with any preflight command:
 
