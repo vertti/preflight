@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindFile_ExplicitPath(t *testing.T) {
@@ -51,54 +53,65 @@ func TestFindFile_TraverseUp(t *testing.T) {
 	}
 }
 
+// A repo root is a boundary: a .preflight above it belongs to something else.
+// The .preflight must live only in the parent, or FindFile returns on its first
+// iteration and the .git logic is never reached — which is what the previous
+// version of this test did, so it passed with that logic deleted.
 func TestFindFile_StopAtGit(t *testing.T) {
 	tmpDir := t.TempDir()
-
 	projectDir := filepath.Join(tmpDir, "project")
-	gitDir := filepath.Join(projectDir, ".git")
-	if err := os.MkdirAll(gitDir, 0o700); err != nil {
-		t.Fatalf("failed to create directories: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, ".git"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".preflight"), []byte("env HOME\n"), 0o600))
 
-	preflightPath := filepath.Join(tmpDir, ".preflight")
-	if err := os.WriteFile(preflightPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-
-	projectPreflight := filepath.Join(projectDir, ".preflight")
-	if err := os.WriteFile(projectPreflight, []byte("test"), 0o600); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-
-	found, err := FindFile(projectDir, "")
-	if err != nil {
-		t.Fatalf("FindFile failed: %v", err)
-	}
-	if found != projectPreflight {
-		t.Errorf("expected %q, got %q", projectPreflight, found)
-	}
+	_, err := FindFile(projectDir, "")
+	require.Error(t, err, ".git is a boundary: the parent's .preflight is not ours")
 }
 
+// The mirror image: without a .git boundary the parent's file is found, which
+// pins that the error above comes from the boundary and not from the walk
+// failing generally.
+func TestFindFile_WalksUpWithoutGitBoundary(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "project")
+	require.NoError(t, os.MkdirAll(projectDir, 0o700))
+	parentPreflight := filepath.Join(tmpDir, ".preflight")
+	require.NoError(t, os.WriteFile(parentPreflight, []byte("env HOME\n"), 0o600))
+
+	found, err := FindFile(projectDir, "")
+	require.NoError(t, err)
+	require.Equal(t, parentPreflight, found)
+}
+
+// The search stops at $HOME. This uses a temporary HOME rather than the real
+// one: the previous version created and RemoveAll'd ~/test_preflight on the
+// developer's machine, and failed outright for anyone who has a global
+// ~/.preflight — which is a supported location this package exists to find.
 func TestFindFile_StopAtHome(t *testing.T) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("failed to get home directory: %v", err)
-	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
 
-	testDir := filepath.Join(homeDir, "test_preflight")
-	if err := os.MkdirAll(testDir, 0o700); err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(testDir); err != nil {
-			t.Errorf("failed to clean up test directory: %v", err)
-		}
-	}()
+	testDir := filepath.Join(home, "project")
+	require.NoError(t, os.MkdirAll(testDir, 0o700))
 
-	_, err = FindFile(testDir, "")
-	if err == nil {
-		t.Error("expected error when .preflight not found")
-	}
+	_, err := FindFile(testDir, "")
+	require.Error(t, err, "no .preflight anywhere up to HOME")
+}
+
+func TestFindFile_StopsBeforeLeavingHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	// A .preflight above HOME must not be picked up.
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(home), ".preflight"), []byte("env HOME\n"), 0o600))
+	t.Cleanup(func() { _ = os.Remove(filepath.Join(filepath.Dir(home), ".preflight")) })
+
+	testDir := filepath.Join(home, "project")
+	require.NoError(t, os.MkdirAll(testDir, 0o700))
+
+	_, err := FindFile(testDir, "")
+	require.Error(t, err, "search must stop at HOME, not walk past it")
 }
 
 func TestParseFile(t *testing.T) {
