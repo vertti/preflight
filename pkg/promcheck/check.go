@@ -1,7 +1,6 @@
 package promcheck
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -12,34 +11,9 @@ import (
 	"time"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/httpclient"
 	"github.com/vertti/preflight/pkg/jsonpath"
 )
-
-// HTTPClient abstracts HTTP requests for testability.
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// RealHTTPClient uses the real net/http package.
-type RealHTTPClient struct {
-	Timeout  time.Duration
-	Insecure bool
-}
-
-// Do executes an HTTP request.
-func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	transport := &http.Transport{}
-	if c.Insecure {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // intentional for --insecure flag
-	}
-
-	client := &http.Client{
-		Timeout:   c.Timeout,
-		Transport: transport,
-	}
-
-	return client.Do(req)
-}
 
 // Check queries Prometheus and validates metric values.
 type Check struct {
@@ -53,7 +27,7 @@ type Check struct {
 	RetryDelay time.Duration     // delay between retries (default: 1s)
 	Insecure   bool              // skip TLS verification
 	Headers    map[string]string // custom headers (for auth)
-	Client     HTTPClient        // injected for testing
+	Client     httpclient.Client // injected for testing
 }
 
 // Run executes the Prometheus query check.
@@ -89,7 +63,7 @@ func (c *Check) Run() check.Result {
 	// Initialize client if not injected
 	client := c.Client
 	if client == nil {
-		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure}
+		client = &httpclient.Real{Timeout: timeout, Insecure: c.Insecure}
 	}
 
 	// Build query URL (trim trailing slash to avoid double slash)

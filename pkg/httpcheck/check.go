@@ -2,7 +2,6 @@ package httpcheck
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,42 +11,9 @@ import (
 	"time"
 
 	"github.com/vertti/preflight/pkg/check"
+	"github.com/vertti/preflight/pkg/httpclient"
 	"github.com/vertti/preflight/pkg/jsonpath"
 )
-
-// HTTPClient abstracts HTTP requests for testability.
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// RealHTTPClient uses the real net/http package.
-type RealHTTPClient struct {
-	Timeout         time.Duration
-	Insecure        bool
-	FollowRedirects bool
-}
-
-// Do executes an HTTP request.
-func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	transport := &http.Transport{}
-	if c.Insecure {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // intentional for --insecure flag
-	}
-
-	client := &http.Client{
-		Timeout:   c.Timeout,
-		Transport: transport,
-	}
-
-	// Disable automatic redirects unless explicitly enabled
-	if !c.FollowRedirects {
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
-	}
-
-	return client.Do(req)
-}
 
 // FileReader abstracts file reading for testability.
 type FileReader interface {
@@ -77,7 +43,7 @@ type Check struct {
 	Contains        string            // response body must contain this string
 	FollowRedirects bool              // follow HTTP redirects (3xx)
 	JSONPath        string            // JSON path to check (format: "path=expectedValue" or just "path")
-	Client          HTTPClient        // injected for testing
+	Client          httpclient.Client // injected for testing
 	FileReader      FileReader        // injected for testing
 }
 
@@ -117,7 +83,7 @@ func (c *Check) Run() check.Result {
 	// Initialize client if not injected
 	client := c.Client
 	if client == nil {
-		client = &RealHTTPClient{Timeout: timeout, Insecure: c.Insecure, FollowRedirects: c.FollowRedirects}
+		client = &httpclient.Real{Timeout: timeout, Insecure: c.Insecure, FollowRedirects: c.FollowRedirects}
 	}
 
 	// Resolve request body
