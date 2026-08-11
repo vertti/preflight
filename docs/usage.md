@@ -101,20 +101,29 @@ preflight env <variable> [flags]
 
 ### Flags
 
-| Flag                  | Description                                      |
-| --------------------- | ------------------------------------------------ |
-| `--required`          | Fail if not set (allows empty values)            |
-| `--match <pattern>`   | Regex pattern to match against value             |
-| `--exact <value>`     | Exact value required                             |
-| `--one-of <values>`   | Value must be one of these (comma-separated)     |
-| `--starts-with <str>` | Value must start with string                     |
-| `--ends-with <str>`   | Value must end with string                       |
-| `--contains <str>`    | Value must contain substring                     |
-| `--is-numeric`        | Value must be a valid number                     |
-| `--min-len <n>`       | Minimum string length                            |
-| `--max-len <n>`       | Maximum string length                            |
-| `--hide-value`        | Don't show value in output                       |
-| `--mask-value`        | Show first/last 3 chars only (e.g., `sk-•••xyz`) |
+| Flag                  | Description                                            |
+| --------------------- | ------------------------------------------------------ |
+| `--allow-empty`       | Pass if the variable is defined but empty              |
+| `--not-set`           | Variable must not be set                               |
+| `--match <pattern>`   | Regex pattern to match against value                   |
+| `--exact <value>`     | Exact value required                                   |
+| `--one-of <values>`   | Value must be one of these (comma-separated)           |
+| `--starts-with <str>` | Value must start with string                           |
+| `--ends-with <str>`   | Value must end with string                             |
+| `--contains <str>`    | Value must contain substring                           |
+| `--is-numeric`        | Value must be a valid number                           |
+| `--is-bool`           | Boolean (`true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off`) |
+| `--is-port`           | Valid TCP port (1-65535)                               |
+| `--is-url`            | Valid URL                                              |
+| `--is-json`           | Valid JSON                                             |
+| `--is-file`           | Path to an existing file                               |
+| `--is-dir`            | Path to an existing directory                          |
+| `--min-value <n>`     | Minimum numeric value (use with `--is-numeric`)        |
+| `--max-value <n>`     | Maximum numeric value (use with `--is-numeric`)        |
+| `--min-len <n>`       | Minimum string length                                  |
+| `--max-len <n>`       | Maximum string length                                  |
+| `--hide-value`        | Don't show value in output                             |
+| `--mask-value`        | Show first/last 3 chars only (e.g., `sk-•••xyz`)       |
 
 ### Examples
 
@@ -123,7 +132,10 @@ preflight env <variable> [flags]
 preflight env MODEL_PATH
 
 # Allow empty values (just check if defined)
-preflight env OPTIONAL_CONFIG --required
+preflight env OPTIONAL_CONFIG --allow-empty
+
+# Assert a variable is absent
+preflight env AWS_ACCESS_KEY_ID --not-set
 
 # Pattern matching
 preflight env MODEL_PATH --match '^/models/'
@@ -653,15 +665,20 @@ preflight http <url> [flags]
 
 ### Flags
 
-| Flag                   | Description                         |
-| ---------------------- | ----------------------------------- |
-| `--status <code>`      | Expected HTTP status (default: 200) |
-| `--timeout <duration>` | Request timeout (default: 5s)       |
-| `--retry <n>`          | Retry count on failure              |
-| `--retry-delay <dur>`  | Delay between retries (default: 1s) |
-| `--method <method>`    | HTTP method: GET or HEAD            |
-| `--header <key:value>` | Custom header (can be repeated)     |
-| `--insecure`           | Skip TLS certificate verification   |
+| Flag                   | Description                             |
+| ---------------------- | --------------------------------------- |
+| `--status <code>`      | Expected HTTP status (default: 200)     |
+| `--timeout <duration>` | Request timeout (default: 5s)           |
+| `--retry <n>`          | Retry count on failure                  |
+| `--retry-delay <dur>`  | Delay between retries (default: 1s)     |
+| `--method <method>`    | HTTP method (GET, POST, PUT, etc.)      |
+| `--header <key:value>` | Custom header (can be repeated)         |
+| `--body <string>`      | Request body                            |
+| `--body-file <path>`   | Read request body from a file           |
+| `--contains <string>`  | Response body must contain string       |
+| `--json-path <expr>`   | JSON assertion (`path` or `path=value`) |
+| `--follow-redirects`   | Follow HTTP redirects (3xx)             |
+| `--insecure`           | Skip TLS certificate verification       |
 
 ### Examples
 
@@ -691,7 +708,7 @@ preflight http https://internal-service/health --insecure
 
 ### Redirect Handling
 
-Redirects are **not followed** automatically. If the server returns a 3xx status, that status is checked against `--status`. This matches `curl --fail` behavior.
+Redirects are **not followed** by default. If the server returns a 3xx status, that status is checked against `--status`. This matches `curl --fail` behavior. Pass `--follow-redirects` to follow them instead.
 
 ```sh
 # This fails if server returns 302
@@ -763,8 +780,11 @@ preflight hash <file> [flags]
 | Flag                     | Description                                      |
 | ------------------------ | ------------------------------------------------ |
 | `--sha256 <hash>`        | Expected SHA256 hash (64 hex characters)         |
+| `--sha384 <hash>`        | Expected SHA384 hash (96 hex characters)         |
 | `--sha512 <hash>`        | Expected SHA512 hash (128 hex characters)        |
-| `--md5 <hash>`           | Expected MD5 hash (32 hex characters)            |
+| `--sha1 <hash>`          | Expected SHA1 hash (legacy, weak)                |
+| `--md5 <hash>`           | Expected MD5 hash (32 hex characters, weak)      |
+| `--auto <hash>`          | Expected hash, algorithm detected by length      |
 | `--checksum-file <path>` | Verify against checksum file (GNU or BSD format) |
 
 ### Examples
@@ -1232,7 +1252,7 @@ docker run myapp:latest sh -c '
 
 ## Keeping Containers Clean
 
-The examples above copy preflight into your final image, which adds ~6MB. Here are two patterns to keep your production images lean.
+The examples above copy preflight into your final image, which adds ~2.5MB. Here are two patterns to keep your production images lean.
 
 ### External Validation
 
@@ -1284,7 +1304,7 @@ COPY --from=ghcr.io/vertti/preflight:latest /preflight /preflight
 COPY myapp /myapp
 
 # Wait for postgres, then start app (no shell needed)
-ENTRYPOINT ["/preflight", "tcp", "postgres:5432", "--retry", "10", "--"]
+ENTRYPOINT ["/preflight", "tcp", "postgres:5432", "--timeout", "10s", "--"]
 CMD ["/myapp"]
 ```
 
@@ -1313,7 +1333,7 @@ This works with any preflight command:
 
 ```sh
 # Wait for database
-preflight tcp postgres:5432 --retry 10 -- ./myapp
+preflight tcp postgres:5432 --timeout 10s -- ./myapp
 
 # Check environment then start
 preflight env DATABASE_URL -- ./myapp

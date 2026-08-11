@@ -6,19 +6,21 @@ This roadmap is organized by **real-world frequency** based on analysis of ~500 
 
 These commands replace extremely common shell patterns found in virtually every production setup.
 
-| Command              | Tools/Patterns Replaced                                       | Frequency  |
-| -------------------- | ------------------------------------------------------------- | ---------- |
-| `preflight tcp`      | wait-for-it.sh (9.7k stars), dockerize (4.8k stars), `nc -z`  | ⭐⭐⭐⭐⭐ |
-| `preflight user`     | `id -u` checks, gosu privilege dropping, every official image | ⭐⭐⭐⭐⭐ |
-| `preflight sys`      | `uname -m \| sed`, `dpkg --print-architecture`, TARGETARCH    | ⭐⭐⭐⭐⭐ |
-| `preflight cmd`      | `which`, `command -v`, version parsing scripts                | ⭐⭐⭐⭐⭐ |
-| `preflight env`      | `test -z "$VAR"`, parameter expansion checks                  | ⭐⭐⭐⭐⭐ |
-| `preflight file`     | `test -f`, `-d`, `-r`, `-S` socket, `-L` symlink, ownership   | ⭐⭐⭐⭐⭐ |
-| `preflight http`     | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
-| `preflight hash`     | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
-| `preflight git`      | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
-| `preflight resource` | `df`, cgroup memory limits, `nproc`                           | ⭐⭐⭐⭐   |
-| `preflight json`     | `jq empty`, JSON validation, key extraction                   | ⭐⭐⭐⭐   |
+| Command                | Tools/Patterns Replaced                                       | Frequency  |
+| ---------------------- | ------------------------------------------------------------- | ---------- |
+| `preflight tcp`        | wait-for-it.sh (9.7k stars), dockerize (4.8k stars), `nc -z`  | ⭐⭐⭐⭐⭐ |
+| `preflight user`       | `id -u` checks, gosu privilege dropping, every official image | ⭐⭐⭐⭐⭐ |
+| `preflight sys`        | `uname -m \| sed`, `dpkg --print-architecture`, TARGETARCH    | ⭐⭐⭐⭐⭐ |
+| `preflight cmd`        | `which`, `command -v`, version parsing scripts                | ⭐⭐⭐⭐⭐ |
+| `preflight env`        | `test -z "$VAR"`, parameter expansion checks                  | ⭐⭐⭐⭐⭐ |
+| `preflight file`       | `test -f`, `-d`, `-r`, `-S` socket, `-L` symlink, ownership   | ⭐⭐⭐⭐⭐ |
+| `preflight http`       | `curl --fail`, `wget --spider`, healthcheck scripts           | ⭐⭐⭐⭐   |
+| `preflight hash`       | `sha256sum -c`, GPG verification scripts                      | ⭐⭐⭐⭐   |
+| `preflight git`        | `git status --porcelain`, `git diff --exit-code`, CI checks   | ⭐⭐⭐⭐   |
+| `preflight resource`   | `df`, cgroup memory limits, `nproc`                           | ⭐⭐⭐⭐   |
+| `preflight json`       | `jq empty`, JSON validation, key extraction                   | ⭐⭐⭐⭐   |
+| `preflight prometheus` | `curl /metrics \| grep`, PromQL smoke checks                  | ⭐⭐⭐     |
+| `preflight run`        | shell scripts chaining many checks                            | ⭐⭐⭐     |
 
 ---
 

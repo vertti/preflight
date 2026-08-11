@@ -18,7 +18,7 @@ COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 RUN preflight cmd node --min 18.0        # verify binary + version
 RUN preflight env DATABASE_URL           # env var exists
 RUN preflight file /app/config.yaml      # file exists
-RUN preflight tcp postgres:5432 --retry 5 --retry-interval 2s  # wait for DB
+RUN preflight tcp postgres:5432 --timeout 5s  # reachable?
 
 HEALTHCHECK CMD ["/preflight", "http", "http://localhost:8080/health"]
 ```
@@ -30,7 +30,7 @@ Pre-flight checks for containers: verify services, environment, dependencies. Ea
 - **One command, multiple checks** — `preflight cmd node --min 18.0` verifies: on PATH, actually runs, returns version, meets constraint
 - **Works without a shell** — Runs in distroless/scratch, no shell required
 - **Container-aware** — Reads cgroup limits, not just host /proc/meminfo
-- **Version constraints** — `--min ^1.0` uses semver, not string comparison
+- **Version constraints** — `--min 1.0` and `--range '^1.0'` use semver, not string comparison
 
 ```
 [OK] cmd: node
@@ -83,8 +83,8 @@ Preflight also helps when you need:
 <details>
 <summary><b>Does this add bloat/attack surface?</b></summary>
 
-- 2MB binary (Linux), no C dependencies
-- 3 direct dependencies (cobra, semver, x/term)
+- 2.5MB binary (Linux, UPX-compressed), no C dependencies
+- 5 runtime dependencies (cobra, pflag, semver, x/sys, x/term)
 - Security scans on every commit (govulncheck, gosec)
 - Auto-updated via Renovate
 
