@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/check"
 )
@@ -270,6 +275,48 @@ func TestRunExec(t *testing.T) {
 		err := runExec([]string{"./myapp"})
 		if !errors.Is(err, expectedErr) {
 			t.Errorf("runExec() = %v, want %v", err, expectedErr)
+		}
+	})
+}
+
+func TestReportExecuteError(t *testing.T) {
+	newCmd := func() *cobra.Command {
+		return &cobra.Command{Use: "demo", Short: "a demo", Run: func(*cobra.Command, []string) {}}
+	}
+
+	t.Run("a failed check prints nothing extra", func(t *testing.T) {
+		var buf bytes.Buffer
+		reportExecuteError(newCmd(), ErrCheckFailed, &buf)
+		if buf.Len() != 0 {
+			t.Errorf("got %q, want no output: [FAIL] was already printed", buf.String())
+		}
+	})
+
+	t.Run("a wrapped check failure also prints nothing", func(t *testing.T) {
+		var buf bytes.Buffer
+		reportExecuteError(newCmd(), fmt.Errorf("running check: %w", ErrCheckFailed), &buf)
+		if buf.Len() != 0 {
+			t.Errorf("got %q, want no output", buf.String())
+		}
+	})
+
+	t.Run("a usage error prints the message and the usage", func(t *testing.T) {
+		var buf bytes.Buffer
+		reportExecuteError(newCmd(), errors.New("unknown flag: --nope"), &buf)
+		out := buf.String()
+		if !strings.Contains(out, "unknown flag: --nope") {
+			t.Errorf("got %q, want the error message", out)
+		}
+		if !strings.Contains(out, "Usage:") {
+			t.Errorf("got %q, want usage for a usage error", out)
+		}
+	})
+
+	t.Run("survives a nil command", func(t *testing.T) {
+		var buf bytes.Buffer
+		reportExecuteError(nil, errors.New("boom"), &buf)
+		if !strings.Contains(buf.String(), "boom") {
+			t.Errorf("got %q, want the error message", buf.String())
 		}
 	})
 }

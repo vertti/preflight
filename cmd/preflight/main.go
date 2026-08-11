@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"slices"
 	"strings"
@@ -87,9 +89,32 @@ func runExec(execArgs []string) error {
 	return executor.Exec(execArgs[0], execArgs[1:])
 }
 
+// SilenceUsage and SilenceErrors are set because a failing check is the tool's
+// normal operating mode, not a usage mistake. Cobra treats any error from RunE
+// as a usage error and dumps the full flag list, which buried the one line that
+// mattered. reportExecuteError puts the usage output back for real usage errors.
 var rootCmd = &cobra.Command{
-	Use:     "preflight",
-	Short:   "Docker preflight checks for your runtime environment",
-	Long:    "Preflight is a CLI tool for running sanity checks on container and CI environments.",
-	Version: Version,
+	Use:           "preflight",
+	Short:         "Docker preflight checks for your runtime environment",
+	Long:          "Preflight is a CLI tool for running sanity checks on container and CI environments.",
+	Version:       Version,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+}
+
+// reportExecuteError writes diagnostics for a failed Execute. A failed check has
+// already printed its [FAIL] line and needs nothing further; anything else is
+// the user getting the invocation wrong, where usage is what helps.
+func reportExecuteError(cmd *cobra.Command, err error, w io.Writer) {
+	if errors.Is(err, ErrCheckFailed) {
+		return
+	}
+
+	_, _ = fmt.Fprintln(w, "Error:", err)
+	if cmd == nil {
+		return
+	}
+	cmd.SetOut(w)
+	cmd.SetErr(w)
+	_ = cmd.Usage()
 }
