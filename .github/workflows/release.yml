@@ -21,8 +21,16 @@ jobs:
           cache: false
 
       - name: Install UPX
+        env:
+          UPX_VERSION: 4.2.4
+          UPX_SHA256: 75cab4e57ab72fb4585ee45ff36388d280c7afd72aa03e8d4b9c3cbddb474193
         run: |
-          curl -sL https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz | tar -xJ --strip-components=1 -C /usr/local/bin upx-4.2.4-amd64_linux/upx
+          set -euo pipefail
+          curl -fsSL -o upx.tar.xz \
+            "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz"
+          echo "${UPX_SHA256}  upx.tar.xz" | sha256sum -c -
+          tar -xJf upx.tar.xz --strip-components=1 -C /usr/local/bin "upx-${UPX_VERSION}-amd64_linux/upx"
+          rm upx.tar.xz
 
       - name: Extract version tag
         id: version
