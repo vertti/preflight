@@ -30,13 +30,17 @@ Run `mise tasks` to list all available tasks.
 
 ```
 preflight/
-  cmd/preflight/     # CLI entrypoint
+  cmd/preflight/     # CLI entrypoint, one cmd_<name>.go per subcommand
   pkg/
-    check/           # Core types (Result, Status)
-    cmdcheck/        # Command/binary checks
-    envcheck/        # Environment variable checks
-    filecheck/       # File and directory checks
+    check/           # Core types (Result, Status) shared by every check
+    <name>check/     # One package per subcommand: cmd, env, file, git, hash,
+                     # http, json, prom, resource, sys, tcp, user
+    exec/            # exec() passthrough for entrypoint mode
+    jsonpath/        # Minimal JSON path lookup used by json and http
+    output/          # Result rendering, colour and CI detection
+    preflightfile/   # .preflight file discovery and parsing
     version/         # Version parsing and comparison
+    testutil/        # Shared test helpers
 ```
 
 ## Workflow
