@@ -6,12 +6,24 @@ import (
 	"os"
 )
 
+// AccessMode selects which permission CanAccess tests for.
+type AccessMode int
+
+const (
+	AccessWrite AccessMode = iota
+	AccessExecute
+)
+
 type FileSystem interface {
 	Stat(name string) (fs.FileInfo, error)
 	Lstat(name string) (fs.FileInfo, error)
 	ReadFile(name string, limit int64) ([]byte, error)
 	Readlink(name string) (string, error)
 	GetOwner(name string) (uid, gid uint32, err error)
+	// CanAccess reports whether the calling process can access name with the
+	// given mode. Permission bits alone cannot answer this: a root-owned 0644
+	// file has the write bit set but is not writable by anyone else.
+	CanAccess(name string, mode AccessMode) (bool, error)
 }
 
 type RealFileSystem struct{}

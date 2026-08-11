@@ -15,11 +15,27 @@ import (
 )
 
 type mockFileSystem struct {
-	StatFunc     func(name string) (fs.FileInfo, error)
-	LstatFunc    func(name string) (fs.FileInfo, error)
-	ReadFileFunc func(name string, limit int64) ([]byte, error)
-	ReadlinkFunc func(name string) (string, error)
-	GetOwnerFunc func(name string) (uid, gid uint32, err error)
+	StatFunc      func(name string) (fs.FileInfo, error)
+	LstatFunc     func(name string) (fs.FileInfo, error)
+	ReadFileFunc  func(name string, limit int64) ([]byte, error)
+	ReadlinkFunc  func(name string) (string, error)
+	GetOwnerFunc  func(name string) (uid, gid uint32, err error)
+	CanAccessFunc func(name string, mode AccessMode) (bool, error)
+}
+
+func (m *mockFileSystem) CanAccess(name string, mode AccessMode) (bool, error) {
+	if m.CanAccessFunc != nil {
+		return m.CanAccessFunc(name, mode)
+	}
+	return true, nil
+}
+
+func accessAllowed() func(string, AccessMode) (bool, error) {
+	return func(string, AccessMode) (bool, error) { return true, nil }
+}
+
+func accessDenied() func(string, AccessMode) (bool, error) {
+	return func(string, AccessMode) (bool, error) { return false, nil }
 }
 
 func (m *mockFileSystem) Stat(name string) (fs.FileInfo, error)  { return m.StatFunc(name) }
@@ -103,11 +119,17 @@ func TestCheck_Run(t *testing.T) {
 		{"max size passes", Check{Path: "/data.json", MaxSize: 200, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusOK, ""},
 		{"max size fails", Check{Path: "/data.json", MaxSize: 50, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusFail, "size 100 > maximum 50"},
 
-		// Permissions
-		{"writable passes", Check{Path: "/data.json", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusOK, ""},
-		{"writable fails", Check{Path: "/readonly.txt", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o444, 100)}}, check.StatusFail, "not writable"},
-		{"executable passes", Check{Path: "/script.sh", Executable: true, FS: &mockFileSystem{StatFunc: statFile(0o755, 100)}}, check.StatusOK, ""},
-		{"executable fails", Check{Path: "/data.txt", Executable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusFail, "not executable"},
+		// Permissions. These consult the filesystem rather than the mode bits:
+		// a mode with the write bit set may still be unwritable by this process.
+		{"writable passes", Check{Path: "/data.json", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100), CanAccessFunc: accessAllowed()}}, check.StatusOK, ""},
+		{"writable fails", Check{Path: "/readonly.txt", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o444, 100), CanAccessFunc: accessDenied()}}, check.StatusFail, "not writable"},
+		{"writable fails despite write bit set", Check{Path: "/root-owned", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100), CanAccessFunc: accessDenied()}}, check.StatusFail, "not writable"},
+		{"executable passes", Check{Path: "/script.sh", Executable: true, FS: &mockFileSystem{StatFunc: statFile(0o755, 100), CanAccessFunc: accessAllowed()}}, check.StatusOK, ""},
+		{"executable fails", Check{Path: "/data.txt", Executable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100), CanAccessFunc: accessDenied()}}, check.StatusFail, "not executable"},
+		{"executable fails despite exec bit set", Check{Path: "/root-owned.sh", Executable: true, FS: &mockFileSystem{StatFunc: statFile(0o755, 100), CanAccessFunc: accessDenied()}}, check.StatusFail, "not executable"},
+		{"access error surfaces", Check{Path: "/gone", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100), CanAccessFunc: func(string, AccessMode) (bool, error) {
+			return false, errors.New("boom")
+		}}}, check.StatusFail, "failed to check write permission"},
 
 		// Mode
 		{"mode minimum exact", Check{Path: "/key.pem", Mode: "0600", FS: &mockFileSystem{StatFunc: statFile(0o600, 100)}}, check.StatusOK, ""},

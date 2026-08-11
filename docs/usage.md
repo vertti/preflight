@@ -168,8 +168,8 @@ preflight file <path> [flags]
 | `--socket`                | Expect a Unix socket (e.g., docker.sock)             |
 | `--symlink`               | Expect a symbolic link                               |
 | `--symlink-target <path>` | Expected symlink target path (implies `--symlink`)   |
-| `--writable`              | Check write permission                               |
-| `--executable`            | Check execute permission                             |
+| `--writable`              | Current user can write (not just "some write bit")   |
+| `--executable`            | Current user can execute                             |
 | `--not-empty`             | File must have size > 0                              |
 | `--min-size <bytes>`      | Minimum file size                                    |
 | `--max-size <bytes>`      | Maximum file size                                    |
@@ -187,6 +187,8 @@ preflight file <path> [flags]
 preflight file /etc/nginx/nginx.conf
 
 # Directory checks
+# --writable asks the OS whether *this* user can write, so a root-owned 0755
+# directory correctly fails when the container runs as an unprivileged user.
 preflight file /var/log/app --dir --writable
 
 # Unix socket checks (Docker-in-Docker, containerd)
@@ -195,6 +197,9 @@ preflight file /run/containerd/containerd.sock --socket
 
 # Permission checks (minimum - file has at least these perms)
 preflight file /etc/ssl/private/key.pem --mode 0600
+
+# On Windows, --writable and --executable fall back to inspecting permission
+# bits, since there is no POSIX access() and Go reports a synthesized mode.
 
 # Permission checks (exact)
 preflight file /etc/ssl/private/key.pem --mode-exact 0600
