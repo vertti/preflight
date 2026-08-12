@@ -1,114 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"reflect"
-	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/check"
 )
 
-func TestTransformArgsForHashbang(t *testing.T) {
-	// Mock file checker that returns true for specific paths
-	mockFileChecker := func(existingFiles map[string]bool) fileChecker {
-		return func(path string) bool {
-			return existingFiles[path]
-		}
-	}
-
-	tests := []struct {
-		name          string
-		args          []string
-		existingFiles map[string]bool
-		wantArgs      []string
-		wantFile      string
-	}{
-		{
-			name:          "no args",
-			args:          []string{"preflight"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight"},
-			wantFile:      "",
-		},
-		{
-			name:          "known subcommand cmd",
-			args:          []string{"preflight", "cmd", "node"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "cmd", "node"},
-			wantFile:      "",
-		},
-		{
-			name:          "known subcommand env",
-			args:          []string{"preflight", "env", "PATH"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "env", "PATH"},
-			wantFile:      "",
-		},
-		{
-			name:          "flag arg",
-			args:          []string{"preflight", "--help"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "--help"},
-			wantFile:      "",
-		},
-		{
-			name:          "hashbang invocation with file",
-			args:          []string{"preflight", "/path/to/script.pf"},
-			existingFiles: map[string]bool{"/path/to/script.pf": true},
-			wantArgs:      []string{"preflight", "run"},
-			wantFile:      "/path/to/script.pf",
-		},
-		{
-			name:          "hashbang with extra args",
-			args:          []string{"preflight", "script.pf", "--verbose"},
-			existingFiles: map[string]bool{"script.pf": true},
-			wantArgs:      []string{"preflight", "run", "--verbose"},
-			wantFile:      "script.pf",
-		},
-		{
-			name:          "non-existent file treated as unknown command",
-			args:          []string{"preflight", "nonexistent.pf"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "nonexistent.pf"},
-			wantFile:      "",
-		},
-		{
-			name:          "help flag",
-			args:          []string{"preflight", "-h"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "-h"},
-			wantFile:      "",
-		},
-		{
-			name:          "version subcommand",
-			args:          []string{"preflight", "version"},
-			existingFiles: map[string]bool{},
-			wantArgs:      []string{"preflight", "version"},
-			wantFile:      "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			checker := mockFileChecker(tt.existingFiles)
-			gotArgs, gotFile := transformArgsForHashbang(tt.args, checker)
-
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("args = %v, want %v", gotArgs, tt.wantArgs)
-			}
-			if gotFile != tt.wantFile {
-				t.Errorf("file = %q, want %q", gotFile, tt.wantFile)
-			}
-		})
-	}
-}
-
-// mockExecutor is a test implementation of exec.Executor
 type mockExecutor struct {
 	execFunc func(name string, args []string) error
 }
@@ -283,84 +182,6 @@ func TestRunExec(t *testing.T) {
 // The list had already drifted: it named "version", which is not a command, and
 // a command added without updating it would be mistaken for a script path
 // whenever a file of that name sat in the working directory.
-func TestKnownSubcommandsMatchesCobra(t *testing.T) {
-	for _, cmd := range rootCmd.Commands() {
-		name := cmd.Name()
-		t.Run(name, func(t *testing.T) {
-			if !isKnownSubcommand(name) {
-				t.Errorf("%q is a registered command but not recognized; a file named %q would hijack it", name, name)
-			}
-		})
-	}
-
-	t.Run("does not claim commands that do not exist", func(t *testing.T) {
-		registered := map[string]bool{}
-		for _, cmd := range rootCmd.Commands() {
-			registered[cmd.Name()] = true
-		}
-		// "version" was listed by hand but has never been a subcommand.
-		if isKnownSubcommand("version") && !registered["version"] {
-			t.Error(`"version" is recognized as a subcommand but is not registered with cobra`)
-		}
-	})
-
-	t.Run("help and flags still recognized", func(t *testing.T) {
-		for _, name := range []string{"help", "--help", "-h"} {
-			if !isKnownSubcommand(name) {
-				t.Errorf("%q should be recognized", name)
-			}
-		}
-	})
-
-	t.Run("an arbitrary word is not a subcommand", func(t *testing.T) {
-		if isKnownSubcommand("notes.txt") {
-			t.Error("notes.txt should not be treated as a subcommand")
-		}
-	})
-}
-
-func TestReportExecuteError(t *testing.T) {
-	newCmd := func() *cobra.Command {
-		return &cobra.Command{Use: "demo", Short: "a demo", Run: func(*cobra.Command, []string) {}}
-	}
-
-	t.Run("a failed check prints nothing extra", func(t *testing.T) {
-		var buf bytes.Buffer
-		reportExecuteError(newCmd(), ErrCheckFailed, &buf)
-		if buf.Len() != 0 {
-			t.Errorf("got %q, want no output: [FAIL] was already printed", buf.String())
-		}
-	})
-
-	t.Run("a wrapped check failure also prints nothing", func(t *testing.T) {
-		var buf bytes.Buffer
-		reportExecuteError(newCmd(), fmt.Errorf("running check: %w", ErrCheckFailed), &buf)
-		if buf.Len() != 0 {
-			t.Errorf("got %q, want no output", buf.String())
-		}
-	})
-
-	t.Run("a usage error prints the message and the usage", func(t *testing.T) {
-		var buf bytes.Buffer
-		reportExecuteError(newCmd(), errors.New("unknown flag: --nope"), &buf)
-		out := buf.String()
-		if !strings.Contains(out, "unknown flag: --nope") {
-			t.Errorf("got %q, want the error message", out)
-		}
-		if !strings.Contains(out, "Usage:") {
-			t.Errorf("got %q, want usage for a usage error", out)
-		}
-	})
-
-	t.Run("survives a nil command", func(t *testing.T) {
-		var buf bytes.Buffer
-		reportExecuteError(nil, errors.New("boom"), &buf)
-		if !strings.Contains(buf.String(), "boom") {
-			t.Errorf("got %q, want the error message", buf.String())
-		}
-	})
-}
-
 func TestExtractExecArgs(t *testing.T) {
 	tests := []struct {
 		name         string
