@@ -47,6 +47,29 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
+	exitCode, err := runCommands(commands, executable, spawn)
+	if err != nil {
+		return err
+	}
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
+	return nil
+}
+
+// spawn runs one command with the parent's streams attached.
+func spawn(name string, args []string) error {
+	cmd := exec.Command(name, args...) //nolint:gosec // intentional: executing commands from .preflight file
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
+}
+
+// runCommands executes each .preflight command, returning the exit code to
+// propagate. run is injected so the loop — including the substitution below —
+// can be tested without spawning processes or calling os.Exit.
+func runCommands(commands []string, executable string, run func(name string, args []string) error) (exitCode int, err error) {
 	for _, command := range commands {
 		parts := strings.Fields(command)
 		if len(parts) == 0 {
@@ -58,20 +81,15 @@ func runRun(cmd *cobra.Command, args []string) error {
 		// never turn a .preflight line into a path to some other binary.
 		parts[0] = executable
 
-		execCmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec // intentional: executing commands from .preflight file
-		execCmd.Stdout = os.Stdout
-		execCmd.Stderr = os.Stderr
-		execCmd.Stdin = os.Stdin
-
-		if err := execCmd.Run(); err != nil {
+		if err := run(parts[0], parts[1:]); err != nil {
 			var exitError *exec.ExitError
 			if errors.As(err, &exitError) {
-				os.Exit(exitError.ExitCode())
+				return exitError.ExitCode(), nil
 			}
-			return fmt.Errorf("failed to execute command %q: %w", command, err)
+			return 0, fmt.Errorf("failed to execute command %q: %w", command, err)
 		}
 		checkRan = true
 	}
 
-	return nil
+	return 0, nil
 }

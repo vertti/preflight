@@ -342,8 +342,9 @@ func TestGitCommand(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
-	// Note: Most run command tests are in integration_test.go because
-	// runRun uses exec.Command which is hard to test in unit tests.
+	// The command loop is unit-tested in cmd_run_test.go against an injected
+	// runner; the real spawn and exit-code propagation are covered by
+	// TestIntegration_Run. This file only covers argument handling.
 	t.Run("nonexistent file", func(t *testing.T) {
 		_, err := executeCommand("run", "--file", "/nonexistent/.preflight")
 		assert.Error(t, err)
