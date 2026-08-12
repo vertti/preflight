@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vertti/preflight/pkg/httpclient"
 	"github.com/vertti/preflight/pkg/promcheck"
 )
 
@@ -71,7 +72,7 @@ func runPrometheusCheck(cmd *cobra.Command, args []string) error {
 		RetryDelay: promRetryDelay,
 		Insecure:   promInsecure,
 		Headers:    headers,
-		Client:     &promcheck.RealHTTPClient{Timeout: promTimeout, Insecure: promInsecure},
+		Client:     &httpclient.Real{Timeout: promTimeout, Insecure: promInsecure},
 	}
 
 	// Only set threshold pointers if flags were explicitly provided

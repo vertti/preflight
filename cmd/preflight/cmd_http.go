@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vertti/preflight/pkg/httpcheck"
+	"github.com/vertti/preflight/pkg/httpclient"
 )
 
 var (
@@ -70,7 +71,7 @@ func runHTTPCheck(_ *cobra.Command, args []string) error {
 		Contains:        httpContains,
 		FollowRedirects: httpFollowRedirects,
 		JSONPath:        httpJSONPath,
-		Client:          &httpcheck.RealHTTPClient{Timeout: httpTimeout, Insecure: httpInsecure, FollowRedirects: httpFollowRedirects},
+		Client:          &httpclient.Real{Timeout: httpTimeout, Insecure: httpInsecure, FollowRedirects: httpFollowRedirects},
 	}
 
 	return runCheck(c)

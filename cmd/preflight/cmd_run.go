@@ -53,9 +53,10 @@ func runRun(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		if parts[0] == "preflight" {
-			parts[0] = executable
-		}
+		// ParseFile guarantees the first token is exactly "preflight", so this
+		// always fires. Substituting unconditionally means a parser change can
+		// never turn a .preflight line into a path to some other binary.
+		parts[0] = executable
 
 		execCmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec // intentional: executing commands from .preflight file
 		execCmd.Stdout = os.Stdout

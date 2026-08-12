@@ -72,7 +72,11 @@ func ParseFile(path string) ([]string, error) {
 			continue
 		}
 
-		if !strings.HasPrefix(trimmed, "preflight") {
+		// Compare the first token, not the prefix. HasPrefix accepted anything
+		// beginning with "preflight" — including preflight/../evil.sh, a path
+		// that cmd_run then executed directly because its substitution tests
+		// for the exact token.
+		if fields := strings.Fields(trimmed); len(fields) == 0 || fields[0] != "preflight" {
 			trimmed = "preflight " + trimmed
 		}
 
