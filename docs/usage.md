@@ -130,6 +130,12 @@ that fails still won't print the value. Neither flag reveals the value's exact
 length: `--min-len 32` on a hidden value reports
 `value length [hidden] < minimum 32`.
 
+> **Values are printed by default.** `preflight env DATABASE_URL` reports
+> `value: postgres://user:password@host/db`. That is what you want for a
+> `MODEL_PATH` and not what you want for a credential, and the places preflight
+> runs — Docker build logs, CI output — are places that keep what they are told.
+> Reach for `--hide-value` on anything secret.
+
 ### Examples
 
 ```sh
@@ -1289,7 +1295,7 @@ Run preflight checks at container startup before your app starts:
 set -e
 
 preflight tcp postgres:5432 --timeout 30s
-preflight env DATABASE_URL
+preflight env DATABASE_URL --hide-value
 preflight file /app/config.yaml --not-empty
 
 exec "$@"
@@ -1347,7 +1353,7 @@ This works with any preflight command:
 preflight tcp postgres:5432 --timeout 10s -- ./myapp
 
 # Check environment then start
-preflight env DATABASE_URL -- ./myapp
+preflight env DATABASE_URL --hide-value -- ./myapp
 
 # HTTP health check then start
 preflight http http://api:8080/ready --retry 5 -- ./myapp
