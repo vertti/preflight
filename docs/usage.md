@@ -948,7 +948,9 @@ RUN preflight sys --os linux --arch arm64
 
 Checks system resources meet minimum requirements. Critical for CI pipelines where runners have limited disk space, or containers with memory limits.
 
-> **Container-aware**: Memory checks read cgroup limits (v1 and v2), not just host `/proc/meminfo`. Your 512MB container limit is detected correctly, including under `--cgroupns host`, where the limit lives further down the cgroup tree rather than at the root. Where limits nest, the tightest one wins. A limit larger than the machine's own memory is reported as the machine's memory, since the rest is not reachable.
+> **Container-aware**: Memory and CPU checks read cgroup limits (v1 and v2), not just host `/proc/meminfo` and core count. Your 512MB container limit is detected correctly, including under `--cgroupns host`, where the limit lives further down the cgroup tree rather than at the root. Where limits nest, the tightest one wins. A memory limit larger than the machine's own memory is reported as the machine's memory, since the rest is not reachable.
+>
+> `--min-cpus` accounts for both ways a container's CPUs can be restricted: a cpuset (`docker run --cpuset-cpus 0,1`) and a CPU quota (`docker run --cpus 1.5`). A quota buys a share of wall time rather than whole cores, so it is reported as a fraction and does not round up — `--cpus 1.5` reports `cpus: 1.5` and fails `--min-cpus 2`.
 
 ```sh
 preflight resource [flags]
