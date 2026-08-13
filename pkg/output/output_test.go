@@ -335,3 +335,96 @@ func TestIsCIEnvironment(t *testing.T) {
 		})
 	}
 }
+
+// Details carry text that a checked program controls: a version banner, an HTTP
+// response, an environment variable. Printed verbatim, a newline lets that
+// program forge whole result lines and an escape sequence lets it redraw the
+// terminal, which is a problem for a tool whose entire output is a claim about
+// what was verified.
+func TestPrintResult_NeutralisesControlCharactersFromCheckedPrograms(t *testing.T) {
+	tests := []struct {
+		name   string
+		result check.Result
+		want   string
+	}{
+		{
+			name: "a newline cannot forge another result line",
+			result: check.Result{
+				Name:    "cmd: evil",
+				Status:  check.StatusOK,
+				Details: []string{"version: 1.0\n[OK] cmd: postgres\n     version: 14.2"},
+			},
+			want: `[OK] cmd: evil
+     version: 1.0\n[OK] cmd: postgres\n     version: 14.2
+`,
+		},
+		{
+			name: "an escape sequence cannot redraw the line",
+			result: check.Result{
+				Name:    "cmd: sneaky",
+				Status:  check.StatusOK,
+				Details: []string{"version: 1.0\x1b[2K\r[OK] all good"},
+			},
+			want: `[OK] cmd: sneaky
+     version: 1.0\x1b[2K\r[OK] all good
+`,
+		},
+		{
+			name: "a failing check is neutralised too",
+			result: check.Result{
+				Name:    "http: /health",
+				Status:  check.StatusFail,
+				Details: []string{"body: bad\r\n[OK] http: /health"},
+			},
+			want: `[FAIL] http: /health
+       body: bad\r\n[OK] http: /health
+`,
+		},
+		{
+			name: "the check name is not a way in either",
+			result: check.Result{
+				Name:    "env: X\n[OK] env: SECRET",
+				Status:  check.StatusOK,
+				Details: nil,
+			},
+			want: `[OK] env: X\n[OK] env: SECRET
+`,
+		},
+		{
+			name: "a trailing newline is dropped rather than escaped",
+			result: check.Result{
+				Name:    "cmd: brokenbin",
+				Status:  check.StatusFail,
+				Details: []string{"stderr: cannot execute\n"},
+			},
+			want: `[FAIL] cmd: brokenbin
+       stderr: cannot execute
+`,
+		},
+		{
+			name: "ordinary details are left exactly as they are",
+			result: check.Result{
+				Name:    "cmd: go",
+				Status:  check.StatusOK,
+				Details: []string{"path: /usr/bin/go", "version: 1.21"},
+			},
+			want: "[OK] cmd: go\n     path: /usr/bin/go\n     version: 1.21\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(func() {
+				oldGreen, oldRed, oldReset, oldDim := green, red, reset, dim
+				green, red, reset, dim = "", "", "", ""
+				defer func() { green, red, reset, dim = oldGreen, oldRed, oldReset, oldDim }()
+
+				PrintResult(tt.result)
+			})
+
+			if got != tt.want {
+				t.Errorf("PrintResult output = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
