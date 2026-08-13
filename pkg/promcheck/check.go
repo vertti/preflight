@@ -3,7 +3,6 @@ package promcheck
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -99,12 +98,11 @@ func (c *Check) Run() check.Result {
 		}
 
 		// Read response body
-		bodyBytes, err := io.ReadAll(resp.Body)
+		respBody, err := httpclient.ReadBody(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
 			return result.Failf("failed to read response body: %v", err)
 		}
-		respBody := string(bodyBytes)
 
 		// Check HTTP status
 		if resp.StatusCode != 200 {
