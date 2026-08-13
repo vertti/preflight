@@ -117,7 +117,7 @@ func (c *Check) Run() check.Result {
 	if c.IsPort {
 		port, err := strconv.Atoi(value)
 		if err != nil || port < 1 || port > 65535 {
-			return result.Fail("value is not a valid port (1-65535)", fmt.Errorf("invalid port: %s", value))
+			return result.Fail("value is not a valid port (1-65535)", fmt.Errorf("invalid port: %s", c.formatValue(value)))
 		}
 	}
 
@@ -125,7 +125,7 @@ func (c *Check) Run() check.Result {
 	if c.IsURL {
 		u, err := url.Parse(value)
 		if err != nil || u.Scheme == "" || u.Host == "" {
-			return result.Fail("value is not a valid URL", fmt.Errorf("invalid URL: %s", value))
+			return result.Fail("value is not a valid URL", fmt.Errorf("invalid URL: %s", c.formatValue(value)))
 		}
 	}
 
@@ -139,7 +139,7 @@ func (c *Check) Run() check.Result {
 	// --is-bool: value must be boolean truthy value
 	if c.IsBool {
 		if !isValidBool(value) {
-			return result.Fail("value is not a valid boolean (true/false/1/0/yes/no/on/off)", fmt.Errorf("invalid boolean: %s", value))
+			return result.Fail("value is not a valid boolean (true/false/1/0/yes/no/on/off)", fmt.Errorf("invalid boolean: %s", c.formatValue(value)))
 		}
 	}
 
@@ -147,10 +147,10 @@ func (c *Check) Run() check.Result {
 	if c.IsFile {
 		info, err := c.Stater.Stat(value)
 		if err != nil {
-			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", value))
+			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", c.formatValue(value)))
 		}
 		if info.IsDir() {
-			return result.Fail("path is a directory, not a file", fmt.Errorf("path is a directory: %s", value))
+			return result.Fail("path is a directory, not a file", fmt.Errorf("path is a directory: %s", c.formatValue(value)))
 		}
 	}
 
@@ -158,10 +158,10 @@ func (c *Check) Run() check.Result {
 	if c.IsDir {
 		info, err := c.Stater.Stat(value)
 		if err != nil {
-			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", value))
+			return result.Fail("path does not exist", fmt.Errorf("path does not exist: %s", c.formatValue(value)))
 		}
 		if !info.IsDir() {
-			return result.Fail("path is a file, not a directory", fmt.Errorf("path is not a directory: %s", value))
+			return result.Fail("path is a file, not a directory", fmt.Errorf("path is not a directory: %s", c.formatValue(value)))
 		}
 	}
 
@@ -172,7 +172,7 @@ func (c *Check) Run() check.Result {
 			return result.Fail("value is not numeric (required for --min-value)", errors.New("not numeric"))
 		}
 		if num < *c.MinValue {
-			return result.Failf("value %v < minimum %v", num, *c.MinValue)
+			return result.Failf("value %s < minimum %v", c.formatValue(value), *c.MinValue)
 		}
 	}
 
@@ -183,18 +183,18 @@ func (c *Check) Run() check.Result {
 			return result.Fail("value is not numeric (required for --max-value)", errors.New("not numeric"))
 		}
 		if num > *c.MaxValue {
-			return result.Failf("value %v > maximum %v", num, *c.MaxValue)
+			return result.Failf("value %s > maximum %v", c.formatValue(value), *c.MaxValue)
 		}
 	}
 
 	// --min-len: minimum string length
 	if c.MinLen > 0 && len(value) < c.MinLen {
-		return result.Failf("value length %d < minimum %d", len(value), c.MinLen)
+		return result.Failf("value length %s < minimum %d", c.formatLength(value), c.MinLen)
 	}
 
 	// --max-len: maximum string length
 	if c.MaxLen > 0 && len(value) > c.MaxLen {
-		return result.Failf("value length %d > maximum %d", len(value), c.MaxLen)
+		return result.Failf("value length %s > maximum %d", c.formatLength(value), c.MaxLen)
 	}
 
 	result.Status = check.StatusOK
@@ -210,6 +210,15 @@ func (c *Check) formatValue(value string) string {
 		return maskValue(value)
 	}
 	return value
+}
+
+// A length is a partial disclosure of the value, so both flags withhold it —
+// masking has no meaningful halfway point for a number.
+func (c *Check) formatLength(value string) string {
+	if c.HideValue || c.MaskValue {
+		return "[hidden]"
+	}
+	return strconv.Itoa(len(value))
 }
 
 func maskValue(value string) string {

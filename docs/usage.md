@@ -125,6 +125,11 @@ preflight env <variable> [flags]
 | `--hide-value`        | Don't show value in output                             |
 | `--mask-value`        | Show first/last 3 chars only (e.g., `sk-•••xyz`)       |
 
+Both flags apply to failure messages as well as the success line, so a check
+that fails still won't print the value. Neither flag reveals the value's exact
+length: `--min-len 32` on a hidden value reports
+`value length [hidden] < minimum 32`.
+
 ### Examples
 
 ```sh
