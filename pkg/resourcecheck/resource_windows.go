@@ -13,3 +13,9 @@ func (r *RealResourceChecker) FreeDiskSpace(path string) (uint64, error) {
 func (r *RealResourceChecker) AvailableMemory() (uint64, error) {
 	return 0, errors.New("memory check not supported on Windows")
 }
+
+// cpuQuota reports no quota: Windows job objects express CPU limits differently
+// and are not read here.
+func cpuQuota() (float64, bool) {
+	return 0, false
+}

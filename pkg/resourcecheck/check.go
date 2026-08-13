@@ -58,12 +58,12 @@ func (c *Check) Run() check.Result {
 
 	// Check CPUs
 	if c.MinCPUs > 0 {
-		cpus := c.Checker.NumCPUs()
+		cpus := c.Checker.AvailableCPUs()
 
-		result.AddDetailf("cpus: %d", cpus)
+		result.AddDetailf("cpus: %g", cpus)
 
-		if cpus < c.MinCPUs {
-			return result.Failf("cpus %d < required %d", cpus, c.MinCPUs)
+		if cpus < float64(c.MinCPUs) {
+			return result.Failf("cpus %g < required %d", cpus, c.MinCPUs)
 		}
 	}
 
