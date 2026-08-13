@@ -3,7 +3,9 @@
 package resourcecheck
 
 import (
+	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,6 +69,182 @@ func TestReadCgroupMemoryLimit(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint64(4294967296), mem)
 	})
+
+	// cgroup v1 has no "max" keyword: an unlimited controller reports LONG_MAX
+	// rounded down to a page boundary, which is not a memory size anybody has.
+	t.Run("cgroup v1 unlimited sentinel is not a limit", func(t *testing.T) {
+		for _, sentinel := range []string{
+			"9223372036854771712", // 4 KiB pages
+			"9223372036854710272", // 64 KiB pages
+		} {
+			tmpFile := writeTempFile(t, sentinel)
+			mem, err := readCgroupMemoryLimit(tmpFile)
+			require.NoError(t, err)
+			assert.Equal(t, uint64(0), mem, "sentinel %s should read as unlimited", sentinel)
+		}
+	})
+}
+
+// Where a container's memory limit lives depends on its cgroup namespace: with
+// a private one it is at the root of /sys/fs/cgroup, but under `--cgroupns
+// host` the root belongs to the host and the container's own limit sits
+// further down the tree at the path named in /proc/self/cgroup.
+func TestCgroupPaths_MemoryLimit(t *testing.T) {
+	const gib = 1 << 30
+
+	tests := []struct {
+		name      string
+		self      string
+		files     map[string]string
+		want      uint64
+		wantFound bool
+	}{
+		{
+			name:      "v2 private namespace reads the root",
+			self:      "0::/\n",
+			files:     map[string]string{"memory.max": "2147483648"},
+			want:      2 * gib,
+			wantFound: true,
+		},
+		{
+			name: "v2 host namespace follows the path from /proc/self/cgroup",
+			self: "0::/system.slice/docker-abc123.scope\n",
+			files: map[string]string{
+				"memory.max": "max",
+				"system.slice/docker-abc123.scope/memory.max": "1073741824",
+			},
+			want:      gib,
+			wantFound: true,
+		},
+		{
+			name: "v2 takes the tightest limit in the chain",
+			self: "0::/system.slice/docker-abc123.scope\n",
+			files: map[string]string{
+				"memory.max":              "max",
+				"system.slice/memory.max": "1073741824",
+				"system.slice/docker-abc123.scope/memory.max": "4294967296",
+			},
+			want:      gib,
+			wantFound: true,
+		},
+		{
+			name: "v1 reads under the memory controller",
+			self: "9:memory:/docker/abc123\n8:cpu,cpuacct:/docker/abc123\n",
+			files: map[string]string{
+				"memory/docker/abc123/memory.limit_in_bytes": "536870912",
+			},
+			want:      536870912,
+			wantFound: true,
+		},
+		{
+			name: "v1 unlimited is not a limit",
+			self: "9:memory:/\n",
+			files: map[string]string{
+				"memory/memory.limit_in_bytes": "9223372036854771712",
+			},
+			wantFound: false,
+		},
+		{
+			name:      "no cgroup files means no limit",
+			self:      "0::/\n",
+			files:     nil,
+			wantFound: false,
+		},
+		{
+			name:      "an unreadable /proc/self/cgroup means no limit",
+			self:      "",
+			files:     map[string]string{"memory.max": "2147483648"},
+			wantFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paths := buildCgroupTree(t, tt.self, tt.files)
+
+			limit, found := paths.memoryLimit()
+
+			assert.Equal(t, tt.wantFound, found)
+			if tt.wantFound {
+				assert.Equal(t, tt.want, limit)
+			}
+		})
+	}
+}
+
+func TestAvailableMemory(t *testing.T) {
+	const gib = 1 << 30
+	system := func(n uint64, err error) func() (uint64, error) {
+		return func() (uint64, error) { return n, err }
+	}
+
+	t.Run("reports the cgroup limit when it is the binding one", func(t *testing.T) {
+		paths := buildCgroupTree(t, "0::/\n", map[string]string{"memory.max": "1073741824"})
+
+		mem, err := availableMemory(paths, system(64*gib, nil))
+
+		require.NoError(t, err)
+		assert.Equal(t, uint64(gib), mem)
+	})
+
+	// A limit above the machine's own memory cannot be reached, so reporting it
+	// would overstate what is actually available.
+	t.Run("reports system memory when the cgroup limit exceeds it", func(t *testing.T) {
+		paths := buildCgroupTree(t, "0::/\n", map[string]string{"memory.max": "137438953472"})
+
+		mem, err := availableMemory(paths, system(64*gib, nil))
+
+		require.NoError(t, err)
+		assert.Equal(t, uint64(64*gib), mem)
+	})
+
+	t.Run("falls back to system memory when there is no cgroup", func(t *testing.T) {
+		paths := buildCgroupTree(t, "", nil)
+
+		mem, err := availableMemory(paths, system(64*gib, nil))
+
+		require.NoError(t, err)
+		assert.Equal(t, uint64(64*gib), mem)
+	})
+
+	t.Run("uses the cgroup limit when system memory is unavailable", func(t *testing.T) {
+		paths := buildCgroupTree(t, "0::/\n", map[string]string{"memory.max": "1073741824"})
+
+		mem, err := availableMemory(paths, system(0, errors.New("sysinfo failed")))
+
+		require.NoError(t, err)
+		assert.Equal(t, uint64(gib), mem)
+	})
+
+	t.Run("surfaces the error when neither source works", func(t *testing.T) {
+		paths := buildCgroupTree(t, "", nil)
+
+		_, err := availableMemory(paths, system(0, errors.New("sysinfo failed")))
+
+		require.Error(t, err)
+	})
+}
+
+// buildCgroupTree writes a fake /sys/fs/cgroup and /proc/self/cgroup so the
+// lookup can be exercised without a container. An empty self makes
+// /proc/self/cgroup unreadable.
+func buildCgroupTree(t *testing.T, self string, files map[string]string) cgroupPaths {
+	t.Helper()
+
+	dir := t.TempDir()
+	root := filepath.Join(dir, "cgroup")
+	for name, content := range files {
+		full := filepath.Join(root, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o750))
+		require.NoError(t, os.WriteFile(full, []byte(content), 0o600))
+	}
+
+	selfFile := filepath.Join(dir, "self-cgroup")
+	if self != "" {
+		require.NoError(t, os.WriteFile(selfFile, []byte(self), 0o600))
+	}
+
+	return cgroupPaths{root: root, selfFile: selfFile}
 }
 
 func writeTempFile(t *testing.T, content string) string {
