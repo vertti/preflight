@@ -139,12 +139,12 @@ func (c *Check) Run() check.Result {
 		// Read response body if needed for --contains or --json-path check
 		var respBody string
 		if c.Contains != "" || c.JSONPath != "" {
-			bodyBytes, err := io.ReadAll(resp.Body)
+			body, err := httpclient.ReadBody(resp.Body)
 			_ = resp.Body.Close()
 			if err != nil {
 				return result.Failf("failed to read response body: %v", err)
 			}
-			respBody = string(bodyBytes)
+			respBody = body
 		} else {
 			_ = resp.Body.Close()
 		}
