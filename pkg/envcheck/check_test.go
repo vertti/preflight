@@ -3,10 +3,12 @@ package envcheck
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/testutil"
@@ -165,5 +167,55 @@ func TestEnvCheck_Run(t *testing.T) {
 				assert.True(t, testutil.ContainsDetail(result.Details, tt.wantDetail), "details %v should contain %q", result.Details, tt.wantDetail)
 			}
 		})
+	}
+}
+
+// --hide-value and --mask-value are what make preflight safe to point at a
+// secret, so a failing check must not disclose the value — or its exact length
+// — on any path, and must not smuggle it out through Err either.
+func TestEnvCheck_HiddenValueNeverLeaks(t *testing.T) {
+	const secret = "pa55w0rd-xyz" // 12 characters, and contains no "12"
+	const numericSecret = "31415"
+
+	noFiles := &mockFileStater{Files: map[string]*mockFileInfo{}}
+
+	tests := []struct {
+		name      string
+		check     Check
+		forbidden string
+	}{
+		{"min-value", Check{Name: "COUNT", MinValue: testutil.Ptr(99999.0), Getter: env(map[string]string{"COUNT": numericSecret})}, numericSecret},
+		{"max-value", Check{Name: "COUNT", MaxValue: testutil.Ptr(1.0), Getter: env(map[string]string{"COUNT": numericSecret})}, numericSecret},
+		{"min-len", Check{Name: "SECRET", MinLen: 40, Getter: env(map[string]string{"SECRET": secret})}, "12"},
+		{"max-len", Check{Name: "SECRET", MaxLen: 3, Getter: env(map[string]string{"SECRET": secret})}, "12"},
+		{"is-port", Check{Name: "SECRET", IsPort: true, Getter: env(map[string]string{"SECRET": secret})}, secret},
+		{"is-url", Check{Name: "SECRET", IsURL: true, Getter: env(map[string]string{"SECRET": secret})}, secret},
+		{"is-bool", Check{Name: "SECRET", IsBool: true, Getter: env(map[string]string{"SECRET": secret})}, secret},
+		{"is-file", Check{Name: "SECRET", IsFile: true, Getter: env(map[string]string{"SECRET": secret}), Stater: noFiles}, secret},
+		{"is-dir", Check{Name: "SECRET", IsDir: true, Getter: env(map[string]string{"SECRET": secret}), Stater: noFiles}, secret},
+	}
+
+	hiders := []struct {
+		flag  string
+		apply func(*Check)
+	}{
+		{"hide-value", func(c *Check) { c.HideValue = true }},
+		{"mask-value", func(c *Check) { c.MaskValue = true }},
+	}
+
+	for _, tt := range tests {
+		for _, hider := range hiders {
+			t.Run(tt.name+" with --"+hider.flag, func(t *testing.T) {
+				c := tt.check
+				hider.apply(&c)
+
+				result := c.Run()
+
+				require.Equal(t, check.StatusFail, result.Status, "the case must fail for the assertion to mean anything")
+				assert.NotContains(t, strings.Join(result.Details, " "), tt.forbidden, "printed details disclosed the value")
+				require.Error(t, result.Err)
+				assert.NotContains(t, result.Err.Error(), tt.forbidden, "Err disclosed the value")
+			})
+		}
 	}
 }
