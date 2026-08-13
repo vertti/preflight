@@ -2,7 +2,6 @@ package httpcheck
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -104,7 +103,6 @@ func (c *Check) Run() check.Result {
 
 	// Retry loop
 	maxAttempts := c.Retry + 1
-	var lastErr error
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		var bodyReader io.Reader = http.NoBody
@@ -123,15 +121,11 @@ func (c *Check) Run() check.Result {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			lastErr = err
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("request failed after %d attempts: %v", maxAttempts, err)
-			}
-			return result.Failf("request failed: %v", err)
+			return result.FailAfter(maxAttempts, "request failed: %v", err)
 		}
 
 		statusCode := resp.StatusCode
@@ -150,28 +144,20 @@ func (c *Check) Run() check.Result {
 		}
 
 		if statusCode != expectedStatus {
-			lastErr = fmt.Errorf("status %d, expected %d", statusCode, expectedStatus)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("status %d, expected %d (after %d attempts)", statusCode, expectedStatus, maxAttempts)
-			}
-			return result.Failf("status %d, expected %d", statusCode, expectedStatus)
+			return result.FailAfter(maxAttempts, "status %d, expected %d", statusCode, expectedStatus)
 		}
 
 		// Check --contains
 		if c.Contains != "" && !strings.Contains(respBody, c.Contains) {
-			lastErr = fmt.Errorf("response body does not contain %q", c.Contains)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("response body does not contain %q (after %d attempts)", c.Contains, maxAttempts)
-			}
-			return result.Failf("response body does not contain %q", c.Contains)
+			return result.FailAfter(maxAttempts, "response body does not contain %q", c.Contains)
 		}
 
 		// Check --json-path
@@ -179,26 +165,18 @@ func (c *Check) Run() check.Result {
 			path, expectedValue, hasExpectedValue := strings.Cut(c.JSONPath, "=")
 			jsonResult := jsonpath.Get(respBody, path)
 			if !jsonResult.Exists() {
-				lastErr = fmt.Errorf("JSON path %q not found", path)
 				if attempt < maxAttempts {
 					time.Sleep(retryDelay)
 					continue
 				}
-				if maxAttempts > 1 {
-					return result.Failf("JSON path %q not found (after %d attempts)", path, maxAttempts)
-				}
-				return result.Failf("JSON path %q not found", path)
+				return result.FailAfter(maxAttempts, "JSON path %q not found", path)
 			}
 			if hasExpectedValue && jsonResult.String() != expectedValue {
-				lastErr = fmt.Errorf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
 				if attempt < maxAttempts {
 					time.Sleep(retryDelay)
 					continue
 				}
-				if maxAttempts > 1 {
-					return result.Failf("JSON path %q: got %q, expected %q (after %d attempts)", path, jsonResult.String(), expectedValue, maxAttempts)
-				}
-				return result.Failf("JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
+				return result.FailAfter(maxAttempts, "JSON path %q: got %q, expected %q", path, jsonResult.String(), expectedValue)
 			}
 		}
 
@@ -211,6 +189,7 @@ func (c *Check) Run() check.Result {
 		return result
 	}
 
-	// Should not reach here, but handle edge case
-	return result.Failf("unexpected error: %v", lastErr)
+	// Unreachable: every path in the loop returns, or continues only while
+	// tries remain. The compiler cannot see that, so the line has to exist.
+	return result.Failf("check did not complete")
 }

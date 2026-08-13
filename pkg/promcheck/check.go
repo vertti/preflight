@@ -1,7 +1,6 @@
 package promcheck
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -71,7 +70,6 @@ func (c *Check) Run() check.Result {
 
 	// Retry loop
 	maxAttempts := c.Retry + 1
-	var lastErr error
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		req, err := http.NewRequest("GET", queryURL, http.NoBody)
@@ -86,15 +84,11 @@ func (c *Check) Run() check.Result {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			lastErr = err
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("request failed after %d attempts: %v", maxAttempts, err)
-			}
-			return result.Failf("request failed: %v", err)
+			return result.FailAfter(maxAttempts, "request failed: %v", err)
 		}
 
 		// Read response body
@@ -106,15 +100,11 @@ func (c *Check) Run() check.Result {
 
 		// Check HTTP status
 		if resp.StatusCode != 200 {
-			lastErr = fmt.Errorf("prometheus returned status %d", resp.StatusCode)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("prometheus returned status %d (after %d attempts)", resp.StatusCode, maxAttempts)
-			}
-			return result.Failf("prometheus returned status %d", resp.StatusCode)
+			return result.FailAfter(maxAttempts, "prometheus returned status %d", resp.StatusCode)
 		}
 
 		// Parse Prometheus response
@@ -136,15 +126,11 @@ func (c *Check) Run() check.Result {
 		case "vector":
 			results := jsonpath.Get(respBody, "data.result")
 			if !results.Exists() || len(results.Array()) == 0 {
-				lastErr = errors.New("query returned no data")
 				if attempt < maxAttempts {
 					time.Sleep(retryDelay)
 					continue
 				}
-				if maxAttempts > 1 {
-					return result.Failf("query %q returned no data (after %d attempts)", c.Query, maxAttempts)
-				}
-				return result.Failf("query %q returned no data", c.Query)
+				return result.FailAfter(maxAttempts, "query %q returned no data", c.Query)
 			}
 			if len(results.Array()) > 1 {
 				return result.Failf("query returned %d results, expected 1 (use a more specific query)", len(results.Array()))
@@ -165,39 +151,27 @@ func (c *Check) Run() check.Result {
 
 		// Validate against thresholds
 		if c.Exact != nil && value != *c.Exact {
-			lastErr = fmt.Errorf("value %v does not equal %v", value, *c.Exact)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("value %v does not equal %v (after %d attempts)", value, *c.Exact, maxAttempts)
-			}
-			return result.Failf("value %v does not equal %v", value, *c.Exact)
+			return result.FailAfter(maxAttempts, "value %v does not equal %v", value, *c.Exact)
 		}
 
 		if c.Min != nil && value < *c.Min {
-			lastErr = fmt.Errorf("value %v < minimum %v", value, *c.Min)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("value %v < minimum %v (after %d attempts)", value, *c.Min, maxAttempts)
-			}
-			return result.Failf("value %v < minimum %v", value, *c.Min)
+			return result.FailAfter(maxAttempts, "value %v < minimum %v", value, *c.Min)
 		}
 
 		if c.Max != nil && value > *c.Max {
-			lastErr = fmt.Errorf("value %v > maximum %v", value, *c.Max)
 			if attempt < maxAttempts {
 				time.Sleep(retryDelay)
 				continue
 			}
-			if maxAttempts > 1 {
-				return result.Failf("value %v > maximum %v (after %d attempts)", value, *c.Max, maxAttempts)
-			}
-			return result.Failf("value %v > maximum %v", value, *c.Max)
+			return result.FailAfter(maxAttempts, "value %v > maximum %v", value, *c.Max)
 		}
 
 		// Success
@@ -213,6 +187,7 @@ func (c *Check) Run() check.Result {
 		return result
 	}
 
-	// Should not reach here, but handle edge case
-	return result.Failf("unexpected error: %v", lastErr)
+	// Unreachable: every path in the loop returns, or continues only while
+	// tries remain. The compiler cannot see that, so the line has to exist.
+	return result.Failf("check did not complete")
 }
