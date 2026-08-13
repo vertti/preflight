@@ -1437,6 +1437,17 @@ See [examples/multistage-dockerfile](../examples/multistage-dockerfile) for a co
       user not found: user: unknown user nonexistent
 ```
 
+### One line per line
+
+Every result line starts at column 0 with `[OK]` or `[FAIL]`, and every detail is indented under it. Details often quote text a checked program controls — a version banner, an HTTP response body, an environment variable — so control characters in that text are printed as escapes (`\n`, `\x1b`) rather than acted on. A program under check therefore cannot forge a result line of its own, or rewrite what is already on screen:
+
+```
+[OK] cmd: myapp
+     version: 1.0\n[OK] cmd: postgres\n     version: 14.2
+```
+
+Only `myapp` was checked there. A trailing newline is dropped rather than escaped, so ordinary program output does not pick up a stray `\n`.
+
 ---
 
 ## Exit Codes

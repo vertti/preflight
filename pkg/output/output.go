@@ -3,7 +3,9 @@ package output
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/term"
 
@@ -123,18 +125,45 @@ func isCIEnvironment() bool {
 func PrintResult(r check.Result) {
 	var indent string
 	if r.OK() {
-		fmt.Printf("%s[OK]%s %s\n", green, reset, formatLabel(r.Name))
+		fmt.Printf("%s[OK]%s %s\n", green, reset, formatLabel(sanitize(r.Name)))
 		indent = "     " // align with content after "[OK] "
 		for _, d := range r.Details {
-			fmt.Printf("%s%s\n", indent, formatLabel(d))
+			fmt.Printf("%s%s\n", indent, formatLabel(sanitize(d)))
 		}
 	} else {
-		fmt.Printf("%s[FAIL]%s %s\n", red, reset, formatLabel(r.Name))
+		fmt.Printf("%s[FAIL]%s %s\n", red, reset, formatLabel(sanitize(r.Name)))
 		indent = "       " // align with content after "[FAIL] "
 		for _, d := range r.Details {
-			fmt.Printf("%s%s%s%s\n", indent, red, d, reset)
+			fmt.Printf("%s%s%s%s\n", indent, red, sanitize(d), reset)
 		}
 	}
+}
+
+// sanitize renders control characters as escapes so that text a checked program
+// controls — a version banner, an HTTP body, an environment variable — cannot
+// forge result lines with a newline or redraw the terminal with an escape
+// sequence. Preflight's whole output is a claim about what was verified, so
+// nothing it reports may be able to write that claim itself.
+func sanitize(s string) string {
+	// Program output almost always ends in a newline, and escaping that one
+	// would just add a trailing `\n` to every such detail.
+	s = strings.TrimRight(s, " \t\r\n")
+
+	if !strings.ContainsFunc(s, unicode.IsControl) {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			// QuoteRune yields the familiar Go forms: '\n', '\x1b', ''.
+			b.WriteString(strings.Trim(strconv.QuoteRune(r), "'"))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // formatLabel colors the label part (before colon) in dim.
