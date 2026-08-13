@@ -376,6 +376,8 @@ preflight prometheus <url> --query '<promql>' [flags]
 | `--insecure`           | Skip TLS certificate verification   |
 | `--header <key:value>` | Custom header (can be repeated)     |
 
+Query responses are read up to 10 MiB, measured after decompression; a larger one fails with `response body too large`. Narrow the query if you hit it — a query answering with that much JSON is returning far more series than a threshold check can use.
+
 ### Examples
 
 ```sh
@@ -690,6 +692,8 @@ preflight http <url> [flags]
 | `--json-path <expr>`   | JSON assertion (`path` or `path=value`) |
 | `--follow-redirects`   | Follow HTTP redirects (3xx)             |
 | `--insecure`           | Skip TLS certificate verification       |
+
+The response body is only read when `--contains` or `--json-path` asks for it, and then only up to 10 MiB — beyond that the check fails with `response body too large` rather than truncating, so a `--contains` miss never means the string was just past the end. The limit is on the body after decompression, which is what actually occupies memory: a gzipped response is far larger unpacked than it is on the wire.
 
 ### Examples
 

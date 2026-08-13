@@ -43,3 +43,6 @@ bin/
 
 # Claude local settings
 .claude/settings.local.json
+
+# Release build output (also produced by the Dockerfile CI test)
+dist/
