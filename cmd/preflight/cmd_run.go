@@ -18,7 +18,7 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run checks from a .preflight file",
 	Args:  cobra.NoArgs,
-	RunE:  runRun,
+	RunE:  runPreflightFile,
 }
 
 func init() {
@@ -26,7 +26,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 }
 
-func runRun(cmd *cobra.Command, args []string) error {
+func runPreflightFile(cmd *cobra.Command, args []string) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)

@@ -107,10 +107,10 @@ func TestRunCommands(t *testing.T) {
 	})
 }
 
-// Reaches the wiring in runRun that the "nonexistent file" case returns before:
+// Reaches the wiring in runPreflightFile that the "nonexistent file" case returns before:
 // discovery, parsing, resolving the executable, and the zero-exit path. An
 // empty file runs no commands, so nothing is spawned.
-func TestRunRun_EmptyFileIsASuccessfulNoOp(t *testing.T) {
+func TestRunPreflightFile_EmptyFileIsASuccessfulNoOp(t *testing.T) {
 	originalFile, originalRan := runFile, checkRan
 	defer func() { runFile, checkRan = originalFile, originalRan }()
 	runFile, checkRan = "", false
@@ -119,14 +119,14 @@ func TestRunRun_EmptyFileIsASuccessfulNoOp(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".preflight"), []byte("# only a comment\n\n"), 0o600))
 	t.Chdir(dir)
 
-	require.NoError(t, runRun(nil, nil))
+	require.NoError(t, runPreflightFile(nil, nil))
 	assert.False(t, checkRan, "no check ran, so exec mode must still refuse")
 }
 
-func TestRunRun_ReportsAMissingFile(t *testing.T) {
+func TestRunPreflightFile_ReportsAMissingFile(t *testing.T) {
 	originalFile := runFile
 	defer func() { runFile = originalFile }()
 	runFile = filepath.Join(t.TempDir(), "absent")
 
-	require.Error(t, runRun(nil, nil))
+	require.Error(t, runPreflightFile(nil, nil))
 }

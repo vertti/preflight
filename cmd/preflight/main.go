@@ -1,138 +1,31 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"os"
-	"slices"
-	"strings"
-
-	"github.com/spf13/cobra"
-
-	"github.com/vertti/preflight/pkg/exec"
 )
 
-// Version is set at build time via ldflags
-var Version = "dev"
-
-// isKnownSubcommand reports whether name is one of preflight's own commands.
-// Derived from cobra rather than a hand-kept list: the list had drifted (it
-// named "version", which is not a command), and adding a command without
-// updating it meant a file of that name in the working directory would be
-// mistaken for a hashbang script.
-func isKnownSubcommand(name string) bool {
-	switch name {
-	case "help", "--help", "-h":
-		return true
-	}
-	for _, cmd := range rootCmd.Commands() {
-		if cmd.Name() == name {
-			return true
-		}
-		if slices.Contains(cmd.Aliases, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// fileChecker abstracts file existence checks for testing
-type fileChecker func(path string) (isFile bool)
-
-// realFileChecker checks if a path exists and is a file (not a directory)
-func realFileChecker(path string) bool {
-	info, err := os.Stat(path) //nolint:gosec // intentional: checking hashbang script path from user invocation
-	return err == nil && !info.IsDir()
-}
-
-// transformArgsForHashbang detects hashbang invocation and transforms args.
-// When preflight is invoked as a hashbang interpreter (e.g., #!/usr/bin/env preflight),
-// the first arg is the script file path. This transforms ["preflight", "script.pf"]
-// into ["preflight", "run"] and sets runFile to "script.pf".
-func transformArgsForHashbang(args []string, checkFile fileChecker) (newArgs []string, filePath string) {
-	if len(args) <= 1 {
-		return args, ""
+func main() {
+	var file string
+	os.Args, file = transformArgsForHashbang(os.Args, realFileChecker)
+	if file != "" {
+		runFile = file
 	}
 
-	firstArg := args[1]
+	// Extract exec args (everything after "--")
+	execArgs := extractExecArgs(&os.Args)
 
-	// Skip if it's a flag
-	if strings.HasPrefix(firstArg, "-") {
-		return args, ""
+	// ExecuteC returns the command that actually ran, so usage errors can show
+	// that command's usage rather than the root's.
+	cmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		reportExecuteError(cmd, err, os.Stderr)
+		os.Exit(1)
 	}
 
-	// Skip if it's a known subcommand
-	if isKnownSubcommand(firstArg) {
-		return args, ""
+	// Checks passed - exec into command if args were provided
+	if err := runExec(execArgs); err != nil {
+		fmt.Fprintf(os.Stderr, "exec: %v\n", err)
+		os.Exit(1)
 	}
-
-	// Check if it's a file - if so, treat as hashbang invocation
-	if checkFile(firstArg) {
-		newArgs := append([]string{args[0], "run"}, args[2:]...)
-		return newArgs, firstArg
-	}
-
-	return args, ""
-}
-
-// extractExecArgs finds "--" in args and returns everything after it.
-// It modifies the input slice to remove the "--" and everything after.
-// This allows syntax like: preflight tcp postgres:5432 -- ./myapp
-func extractExecArgs(args *[]string) []string {
-	for i, arg := range *args {
-		if arg == "--" {
-			execArgs := (*args)[i+1:]
-			*args = (*args)[:i]
-			return execArgs
-		}
-	}
-	return nil
-}
-
-// executor is the default exec implementation, can be overridden for testing.
-var executor exec.Executor = &exec.RealExecutor{}
-
-// runExec executes the command specified in execArgs.
-// Returns an error if the exec fails, or if no check ran — handing control to
-// the target when nothing was verified would turn the gate into a no-op that
-// reports success.
-func runExec(execArgs []string) error {
-	if len(execArgs) == 0 {
-		return nil
-	}
-	if !checkRan {
-		return errors.New("refusing to exec: no check ran before --")
-	}
-	return executor.Exec(execArgs[0], execArgs[1:])
-}
-
-// SilenceUsage and SilenceErrors are set because a failing check is the tool's
-// normal operating mode, not a usage mistake. Cobra treats any error from RunE
-// as a usage error and dumps the full flag list, which buried the one line that
-// mattered. reportExecuteError puts the usage output back for real usage errors.
-var rootCmd = &cobra.Command{
-	Use:           "preflight",
-	Short:         "Docker preflight checks for your runtime environment",
-	Long:          "Preflight is a CLI tool for running sanity checks on container and CI environments.",
-	Version:       Version,
-	SilenceUsage:  true,
-	SilenceErrors: true,
-}
-
-// reportExecuteError writes diagnostics for a failed Execute. A failed check has
-// already printed its [FAIL] line and needs nothing further; anything else is
-// the user getting the invocation wrong, where usage is what helps.
-func reportExecuteError(cmd *cobra.Command, err error, w io.Writer) {
-	if errors.Is(err, ErrCheckFailed) {
-		return
-	}
-
-	_, _ = fmt.Fprintln(w, "Error:", err)
-	if cmd == nil {
-		return
-	}
-	cmd.SetOut(w)
-	cmd.SetErr(w)
-	_ = cmd.Usage()
 }
