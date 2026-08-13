@@ -12,6 +12,17 @@ curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | 
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 ```
 
+Copying only `/preflight` gives you the binary, and it uses whatever CA bundle the
+destination image has. If that image is `scratch` or `distroless/base` and you
+need `preflight http https://...`, copy a bundle across as well:
+
+```dockerfile
+COPY --from=ghcr.io/vertti/preflight:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+```
+
+Running the preflight image directly (`docker run ghcr.io/vertti/preflight …`)
+needs nothing extra — the bundle ships in it.
+
 ## Manual Download
 
 Download the binary for your platform from [GitHub Releases](https://github.com/vertti/preflight/releases):
