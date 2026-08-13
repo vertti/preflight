@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,4 +105,28 @@ func TestRunCommands(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, checkRan)
 	})
+}
+
+// Reaches the wiring in runRun that the "nonexistent file" case returns before:
+// discovery, parsing, resolving the executable, and the zero-exit path. An
+// empty file runs no commands, so nothing is spawned.
+func TestRunRun_EmptyFileIsASuccessfulNoOp(t *testing.T) {
+	originalFile, originalRan := runFile, checkRan
+	defer func() { runFile, checkRan = originalFile, originalRan }()
+	runFile, checkRan = "", false
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".preflight"), []byte("# only a comment\n\n"), 0o600))
+	t.Chdir(dir)
+
+	require.NoError(t, runRun(nil, nil))
+	assert.False(t, checkRan, "no check ran, so exec mode must still refuse")
+}
+
+func TestRunRun_ReportsAMissingFile(t *testing.T) {
+	originalFile := runFile
+	defer func() { runFile = originalFile }()
+	runFile = filepath.Join(t.TempDir(), "absent")
+
+	require.Error(t, runRun(nil, nil))
 }
