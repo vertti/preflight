@@ -188,14 +188,19 @@ jobs:
           # This runs a check, then execs into preflight --version
           docker run --rm --entrypoint /preflight preflight-distroless env PATH -- /preflight --version
 
-      - name: Test in scratch
+      # Builds the Dockerfile that actually ships, rather than an inline copy of
+      # it: the released image shipped for months without a CA bundle because
+      # nothing here ever exercised the real one.
+      - name: Test the released image
         run: |
-          echo 'FROM scratch
-          COPY preflight /preflight
-          ENTRYPOINT ["/preflight"]' > Dockerfile.scratch
-          docker build -f Dockerfile.scratch -t preflight-scratch .
+          mkdir -p dist && cp preflight dist/preflight-linux-amd64
+          docker build --build-arg TARGETARCH=amd64 -t preflight-release .
 
-          docker run --rm preflight-scratch --version
+          docker run --rm preflight-release --version
 
-          # Test exec mode in scratch too
-          docker run --rm --entrypoint /preflight preflight-scratch env PATH -- /preflight --version
+          # Exec mode: the point of a shell-less image
+          docker run --rm --entrypoint /preflight preflight-release env PATH -- /preflight --version
+
+          # HTTPS needs a CA bundle, which a scratch image does not have by default
+          docker run --rm preflight-release file /etc/ssl/certs/ca-certificates.crt --not-empty
+          docker run --rm preflight-release http https://example.com
