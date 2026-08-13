@@ -16,7 +16,7 @@
 COPY --from=ghcr.io/vertti/preflight:latest /preflight /usr/local/bin/preflight
 
 RUN preflight cmd node --min 18.0        # verify binary + version
-RUN preflight env DATABASE_URL           # env var exists
+RUN preflight env DATABASE_URL --hide-value  # env var exists, value stays out of the build log
 RUN preflight file /app/config.yaml      # file exists
 RUN preflight tcp postgres:5432 --timeout 5s  # reachable?
 
@@ -134,7 +134,7 @@ preflight cmd ffmpeg --version-cmd -version   # custom version flag
 ### Check environment variables
 
 ```sh
-preflight env DATABASE_URL                       # exists and non-empty
+preflight env DATABASE_URL --hide-value          # exists and non-empty, value not printed
 preflight env MODEL_PATH --match '^/models/'     # matches pattern
 preflight env APP_ENV --one-of dev,staging,prod  # allowed values
 ```
