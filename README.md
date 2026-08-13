@@ -29,7 +29,7 @@ Pre-flight checks for containers: verify services, environment, dependencies. Ea
 
 - **One command, multiple checks** — `preflight cmd node --min 18.0` verifies: on PATH, actually runs, returns version, meets constraint
 - **Works without a shell** — Runs in distroless/scratch, no shell required
-- **Container-aware** — Reads cgroup limits, not just host /proc/meminfo
+- **Container-aware** — Reads cgroup memory limits and CPU quotas, not just host /proc/meminfo and core count
 - **Version constraints** — `--min 1.0` and `--range '^1.0'` use semver, not string comparison
 
 ```

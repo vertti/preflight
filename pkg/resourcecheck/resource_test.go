@@ -40,9 +40,9 @@ func TestRealResourceChecker_AvailableMemory(t *testing.T) {
 	assert.GreaterOrEqual(t, mem, 100*MB, "expected at least 100MB")
 }
 
-func TestRealResourceChecker_NumCPUs(t *testing.T) {
+func TestRealResourceChecker_AvailableCPUs(t *testing.T) {
 	r := &RealResourceChecker{}
-	assert.GreaterOrEqual(t, r.NumCPUs(), 1)
+	assert.GreaterOrEqual(t, r.AvailableCPUs(), 1.0)
 }
 
 func TestReadCgroupMemoryLimit(t *testing.T) {
@@ -223,6 +223,98 @@ func TestAvailableMemory(t *testing.T) {
 
 		require.Error(t, err)
 	})
+}
+
+// A CPU quota is a share of wall time per period, so it has to be read from the
+// cgroup and divided out — unlike CPU affinity, the Go runtime never sees it.
+func TestCgroupPaths_CPULimit(t *testing.T) {
+	tests := []struct {
+		name      string
+		self      string
+		files     map[string]string
+		want      float64
+		wantFound bool
+	}{
+		{
+			name:      "v2 quota below one whole CPU",
+			self:      "0::/\n",
+			files:     map[string]string{"cpu.max": "50000 100000"},
+			want:      0.5,
+			wantFound: true,
+		},
+		{
+			name:      "v2 quota spanning more than one CPU",
+			self:      "0::/\n",
+			files:     map[string]string{"cpu.max": "150000 100000"},
+			want:      1.5,
+			wantFound: true,
+		},
+		{
+			name:      "v2 unlimited",
+			self:      "0::/\n",
+			files:     map[string]string{"cpu.max": "max 100000"},
+			wantFound: false,
+		},
+		{
+			name: "v2 host namespace follows the path from /proc/self/cgroup",
+			self: "0::/system.slice/docker-abc123.scope\n",
+			files: map[string]string{
+				"cpu.max": "max 100000",
+				"system.slice/docker-abc123.scope/cpu.max": "200000 100000",
+			},
+			want:      2,
+			wantFound: true,
+		},
+		{
+			name: "v2 takes the tightest quota in the chain",
+			self: "0::/system.slice/docker-abc123.scope\n",
+			files: map[string]string{
+				"cpu.max":              "max 100000",
+				"system.slice/cpu.max": "100000 100000",
+				"system.slice/docker-abc123.scope/cpu.max": "400000 100000",
+			},
+			want:      1,
+			wantFound: true,
+		},
+		{
+			name: "v1 keeps quota and period in separate files",
+			self: "5:cpu,cpuacct:/docker/abc123\n",
+			files: map[string]string{
+				"cpu/docker/abc123/cpu.cfs_quota_us":  "50000",
+				"cpu/docker/abc123/cpu.cfs_period_us": "100000",
+			},
+			want:      0.5,
+			wantFound: true,
+		},
+		{
+			name: "v1 unlimited is -1, not a keyword",
+			self: "5:cpu,cpuacct:/\n",
+			files: map[string]string{
+				"cpu/cpu.cfs_quota_us":  "-1",
+				"cpu/cpu.cfs_period_us": "100000",
+			},
+			wantFound: false,
+		},
+		{
+			name:      "no cgroup files means no quota",
+			self:      "0::/\n",
+			files:     nil,
+			wantFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paths := buildCgroupTree(t, tt.self, tt.files)
+
+			limit, found := paths.cpuLimit()
+
+			assert.Equal(t, tt.wantFound, found)
+			if tt.wantFound {
+				assert.InDelta(t, tt.want, limit, 0.0001)
+			}
+		})
+	}
 }
 
 // buildCgroupTree writes a fake /sys/fs/cgroup and /proc/self/cgroup so the
