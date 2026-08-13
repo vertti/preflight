@@ -1,15 +1,20 @@
 package preflight_test
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/vertti/preflight/pkg/check"
 	"github.com/vertti/preflight/pkg/cmdcheck"
@@ -684,5 +689,68 @@ func TestIntegration_ExecMode(t *testing.T) {
 		if !strings.Contains(outputStr, "exec:") {
 			t.Errorf("expected exec error message, got: %s", outputStr)
 		}
+	})
+}
+
+// The unit tests in cmd_run_test.go cover the command loop with an injected
+// runner. This covers what they cannot: the real spawn, and exit-code
+// propagation through os.Exit.
+func TestIntegration_Run(t *testing.T) {
+	binaryPath := filepath.Join(t.TempDir(), "preflight")
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/preflight") //nolint:gosec // intentional: building test binary
+	if output, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build preflight: %v\n%s", err, output)
+	}
+
+	run := func(t *testing.T, contents string) (string, int) {
+		t.Helper()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".preflight"), []byte(contents), 0o600))
+
+		cmd := exec.Command(binaryPath, "run")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "NO_COLOR=1")
+		out, err := cmd.CombinedOutput()
+
+		code := 0
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			code = exitErr.ExitCode()
+		} else if err != nil {
+			t.Fatalf("run failed unexpectedly: %v\n%s", err, out)
+		}
+		return string(out), code
+	}
+
+	t.Run("runs every check in the file", func(t *testing.T) {
+		out, code := run(t, "env PATH\nenv HOME\n")
+		assert.Equal(t, 0, code)
+		assert.Contains(t, out, "[OK] env: PATH")
+		assert.Contains(t, out, "[OK] env: HOME")
+	})
+
+	t.Run("comments and blank lines are skipped", func(t *testing.T) {
+		out, code := run(t, "# a comment\n\nenv PATH\n")
+		assert.Equal(t, 0, code)
+		assert.Contains(t, out, "[OK] env: PATH")
+	})
+
+	t.Run("a failing check propagates exit 1 and stops", func(t *testing.T) {
+		out, code := run(t, "env PREFLIGHT_DEFINITELY_UNSET_XYZ\nenv PATH\n")
+		assert.Equal(t, 1, code)
+		assert.Contains(t, out, "[FAIL]")
+		assert.NotContains(t, out, "[OK] env: PATH", "must stop at the first failure")
+	})
+
+	t.Run("a line naming another binary does not run it", func(t *testing.T) {
+		out, code := run(t, "preflight/../evil.sh\n")
+		assert.NotEqual(t, 0, code)
+		assert.NotContains(t, out, "PWNED")
+	})
+
+	t.Run("explicit preflight prefix is accepted", func(t *testing.T) {
+		out, code := run(t, "preflight env PATH\n")
+		assert.Equal(t, 0, code)
+		assert.Contains(t, out, "[OK] env: PATH")
 	})
 }
