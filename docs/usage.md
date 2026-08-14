@@ -1210,6 +1210,29 @@ preflight tcp localhost:5432
 - Lines without `preflight` prefix are automatically prepended with `preflight`
 - Commands execute sequentially
 
+### Quoting
+
+An argument containing a space must be quoted, and either quote works:
+
+```sh
+env GREETING --exact "hello world"
+env GREETING --contains 'lo wo'
+```
+
+Single quotes are literal throughout, which is what a regex or a JSON document
+usually wants:
+
+```sh
+cmd myapp --match '^v2\.'
+json config.json --key name --exact '{"a": 1}'
+```
+
+Double quotes recognise `\"` and `\\` and leave every other backslash alone, so
+`"^v2\."` still means what it looks like. There is no variable expansion or
+command substitution — a line is a list of arguments, not a shell command. An
+unclosed quote is reported with its line number rather than silently
+mis-splitting the line.
+
 Every check runs, including the ones after a failure, so a single pass reports
 everything wrong with the environment rather than one problem at a time. A
 summary follows the results, and the exit code is `1` if any check failed:

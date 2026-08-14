@@ -751,6 +751,28 @@ func TestIntegration_Run(t *testing.T) {
 		assert.Contains(t, out, "2 of 3 checks failed")
 	})
 
+	// strings.Fields split on every space, so a value containing one reached
+	// cobra as several arguments and the line failed with a usage dump.
+	t.Run("an argument may contain spaces", func(t *testing.T) {
+		t.Setenv("PREFLIGHT_SPACED", "hello world")
+		out, code := run(t, "env PREFLIGHT_SPACED --exact \"hello world\"\n")
+		assert.Equal(t, 0, code, out)
+		assert.Contains(t, out, "[OK] env: PREFLIGHT_SPACED")
+	})
+
+	t.Run("single quotes keep a regex intact", func(t *testing.T) {
+		t.Setenv("PREFLIGHT_SPACED", "hello world")
+		out, code := run(t, "env PREFLIGHT_SPACED --match '^hello\\s'\n")
+		assert.Equal(t, 0, code, out)
+		assert.Contains(t, out, "[OK] env: PREFLIGHT_SPACED")
+	})
+
+	t.Run("an unterminated quote is reported with its line number", func(t *testing.T) {
+		out, code := run(t, "env PATH\nenv HOME --exact \"unclosed\n")
+		assert.NotEqual(t, 0, code)
+		assert.Contains(t, out, "line 2")
+	})
+
 	t.Run("a line naming another binary does not run it", func(t *testing.T) {
 		out, code := run(t, "preflight/../evil.sh\n")
 		assert.NotEqual(t, 0, code)
