@@ -61,7 +61,7 @@ func ParseFile(path string) ([]string, error) {
 	lines := strings.Split(string(data), "\n")
 	commands := []string{}
 
-	for _, line := range lines {
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == "" {
@@ -76,7 +76,11 @@ func ParseFile(path string) ([]string, error) {
 		// beginning with "preflight" — including preflight/../evil.sh, a path
 		// that cmd_run then executed directly because its substitution tests
 		// for the exact token.
-		if fields := strings.Fields(trimmed); len(fields) == 0 || fields[0] != "preflight" {
+		fields, err := Fields(trimmed)
+		if err != nil {
+			return nil, fmt.Errorf("line %d: %w", i+1, err)
+		}
+		if len(fields) == 0 || fields[0] != "preflight" {
 			trimmed = "preflight " + trimmed
 		}
 

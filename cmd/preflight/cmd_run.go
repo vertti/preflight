@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -77,7 +76,12 @@ func runCommands(commands []string, executable string, run func(name string, arg
 	ran, failed := 0, 0
 
 	for _, command := range commands {
-		parts := strings.Fields(command)
+		// Quote-aware, so an argument may contain a space. ParseFile has already
+		// accepted these lines, so a failure here means the two disagree.
+		parts, err := preflightfile.Fields(command)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse command %q: %w", command, err)
+		}
 		if len(parts) == 0 {
 			continue
 		}
