@@ -119,6 +119,18 @@ func TestCheck_Run(t *testing.T) {
 		{"max size passes", Check{Path: "/data.json", MaxSize: 200, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusOK, ""},
 		{"max size fails", Check{Path: "/data.json", MaxSize: 50, FS: &mockFileSystem{StatFunc: statFile(0o644, 100)}}, check.StatusFail, "size 100 > maximum 50"},
 
+		// A directory has no content and no meaningful size, so a constraint that
+		// needs one must fail rather than be skipped: these all reported [OK]
+		// while evaluating nothing.
+		{"min size on directory", Check{Path: "/var/log", MinSize: 999999999, FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--min-size cannot be checked on a directory"},
+		{"max size on directory", Check{Path: "/var/log", MaxSize: 10, FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--max-size cannot be checked on a directory"},
+		{"not empty on directory", Check{Path: "/var/log", NotEmpty: true, FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--not-empty cannot be checked on a directory"},
+		{"contains on directory", Check{Path: "/var/log", Contains: "needle", FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--contains cannot be checked on a directory"},
+		{"match on directory", Check{Path: "/var/log", Match: "^needle$", FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--match cannot be checked on a directory"},
+		{"several file-only flags on directory", Check{Path: "/var/log", NotEmpty: true, Contains: "needle", FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--not-empty, --contains cannot be checked on a directory"},
+		{"explicit dir with file-only flag", Check{Path: "/var/log", ExpectDir: true, MinSize: 10, FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusFail, "--min-size cannot be checked on a directory"},
+		{"directory with no file-only flags still passes", Check{Path: "/var/log", ExpectDir: true, Mode: "0755", FS: &mockFileSystem{StatFunc: statDir()}}, check.StatusOK, "type: directory"},
+
 		// Permissions. These consult the filesystem rather than the mode bits:
 		// a mode with the write bit set may still be unwritable by this process.
 		{"writable passes", Check{Path: "/data.json", Writable: true, FS: &mockFileSystem{StatFunc: statFile(0o644, 100), CanAccessFunc: accessAllowed()}}, check.StatusOK, ""},

@@ -39,6 +39,29 @@ func (c *Check) expectsSymlink() bool {
 	return c.ExpectSymlink || c.SymlinkTarget != ""
 }
 
+// fileOnlyFlags names the requested constraints that need a regular file,
+// in the order they appear in the check, so the failure lists every flag the
+// user has to reconsider rather than only the first.
+func (c *Check) fileOnlyFlags() []string {
+	var set []string
+	if c.NotEmpty {
+		set = append(set, "--not-empty")
+	}
+	if c.MinSize > 0 {
+		set = append(set, "--min-size")
+	}
+	if c.MaxSize > 0 {
+		set = append(set, "--max-size")
+	}
+	if c.Contains != "" {
+		set = append(set, "--contains")
+	}
+	if c.Match != "" {
+		set = append(set, "--match")
+	}
+	return set
+}
+
 // Run executes the file check.
 func (c *Check) Run() check.Result {
 	result := check.Result{
@@ -69,11 +92,15 @@ func (c *Check) Run() check.Result {
 		return result
 	}
 
-	// Size details and checks (only for files)
-	if !info.IsDir() {
-		if err := c.checkSizeConstraints(info, &result); err != nil {
-			return result
+	// Size and content need a file. A directory used to skip those flags and
+	// still report [OK], so `file /etc --min-size 999999999` passed a constraint
+	// nothing had evaluated.
+	if info.IsDir() {
+		if flags := c.fileOnlyFlags(); len(flags) > 0 {
+			return result.Failf("%s cannot be checked on a directory", strings.Join(flags, ", "))
 		}
+	} else if err := c.checkSizeConstraints(info, &result); err != nil {
+		return result
 	}
 
 	// Permission details
@@ -122,8 +149,8 @@ func (c *Check) Run() check.Result {
 		}
 	}
 
-	// Content checks (only for files, not directories)
-	if !info.IsDir() && (c.Contains != "" || c.Match != "") {
+	// Directories were rejected above if they carried either of these.
+	if c.Contains != "" || c.Match != "" {
 		if err := c.checkContent(&result); err != nil {
 			return result
 		}
