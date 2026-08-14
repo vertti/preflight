@@ -70,18 +70,28 @@ func (c *Check) Run() check.Result {
 		versionOutput = stderr
 	}
 
-	switch {
-	case c.MatchPattern != "":
+	hasVersionConstraint := c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil ||
+		c.VersionPattern != "" || c.VersionRange != ""
+
+	// Without a version constraint there is no parsed version to report, so the
+	// raw output stands in for one.
+	if !hasVersionConstraint && versionOutput != "" {
+		result.AddDetailf("version: %s", versionOutput)
+	}
+
+	// --match and a version constraint are independent assertions and both have
+	// to hold. These used to be arms of one switch, where --match won and left
+	// the version constraint unevaluated: `cmd git --match 'git version' --min 99`
+	// reported [OK] while `--min 99` alone correctly failed.
+	if c.MatchPattern != "" {
 		if err := c.checkMatchPattern(versionOutput, &result); err != nil {
 			return result
 		}
-	case c.MinVersion != nil || c.MaxVersion != nil || c.ExactVersion != nil || c.VersionPattern != "" || c.VersionRange != "":
+	}
+
+	if hasVersionConstraint {
 		if err := c.checkVersionConstraints(versionOutput, &result); err != nil {
 			return result
-		}
-	default:
-		if versionOutput != "" {
-			result.AddDetailf("version: %s", versionOutput)
 		}
 	}
 
@@ -100,7 +110,6 @@ func (c *Check) checkMatchPattern(output string, result *check.Result) error {
 		result.Fail(fmt.Sprintf("version output %q does not match pattern %q", output, c.MatchPattern), err)
 		return err
 	}
-	result.AddDetailf("version: %s", output)
 	return nil
 }
 
