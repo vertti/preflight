@@ -57,6 +57,10 @@ preflight cmd <command> [flags]
 | `--version-cmd <arg>`   | Override the default `--version` argument       |
 | `--timeout <duration>`  | Timeout for version command (default: 30s)      |
 
+These flags combine, and every one given must hold. `--match` asserts on the raw
+version output while `--min`, `--max`, `--exact` and `--range` assert on the
+version parsed out of it, so using them together checks both.
+
 ### Examples
 
 ```sh
