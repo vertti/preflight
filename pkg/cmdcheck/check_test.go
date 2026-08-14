@@ -61,6 +61,16 @@ func TestCommandCheck_Run(t *testing.T) {
 		{"match fails", Check{Name: "n", MatchPattern: `^v18\.`, Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v16.0.0")}}, check.StatusFail},
 		{"match invalid regex", Check{Name: "n", MatchPattern: `[invalid`, Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.0.0")}}, check.StatusFail},
 
+		// --match combined with a version constraint. Both are assertions the
+		// user made, so both have to hold: --match used to win the switch and
+		// leave the version constraint unevaluated.
+		{"match passes but min fails", Check{Name: "n", MatchPattern: `^v18\.`, MinVersion: v(99, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusFail},
+		{"match passes but max fails", Check{Name: "n", MatchPattern: `^v18\.`, MaxVersion: v(1, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusFail},
+		{"match passes but exact fails", Check{Name: "n", MatchPattern: `^v18\.`, ExactVersion: v(1, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusFail},
+		{"match passes but range fails", Check{Name: "n", MatchPattern: `^v18\.`, VersionRange: ">=99.0.0", Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusFail},
+		{"match fails but min passes", Check{Name: "n", MatchPattern: `^v99\.`, MinVersion: v(1, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusFail},
+		{"match and min both pass", Check{Name: "n", MatchPattern: `^v18\.`, MinVersion: v(18, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("v18.17.0")}}, check.StatusOK},
+
 		// Parse failures
 		{"version parse fails", Check{Name: "n", MinVersion: v(1, 0, 0), Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: run("no version")}}, check.StatusFail},
 		{"version from stderr", Check{Name: "java", Runner: &mockCmdRunner{LookPathFunc: found, RunCommandContextFunc: runStderr("openjdk 17.0.1")}}, check.StatusOK},
