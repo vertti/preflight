@@ -93,6 +93,18 @@ preflight cmd node --range "^18.0.0"             # Compatible with 18.x
 preflight cmd python3 --range "~3.11.0"          # Patch releases of 3.11
 ```
 
+### Version Detection
+
+Version constraints read the number out of whatever the command prints. Program
+names often contain digits, so the leftmost number is not always the version —
+in `s3cmd version 2.3.0` it is the `3` in the name. Candidates are ranked by how
+many dot-separated components they have, and a number standing on its own beats
+one glued to a name, so `2.3.0` wins. A version attached to its name is still
+found when it is the only candidate, as in `go version go1.25.0`.
+
+Use `--version-regex` when a command's output defeats this, or `--match` to
+assert on the raw text without parsing a version at all.
+
 ---
 
 ## `preflight env`
@@ -206,6 +218,11 @@ preflight file <path> [flags]
 | `--mode <perms>`          | Minimum permissions (e.g., `0644` passes for `0666`) |
 | `--mode-exact <perms>`    | Exact permissions required                           |
 | `--owner <uid>`           | Expected owner UID                                   |
+
+`--not-empty`, `--min-size`, `--max-size`, `--contains`, and `--match` need a
+regular file. Pointing them at a directory fails the check rather than skipping
+it — a size or content constraint that silently evaluated nothing would report
+`[OK]` for something never verified. The remaining flags work on directories.
 
 ### Examples
 
