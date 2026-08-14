@@ -6,6 +6,11 @@
 curl -fsSL https://raw.githubusercontent.com/vertti/preflight/main/install.sh | sh
 ```
 
+The installer verifies the downloaded binary against the release's
+`checksums.txt` and aborts if it cannot. On an image carrying neither
+`sha256sum` nor `shasum` it stops rather than installing something unverified;
+`PREFLIGHT_SKIP_CHECKSUM=1` opts out deliberately.
+
 ## In Dockerfiles
 
 ```dockerfile
