@@ -1511,14 +1511,25 @@ See [examples/multistage-dockerfile](../examples/multistage-dockerfile) for a co
 
 ### One line per line
 
-Every result line starts at column 0 with `[OK]` or `[FAIL]`, and every detail is indented under it. Details often quote text a checked program controls — a version banner, an HTTP response body, an environment variable — so control characters in that text are printed as escapes (`\n`, `\x1b`) rather than acted on. A program under check therefore cannot forge a result line of its own, or rewrite what is already on screen:
+Every result line starts at column 0 with `[OK]` or `[FAIL]`, and **every** line of every detail is indented under it — including the second and later lines of multi-line output. That indentation is the guarantee: a checked program controls the text in a version banner, an HTTP response body or an environment variable, but nothing it emits can reach column 0, so it cannot forge a result of its own:
 
 ```
 [OK] cmd: myapp
-     version: 1.0\n[OK] cmd: postgres\n     version: 14.2
+     version: 1.0
+     [OK] cmd: postgres
+          version: 14.2
 ```
 
-Only `myapp` was checked there. A trailing newline is dropped rather than escaped, so ordinary program output does not pick up a stray `\n`.
+Only `myapp` was checked there. The `[OK] cmd: postgres` line came from `myapp`, and its indentation is what says so.
+
+Line breaks and tabs in program output are kept, since neither can reach column 0. Every other control character is printed as an escape rather than acted on, so a carriage return or an ANSI sequence cannot overwrite what is already on screen:
+
+```
+[OK] cmd: myapp
+     version: 1.0\x1b[2K\r[OK] all good
+```
+
+A trailing newline is dropped, so ordinary program output does not gain a blank line.
 
 ---
 

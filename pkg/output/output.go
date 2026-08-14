@@ -123,40 +123,80 @@ func isCIEnvironment() bool {
 
 // PrintResult outputs a check result with colored status.
 func PrintResult(r check.Result) {
-	var indent string
 	if r.OK() {
-		fmt.Printf("%s[OK]%s %s\n", green, reset, formatLabel(sanitize(r.Name)))
-		indent = "     " // align with content after "[OK] "
-		for _, d := range r.Details {
-			fmt.Printf("%s%s\n", indent, formatLabel(sanitize(d)))
-		}
-	} else {
-		fmt.Printf("%s[FAIL]%s %s\n", red, reset, formatLabel(sanitize(r.Name)))
-		indent = "       " // align with content after "[FAIL] "
-		for _, d := range r.Details {
-			fmt.Printf("%s%s%s%s\n", indent, red, sanitize(d), reset)
+		fmt.Printf("%s[OK]%s %s\n", green, reset, formatLabel(sanitizeInline(r.Name)))
+		// Align with content after "[OK] ".
+		printDetails(r.Details, "     ", true)
+		return
+	}
+
+	fmt.Printf("%s[FAIL]%s %s\n", red, reset, formatLabel(sanitizeInline(r.Name)))
+	// Align with content after "[FAIL] ".
+	printDetails(r.Details, "       ", false)
+}
+
+// printDetails writes each detail under the result line, indenting every line of
+// it. A detail routinely spans several lines — a version banner, a stderr dump,
+// an HTTP body — and indenting the continuation lines is what keeps a checked
+// program from forging a result of its own: those start at column 0.
+//
+// Blank lines are left blank rather than indented, so no line carries trailing
+// whitespace.
+func printDetails(details []string, indent string, ok bool) {
+	for _, d := range details {
+		for i, line := range strings.Split(sanitizeBlock(d), "\n") {
+			switch {
+			case line == "":
+				fmt.Println()
+			case !ok:
+				fmt.Printf("%s%s%s%s\n", indent, red, line, reset)
+			case i == 0:
+				// Only the opening line carries the "label:" that dimming applies to.
+				fmt.Printf("%s%s\n", indent, formatLabel(line))
+			default:
+				fmt.Printf("%s%s\n", indent, line)
+			}
 		}
 	}
 }
 
-// sanitize renders control characters as escapes so that text a checked program
-// controls — a version banner, an HTTP body, an environment variable — cannot
-// forge result lines with a newline or redraw the terminal with an escape
-// sequence. Preflight's whole output is a claim about what was verified, so
-// nothing it reports may be able to write that claim itself.
-func sanitize(s string) string {
-	// Program output almost always ends in a newline, and escaping that one
-	// would just add a trailing `\n` to every such detail.
+// sanitizeInline renders every control character as an escape, newlines
+// included. It is for text that has to stay on one line: a result's name shares
+// its line with the [OK] marker, so a newline there would put whatever followed
+// at column 0, which is exactly what a forged result line looks like.
+func sanitizeInline(s string) string {
+	return escapeControl(s, func(r rune) bool { return r == '\t' })
+}
+
+// sanitizeBlock keeps newlines for the caller to indent, and escapes every other
+// control character. A carriage return still has to go: it returns to column 0
+// and overwrites what is already there, so it could rewrite a real result line.
+func sanitizeBlock(s string) string {
+	return escapeControl(s, func(r rune) bool { return r == '\t' || r == '\n' })
+}
+
+// escapeControl renders control characters as escapes, except the ones keep
+// accepts. Text a checked program controls — a version banner, an HTTP body, an
+// environment variable — must not be able to redraw the terminal or write
+// preflight's own claims about what was verified.
+//
+// Tabs are kept throughout: they only ever move right, so they cannot reach
+// column 0, and escaping them mangled the tab-aligned help text programs print
+// when a version flag is wrong.
+func escapeControl(s string, keep func(rune) bool) string {
+	// Program output almost always ends in a newline, and keeping that one would
+	// add a blank line under every such detail.
 	s = strings.TrimRight(s, " \t\r\n")
 
-	if !strings.ContainsFunc(s, unicode.IsControl) {
+	escaped := func(r rune) bool { return unicode.IsControl(r) && !keep(r) }
+	if !strings.ContainsFunc(s, escaped) {
 		return s
 	}
 
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
-		if unicode.IsControl(r) {
+		if escaped(r) {
 			// QuoteRune yields the familiar Go forms: '\n', '\x1b', ''.
 			b.WriteString(strings.Trim(strconv.QuoteRune(r), "'"))
 			continue
