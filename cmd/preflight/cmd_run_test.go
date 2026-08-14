@@ -41,7 +41,7 @@ func TestRunCommands(t *testing.T) {
 		assert.Equal(t, exe, gotName, "a path in the file must not become the program")
 	})
 
-	t.Run("propagates a child's exit code", func(t *testing.T) {
+	t.Run("a failing check exits 1", func(t *testing.T) {
 		failing := exec.Command("sh", "-c", "exit 42")
 		exitErr := failing.Run()
 		require.Error(t, exitErr)
@@ -50,7 +50,9 @@ func TestRunCommands(t *testing.T) {
 			return exitErr
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 42, code)
+		// The child is always preflight itself, which only ever exits 0 or 1,
+		// so there is no other code worth forwarding.
+		assert.Equal(t, 1, code)
 	})
 
 	t.Run("a non-exit failure is an error, not an exit code", func(t *testing.T) {
@@ -62,7 +64,9 @@ func TestRunCommands(t *testing.T) {
 		assert.Contains(t, err.Error(), "preflight env HOME")
 	})
 
-	t.Run("stops at the first failing command", func(t *testing.T) {
+	// The point of a preflight is one pass that reports everything wrong, not a
+	// fix-one-rerun loop, so a failing check must not hide the ones after it.
+	t.Run("runs every command even after one fails", func(t *testing.T) {
 		calls := 0
 		failing := exec.Command("sh", "-c", "exit 3")
 		exitErr := failing.Run()
@@ -76,8 +80,35 @@ func TestRunCommands(t *testing.T) {
 				return nil
 			})
 		require.NoError(t, err)
-		assert.Equal(t, 3, code)
-		assert.Equal(t, 2, calls, "must not keep running after a failure")
+		assert.Equal(t, 1, code)
+		assert.Equal(t, 3, calls, "a failure must not stop the checks after it")
+	})
+
+	t.Run("several failures still run everything and exit 1", func(t *testing.T) {
+		calls := 0
+		exitErr := exec.Command("sh", "-c", "exit 1").Run()
+
+		code, err := runCommands([]string{"preflight env A", "preflight env B", "preflight env C"}, exe,
+			func(string, []string) error {
+				calls++
+				return exitErr
+			})
+		require.NoError(t, err)
+		assert.Equal(t, 1, code)
+		assert.Equal(t, 3, calls)
+	})
+
+	// A failure to spawn is not a check result, so it still stops the run: the
+	// remaining lines would fail the same way and bury the real cause.
+	t.Run("a non-exit failure stops the run", func(t *testing.T) {
+		calls := 0
+		_, err := runCommands([]string{"preflight env A", "preflight env B"}, exe,
+			func(string, []string) error {
+				calls++
+				return errors.New("fork failed")
+			})
+		require.Error(t, err)
+		assert.Equal(t, 1, calls)
 	})
 
 	t.Run("blank commands are skipped without running anything", func(t *testing.T) {

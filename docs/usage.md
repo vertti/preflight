@@ -1206,6 +1206,26 @@ preflight tcp localhost:5432
 - Lines without `preflight` prefix are automatically prepended with `preflight`
 - Commands execute sequentially
 
+Every check runs, including the ones after a failure, so a single pass reports
+everything wrong with the environment rather than one problem at a time. A
+summary follows the results, and the exit code is `1` if any check failed:
+
+```
+[OK] cmd: git
+     path: /usr/bin/git
+     version: git version 2.55.0
+[FAIL] cmd: ffmpeg
+       not found in PATH
+[FAIL] env: DATABASE_URL
+       not set
+
+2 of 3 checks failed
+```
+
+A command that cannot be started at all — as opposed to a check that fails — is
+a different problem and does stop the run, since every remaining line would fail
+the same way.
+
 ### File Discovery
 
 When run without `--file`, `preflight run` searches for a `.preflight` file:

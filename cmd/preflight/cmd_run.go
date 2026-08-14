@@ -66,10 +66,16 @@ func spawn(name string, args []string) error {
 	return cmd.Run()
 }
 
-// runCommands executes each .preflight command, returning the exit code to
+// runCommands executes every .preflight command, returning the exit code to
 // propagate. run is injected so the loop — including the substitution below —
 // can be tested without spawning processes or calling os.Exit.
+//
+// A failing check no longer ends the run. The point of a preflight is a single
+// pass that reports everything wrong with an environment; stopping at the first
+// failure turned that into fix one, rerun, find the next.
 func runCommands(commands []string, executable string, run func(name string, args []string) error) (exitCode int, err error) {
+	ran, failed := 0, 0
+
 	for _, command := range commands {
 		parts := strings.Fields(command)
 		if len(parts) == 0 {
@@ -81,14 +87,24 @@ func runCommands(commands []string, executable string, run func(name string, arg
 		// never turn a .preflight line into a path to some other binary.
 		parts[0] = executable
 
+		ran++
 		if err := run(parts[0], parts[1:]); err != nil {
+			// Failing to spawn is not a check result. The remaining lines would
+			// fail the same way, so stop rather than repeat the same error.
 			var exitError *exec.ExitError
-			if errors.As(err, &exitError) {
-				return exitError.ExitCode(), nil
+			if !errors.As(err, &exitError) {
+				return 0, fmt.Errorf("failed to execute command %q: %w", command, err)
 			}
-			return 0, fmt.Errorf("failed to execute command %q: %w", command, err)
+			failed++
 		}
 		checkRan = true
+	}
+
+	if failed > 0 {
+		fmt.Printf("\n%d of %d checks failed\n", failed, ran)
+		// The child is always preflight itself, which only ever exits 0 or 1,
+		// so there is no other code worth forwarding.
+		return 1, nil
 	}
 
 	return 0, nil
