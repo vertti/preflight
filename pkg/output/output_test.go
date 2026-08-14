@@ -337,10 +337,14 @@ func TestIsCIEnvironment(t *testing.T) {
 }
 
 // Details carry text that a checked program controls: a version banner, an HTTP
-// response, an environment variable. Printed verbatim, a newline lets that
-// program forge whole result lines and an escape sequence lets it redraw the
-// terminal, which is a problem for a tool whose entire output is a claim about
-// what was verified.
+// response, an environment variable. Printed verbatim, an escape sequence lets
+// that program redraw the terminal, which is a problem for a tool whose entire
+// output is a claim about what was verified.
+//
+// A newline is different. Escaping it made a program's own line breaks unreadable
+// — 40 lines of `go help` arrived as one line of literal \n — when indenting the
+// continuation lines gives the same guarantee: result lines start at column 0,
+// and nothing a checked program emits ever does.
 func TestPrintResult_NeutralisesControlCharactersFromCheckedPrograms(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -355,7 +359,23 @@ func TestPrintResult_NeutralisesControlCharactersFromCheckedPrograms(t *testing.
 				Details: []string{"version: 1.0\n[OK] cmd: postgres\n     version: 14.2"},
 			},
 			want: `[OK] cmd: evil
-     version: 1.0\n[OK] cmd: postgres\n     version: 14.2
+     version: 1.0
+     [OK] cmd: postgres
+          version: 14.2
+`,
+		},
+		{
+			name: "multi-line output keeps its line breaks",
+			result: check.Result{
+				Name:    "cmd: go",
+				Status:  check.StatusFail,
+				Details: []string{"stderr: usage: go <command>\n\nThe commands are:\n\tbuild\tcompile packages"},
+			},
+			want: `[FAIL] cmd: go
+       stderr: usage: go <command>
+
+       The commands are:
+       	build	compile packages
 `,
 		},
 		{
@@ -370,18 +390,19 @@ func TestPrintResult_NeutralisesControlCharactersFromCheckedPrograms(t *testing.
 `,
 		},
 		{
-			name: "a failing check is neutralised too",
+			name: "a carriage return is still escaped, so it cannot return to column 0",
 			result: check.Result{
 				Name:    "http: /health",
 				Status:  check.StatusFail,
 				Details: []string{"body: bad\r\n[OK] http: /health"},
 			},
 			want: `[FAIL] http: /health
-       body: bad\r\n[OK] http: /health
+       body: bad\r
+       [OK] http: /health
 `,
 		},
 		{
-			name: "the check name is not a way in either",
+			name: "the name stays on one line, because it shares one with the marker",
 			result: check.Result{
 				Name:    "env: X\n[OK] env: SECRET",
 				Status:  check.StatusOK,
@@ -391,7 +412,7 @@ func TestPrintResult_NeutralisesControlCharactersFromCheckedPrograms(t *testing.
 `,
 		},
 		{
-			name: "a trailing newline is dropped rather than escaped",
+			name: "a trailing newline is dropped rather than printed as a blank line",
 			result: check.Result{
 				Name:    "cmd: brokenbin",
 				Status:  check.StatusFail,
