@@ -62,8 +62,14 @@ func TestEnvCheck_Run(t *testing.T) {
 		{"match pattern fails", Check{Name: "DATABASE_URL", Match: `^postgres://`, Getter: env(map[string]string{"DATABASE_URL": "mysql://localhost:3306/db"})}, check.StatusFail, `does not match pattern`},
 
 		// --exact
-		{"exact value passes", Check{Name: "NODE_ENV", Exact: "production", Getter: env(map[string]string{"NODE_ENV": "production"})}, check.StatusOK, ""},
-		{"exact value fails", Check{Name: "NODE_ENV", Exact: "production", Getter: env(map[string]string{"NODE_ENV": "development"})}, check.StatusFail, `does not equal "production"`},
+		{"exact value passes", Check{Name: "NODE_ENV", Exact: testutil.Ptr("production"), Getter: env(map[string]string{"NODE_ENV": "production"})}, check.StatusOK, ""},
+		{"exact value fails", Check{Name: "NODE_ENV", Exact: testutil.Ptr("production"), Getter: env(map[string]string{"NODE_ENV": "development"})}, check.StatusFail, `does not equal "production"`},
+
+		// Empty is a value like any other. It used to be indistinguishable from
+		// "--exact was not given", so asserting a variable is empty was impossible.
+		{"exact empty passes", Check{Name: "OPT", AllowEmpty: true, Exact: testutil.Ptr(""), Getter: env(map[string]string{"OPT": ""})}, check.StatusOK, ""},
+		{"exact empty fails on a set value", Check{Name: "OPT", AllowEmpty: true, Exact: testutil.Ptr(""), Getter: env(map[string]string{"OPT": "value"})}, check.StatusFail, `does not equal ""`},
+		{"no exact given checks nothing", Check{Name: "OPT", Getter: env(map[string]string{"OPT": "anything"})}, check.StatusOK, ""},
 
 		// --one-of
 		{"one-of passes", Check{Name: "NODE_ENV", OneOf: []string{"dev", "staging", "production"}, Getter: env(map[string]string{"NODE_ENV": "production"})}, check.StatusOK, ""},

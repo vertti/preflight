@@ -44,10 +44,10 @@ func TestJSONCheck_Run(t *testing.T) {
 		{"has-key on non-object", Check{File: "f.json", HasKey: "name.nested", FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "name.nested" not found`},
 
 		// --key + --exact
-		{"key exact match", Check{File: "f.json", Key: "env", Exact: "production", FS: fs(`{"env": "production"}`)}, check.StatusOK, "key env: production"},
-		{"key exact mismatch", Check{File: "f.json", Key: "env", Exact: "production", FS: fs(`{"env": "development"}`)}, check.StatusFail, `value "development" does not equal "production"`},
-		{"key exact nested", Check{File: "f.json", Key: "db.host", Exact: "localhost", FS: fs(`{"db": {"host": "localhost"}}`)}, check.StatusOK, "key db.host: localhost"},
-		{"key not found", Check{File: "f.json", Key: "missing", Exact: "value", FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "missing" not found`},
+		{"key exact match", Check{File: "f.json", Key: "env", Exact: testutil.Ptr("production"), FS: fs(`{"env": "production"}`)}, check.StatusOK, "key env: production"},
+		{"key exact mismatch", Check{File: "f.json", Key: "env", Exact: testutil.Ptr("production"), FS: fs(`{"env": "development"}`)}, check.StatusFail, `value "development" does not equal "production"`},
+		{"key exact nested", Check{File: "f.json", Key: "db.host", Exact: testutil.Ptr("localhost"), FS: fs(`{"db": {"host": "localhost"}}`)}, check.StatusOK, "key db.host: localhost"},
+		{"key not found", Check{File: "f.json", Key: "missing", Exact: testutil.Ptr("value"), FS: fs(`{"name": "test"}`)}, check.StatusFail, `key "missing" not found`},
 
 		// --key + --match
 		{"key match pattern", Check{File: "f.json", Key: "version", Match: `^1\.`, FS: fs(`{"version": "1.2.3"}`)}, check.StatusOK, "key version: 1.2.3"},
@@ -55,9 +55,14 @@ func TestJSONCheck_Run(t *testing.T) {
 		{"key match invalid regex", Check{File: "f.json", Key: "version", Match: `[invalid`, FS: fs(`{"version": "1.0.0"}`)}, check.StatusFail, "invalid regex pattern"},
 
 		// Non-string value coercion
-		{"key exact number", Check{File: "f.json", Key: "port", Exact: "8080", FS: fs(`{"port": 8080}`)}, check.StatusOK, "key port: 8080"},
-		{"key exact boolean", Check{File: "f.json", Key: "enabled", Exact: "true", FS: fs(`{"enabled": true}`)}, check.StatusOK, "key enabled: true"},
-		{"key exact null", Check{File: "f.json", Key: "value", Exact: "null", FS: fs(`{"value": null}`)}, check.StatusOK, "key value: null"},
+		{"key exact number", Check{File: "f.json", Key: "port", Exact: testutil.Ptr("8080"), FS: fs(`{"port": 8080}`)}, check.StatusOK, "key port: 8080"},
+		{"key exact boolean", Check{File: "f.json", Key: "enabled", Exact: testutil.Ptr("true"), FS: fs(`{"enabled": true}`)}, check.StatusOK, "key enabled: true"},
+		{"key exact null", Check{File: "f.json", Key: "value", Exact: testutil.Ptr("null"), FS: fs(`{"value": null}`)}, check.StatusOK, "key value: null"},
+
+		// Empty is a value like any other. It used to be indistinguishable from
+		// "--exact was not given", so asserting a key is "" was impossible.
+		{"key exact empty string", Check{File: "f.json", Key: "name", Exact: testutil.Ptr(""), FS: fs(`{"name": ""}`)}, check.StatusOK, "key name: "},
+		{"key exact empty fails on a set value", Check{File: "f.json", Key: "name", Exact: testutil.Ptr(""), FS: fs(`{"name": "x"}`)}, check.StatusFail, `does not equal ""`},
 		{"key match float", Check{File: "f.json", Key: "rate", Match: `^0\.5`, FS: fs(`{"rate": 0.5}`)}, check.StatusOK, "key rate: 0.5"},
 	}
 

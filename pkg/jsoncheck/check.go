@@ -12,7 +12,7 @@ type Check struct {
 	File   string     // path to JSON file
 	HasKey string     // --has-key: check key exists (dot notation)
 	Key    string     // --key: key to check value of
-	Exact  string     // --exact: expected exact value (requires --key)
+	Exact  *string    // --exact: expected exact value (nil = flag not given, so "" is assertable)
 	Match  string     // --match: regex pattern for value (requires --key)
 	FS     FileSystem // injected for testing
 }
@@ -61,8 +61,8 @@ func (c *Check) Run() check.Result {
 		valueStr := jsonResult.String()
 
 		// --exact: exact value match
-		if c.Exact != "" && valueStr != c.Exact {
-			return result.Failf("value %q does not equal %q", valueStr, c.Exact)
+		if c.Exact != nil && valueStr != *c.Exact {
+			return result.Failf("value %q does not equal %q", valueStr, *c.Exact)
 		}
 
 		// --match: regex pattern
