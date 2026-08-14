@@ -735,11 +735,20 @@ func TestIntegration_Run(t *testing.T) {
 		assert.Contains(t, out, "[OK] env: PATH")
 	})
 
-	t.Run("a failing check propagates exit 1 and stops", func(t *testing.T) {
+	t.Run("a failing check exits 1 without hiding the checks after it", func(t *testing.T) {
 		out, code := run(t, "env PREFLIGHT_DEFINITELY_UNSET_XYZ\nenv PATH\n")
 		assert.Equal(t, 1, code)
 		assert.Contains(t, out, "[FAIL]")
-		assert.NotContains(t, out, "[OK] env: PATH", "must stop at the first failure")
+		assert.Contains(t, out, "[OK] env: PATH", "a failure must not stop the checks after it")
+		assert.Contains(t, out, "1 of 2 checks failed")
+	})
+
+	t.Run("every failure is reported, not just the first", func(t *testing.T) {
+		out, code := run(t, "env PREFLIGHT_UNSET_ONE\nenv PATH\nenv PREFLIGHT_UNSET_TWO\n")
+		assert.Equal(t, 1, code)
+		assert.Contains(t, out, "[FAIL] env: PREFLIGHT_UNSET_ONE")
+		assert.Contains(t, out, "[FAIL] env: PREFLIGHT_UNSET_TWO")
+		assert.Contains(t, out, "2 of 3 checks failed")
 	})
 
 	t.Run("a line naming another binary does not run it", func(t *testing.T) {
