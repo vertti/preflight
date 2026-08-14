@@ -18,7 +18,7 @@ type Check struct {
 	NotSet     bool       // --not-set: verify variable is NOT defined
 	AllowEmpty bool       // --allow-empty: pass if defined but empty
 	Match      string     // --match: regex pattern
-	Exact      string     // --exact: exact value
+	Exact      *string    // --exact: exact value (nil = flag not given, so "" is assertable)
 	OneOf      []string   // --one-of: value must be one of these
 	HideValue  bool       // --hide-value: don't show value in output
 	MaskValue  bool       // --mask-value: show first/last 3 chars
@@ -80,8 +80,8 @@ func (c *Check) Run() check.Result {
 	}
 
 	// --exact: exact value match
-	if c.Exact != "" && value != c.Exact {
-		return result.Failf("%q does not equal %q", c.formatValue(value), c.Exact)
+	if c.Exact != nil && value != *c.Exact {
+		return result.Failf("%q does not equal %q", c.formatValue(value), *c.Exact)
 	}
 
 	// --one-of: value must be one of the allowed values

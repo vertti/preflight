@@ -28,6 +28,7 @@ import (
 	"github.com/vertti/preflight/pkg/resourcecheck"
 	"github.com/vertti/preflight/pkg/syscheck"
 	"github.com/vertti/preflight/pkg/tcpcheck"
+	"github.com/vertti/preflight/pkg/testutil"
 	"github.com/vertti/preflight/pkg/usercheck"
 )
 
@@ -295,7 +296,7 @@ func TestIntegration_JSON(t *testing.T) {
 	c = jsoncheck.Check{
 		File:  tmpFile.Name(),
 		Key:   "version",
-		Exact: "1.2.3",
+		Exact: testutil.Ptr("1.2.3"),
 		FS:    &jsoncheck.RealFileSystem{},
 	}
 

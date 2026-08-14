@@ -30,11 +30,12 @@ func init() {
 	rootCmd.AddCommand(jsonCmd)
 }
 
-func runJSONCheck(_ *cobra.Command, args []string) error {
+func runJSONCheck(cmd *cobra.Command, args []string) error {
 	file := args[0]
 
 	// Validate flag combinations
-	if (jsonExact != "" || jsonMatch != "") && jsonKey == "" {
+	exactGiven := cmd.Flags().Changed("exact")
+	if (exactGiven || jsonMatch != "") && jsonKey == "" {
 		return errors.New("--exact and --match require --key to be set")
 	}
 
@@ -42,9 +43,14 @@ func runJSONCheck(_ *cobra.Command, args []string) error {
 		File:   file,
 		HasKey: jsonHasKey,
 		Key:    jsonKey,
-		Exact:  jsonExact,
 		Match:  jsonMatch,
 		FS:     &jsoncheck.RealFileSystem{},
+	}
+
+	// Only set if given, so `--exact ""` asserts the value is the empty string
+	// rather than reading as "no --exact".
+	if exactGiven {
+		c.Exact = &jsonExact
 	}
 
 	return runCheck(c)

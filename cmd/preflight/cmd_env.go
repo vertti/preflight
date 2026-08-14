@@ -70,7 +70,6 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 		NotSet:     envNotSet,
 		AllowEmpty: envAllowEmpty,
 		Match:      envMatch,
-		Exact:      envExact,
 		OneOf:      envOneOf,
 		HideValue:  envHideValue,
 		MaskValue:  envMaskValue,
@@ -90,7 +89,11 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 		Stater:     &envcheck.RealFileStater{},
 	}
 
-	// Only set MinValue/MaxValue if the flags were explicitly provided
+	// Only set these if the flags were explicitly provided. For --exact that is
+	// what makes `--exact ""` mean "must be empty" rather than "not given".
+	if cmd.Flags().Changed("exact") {
+		c.Exact = &envExact
+	}
 	if cmd.Flags().Changed("min-value") {
 		c.MinValue = &envMinValue
 	}

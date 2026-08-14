@@ -146,6 +146,13 @@ that fails still won't print the value. Neither flag reveals the value's exact
 length: `--min-len 32` on a hidden value reports
 `value length [hidden] < minimum 32`.
 
+`--exact ""` asserts the variable is empty, which needs `--allow-empty` too
+since an empty value fails by default:
+
+```sh
+preflight env OPTIONAL_OVERRIDE --allow-empty --exact ""
+```
+
 > **Values are printed by default.** `preflight env DATABASE_URL` reports
 > `value: postgres://user:password@host/db`. That is what you want for a
 > `MODEL_PATH` and not what you want for a credential, and the places preflight
@@ -286,6 +293,9 @@ preflight json <file> [flags]
 | `--key <path>`      | Key to check value of (dot notation for nested keys) |
 | `--exact <value>`   | Exact value required (requires `--key`)              |
 | `--match <pattern>` | Regex pattern for value (requires `--key`)           |
+
+`--exact ""` asserts the key's value is the empty string, as distinct from not
+passing `--exact` at all.
 
 ### Examples
 
