@@ -29,15 +29,15 @@ func (c *Check) Run() check.Result {
 		return result.Failf("failed to read file: %v", err)
 	}
 
-	// Validate JSON syntax using encoding/json for detailed errors
+	// jsonpath.Valid answers yes or no; Unmarshal is what reports where the
+	// document went wrong, which is the only thing worth telling the user.
 	jsonStr := string(content)
 	if !jsonpath.Valid(jsonStr) {
-		// Use encoding/json to get detailed parse error
 		var v any
 		if err := json.Unmarshal(content, &v); err != nil {
 			return result.Failf("invalid JSON: %v", err)
 		}
-		// Fallback if gjson says invalid but encoding/json passes (shouldn't happen)
+		// Both are encoding/json underneath, so disagreeing would be a bug in it.
 		return result.Failf("invalid JSON")
 	}
 
@@ -58,11 +58,7 @@ func (c *Check) Run() check.Result {
 			return result.Failf("key %q not found", c.Key)
 		}
 
-		// Use String() for most values, but handle null specially
 		valueStr := jsonResult.String()
-		if jsonResult.IsNull() {
-			valueStr = "null"
-		}
 
 		// --exact: exact value match
 		if c.Exact != nil && valueStr != *c.Exact {
