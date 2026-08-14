@@ -69,15 +69,24 @@ main() {
     echo "Downloading binary..."
     curl -fsSL "$URL" -o "$TMP_FILE"
 
-    # Verify checksum
+    # Verify checksum. Both tools exit non-zero when nothing was verified, so
+    # --ignore-missing cannot turn a missing entry into a silent pass, and set -e
+    # aborts on a mismatch.
     echo "Verifying checksum..."
     cd "$TMP_DIR"
     if command -v sha256sum >/dev/null 2>&1; then
         sha256sum -c checksums.txt --ignore-missing
     elif command -v shasum >/dev/null 2>&1; then
         shasum -a 256 -c checksums.txt --ignore-missing
+    elif [ "${PREFLIGHT_SKIP_CHECKSUM:-}" = "1" ]; then
+        echo "Warning: installing without verifying the checksum (PREFLIGHT_SKIP_CHECKSUM=1)"
     else
-        echo "Warning: Could not verify checksum (sha256sum/shasum not found)"
+        # Installing a binary nobody verified is the one outcome this script must
+        # not reach on its own. A minimal image without either tool can opt in.
+        echo "Error: cannot verify checksum, neither sha256sum nor shasum is installed." >&2
+        echo "Install one of them, or re-run with PREFLIGHT_SKIP_CHECKSUM=1 to skip verification." >&2
+        rm -rf "$TMP_DIR"
+        exit 1
     fi
     cd - >/dev/null
 
