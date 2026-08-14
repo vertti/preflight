@@ -203,6 +203,11 @@ preflight file <path> [flags]
 | `--mode-exact <perms>`    | Exact permissions required                           |
 | `--owner <uid>`           | Expected owner UID                                   |
 
+`--not-empty`, `--min-size`, `--max-size`, `--contains`, and `--match` need a
+regular file. Pointing them at a directory fails the check rather than skipping
+it — a size or content constraint that silently evaluated nothing would report
+`[OK]` for something never verified. The remaining flags work on directories.
+
 ### Examples
 
 ```sh
