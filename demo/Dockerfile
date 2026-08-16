@@ -1,6 +1,6 @@
 FROM node:24-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 
-COPY --from=ghcr.io/vertti/preflight:latest@sha256:e108e901132f62b4d3e611dcf259af4c27fa6f4d6134727604538892d5e531d9 /preflight /usr/local/bin/preflight
+COPY --from=ghcr.io/vertti/preflight:latest@sha256:637e113c1c353048991fd0acbb00e834c9d457bda4dc223a3f26e5b5d43f4667 /preflight /usr/local/bin/preflight
 
 ENV PREFLIGHT_COLOR=1
 ENV APP_ENV=production
