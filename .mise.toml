@@ -1,6 +1,6 @@
 [tools]
 go = "1.26.6"
-golangci-lint = "2.12.2"
+golangci-lint = "2.13.1"
 dprint = "0.55.2"
 hk = "1.55.0"
 pkl = "0.32.1"
