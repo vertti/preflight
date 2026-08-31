@@ -2,7 +2,7 @@
 go = "1.26.6"
 golangci-lint = "2.12.2"
 dprint = "0.55.2"
-hk = "1.55.0"
+hk = "1.57.0"
 pkl = "0.32.1"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
 
