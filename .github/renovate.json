@@ -5,6 +5,7 @@
   "mode": "full",
   "prHourlyLimit": 10,
   "labels": ["dependencies"],
+  "automergeStrategy": "merge-commit",
   "packageRules": [
     {
       "description": "Automerge GitHub Actions updates",
@@ -13,14 +14,21 @@
       "automerge": true
     },
     {
-      "description": "Automerge linters, formatters, test tools, and Go",
-      "matchPackageNames": [
-        "golangci-lint",
-        "dprint",
-        "go",
-        "github.com/stretchr/testify"
-      ],
+      "description": "Automerge mise dev tools (Go toolchain, linters, formatters, hooks)",
+      "matchManagers": ["mise"],
       "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge test-only Go modules",
+      "matchDepNames": ["github.com/stretchr/testify"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge Docker image digest updates",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest"],
       "automerge": true
     }
   ]
