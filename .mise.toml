@@ -4,7 +4,7 @@ golangci-lint = "2.14.0"
 dprint = "0.62.0"
 hk = "2.5.0"
 pkl = "0.32.1"
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
 
 [tasks.build]
 description = "Build the preflight binary"
