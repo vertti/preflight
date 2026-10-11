@@ -1,7 +1,7 @@
 [tools]
 go = "1.27.2"
 golangci-lint = "2.14.0"
-dprint = "0.61.1"
+dprint = "0.62.0"
 hk = "2.5.0"
 pkl = "0.32.1"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
