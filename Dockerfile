@@ -2,7 +2,7 @@
 # to look, so every `preflight http https://...` fails with "certificate signed
 # by unknown authority". Alpine's bundle is ~220KB and is already a maintained
 # artifact, so take it rather than shipping certificates from this repo.
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS certs
+FROM alpine:3.24@sha256:c6b073f8e9e58d881f6ffba6ebf3b9ebd60b9e7d6e8337018c0e68bb5c356873 AS certs
 
 FROM scratch
 ARG TARGETARCH
